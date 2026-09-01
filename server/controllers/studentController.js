@@ -1,0 +1,244 @@
+const bcrypt = require('bcryptjs');
+const db = require('../db');
+
+// Calculate batch automatically: Roll 1-30 -> Batch 1; Roll 31+ -> Batch 2
+function determineBatch(rollNumber) {
+  const roll = parseInt(rollNumber, 10);
+  if (isNaN(roll)) return 'Batch 1';
+  return roll <= 30 ? 'Batch 1' : 'Batch 2';
+}
+
+// 1. Admin Add Student (Strictly 4 input fields: Name, UG ID, Password, Roll Number)
+async function addStudent(req, res) {
+  try {
+    const { name, ug_id, password, roll_number } = req.body;
+
+    // Strict validation of the 4 fields
+    if (!name || !ug_id || !password || roll_number === undefined || roll_number === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'All 4 fields are required: Student Name, UG ID, Password, and Roll Number.'
+      });
+    }
+
+    const cleanUgId = ug_id.trim().toUpperCase();
+    const cleanName = name.trim();
+    const rollNum = parseInt(roll_number, 10);
+
+    if (isNaN(rollNum) || rollNum <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Roll Number must be a positive integer.'
+      });
+    }
+
+    // Check if UG ID already exists
+    const existing = await db.get("SELECT id FROM students WHERE UPPER(ug_id) = ?", [cleanUgId]);
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        message: `Student with UG ID ${cleanUgId} already exists.`
+      });
+    }
+
+    // Check if Roll Number already exists in the same division
+    const existingRoll = await db.get("SELECT id, name FROM students WHERE roll_number = ? AND division = '3CYBER7'", [rollNum]);
+    if (existingRoll) {
+      return res.status(409).json({
+        success: false,
+        message: `Roll Number ${rollNum} is already assigned to ${existingRoll.name}.`
+      });
+    }
+
+    // Automatic Configuration (Requirement #6, #7, #8)
+    const program = 'B.Tech Cyber Security';
+    const year = '2nd Year';
+    const semester = '3rd Semester';
+    const division = '3CYBER7';
+    const academicYear = '2026-27';
+    const batch = determineBatch(rollNum);
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Insert student record (STRICT: NO email, mobile, dob, parent fields)
+    const result = await db.run(`
+      INSERT INTO students (
+        ug_id, name, password_hash, roll_number, batch, program, year, semester, division, academic_year, status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE')
+    `, [cleanUgId, cleanName, passwordHash, rollNum, batch, program, year, semester, division, academicYear]);
+
+    // Insert user auth entry
+    await db.run(
+      "INSERT INTO users (role, ug_id, password_hash, status) VALUES (?, ?, ?, 'ACTIVE')",
+      ['STUDENT', cleanUgId, passwordHash]
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: `Student ${cleanName} created successfully with UG ID ${cleanUgId}. Automatically assigned to ${batch}.`,
+      student: {
+        id: result.id,
+        ug_id: cleanUgId,
+        name: cleanName,
+        roll_number: rollNum,
+        batch,
+        program,
+        year,
+        semester,
+        division,
+        academic_year: academicYear,
+        status: 'ACTIVE'
+      }
+    });
+  } catch (err) {
+    console.error('[StudentController] addStudent error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to create student.' });
+  }
+}
+
+// 2. Get All Students (Supports search, batch filtering, pagination)
+async function getAllStudents(req, res) {
+  try {
+    const { batch, search, page = 1, limit = 100 } = req.query;
+    let sql = "SELECT id, ug_id, name, roll_number, batch, program, year, semester, division, academic_year, profile_photo_url, status, created_at FROM students WHERE 1=1";
+    const params = [];
+
+    if (batch && (batch === 'Batch 1' || batch === 'Batch 2')) {
+      sql += " AND batch = ?";
+      params.push(batch);
+    }
+
+    if (search && search.trim() !== '') {
+      sql += " AND (UPPER(name) LIKE ? OR UPPER(ug_id) LIKE ? OR CAST(roll_number AS TEXT) LIKE ?)";
+      const s = `%${search.trim().toUpperCase()}%`;
+      params.push(s, s, s);
+    }
+
+    sql += " ORDER BY roll_number ASC";
+
+    const students = await db.query(sql, params);
+
+    // Calculate Summary Stats
+    const total = students.length;
+    const batch1Count = students.filter(s => s.batch === 'Batch 1').length;
+    const batch2Count = students.filter(s => s.batch === 'Batch 2').length;
+
+    return res.json({
+      success: true,
+      data: students,
+      stats: {
+        total,
+        batch1: batch1Count,
+        batch2: batch2Count
+      }
+    });
+  } catch (err) {
+    console.error('[StudentController] getAllStudents error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch students list.' });
+  }
+}
+
+// 3. Get Single Student
+async function getStudentById(req, res) {
+  try {
+    const { id } = req.params;
+    const student = await db.get(
+      "SELECT id, ug_id, name, roll_number, batch, program, year, semester, division, academic_year, profile_photo_url, status, created_at FROM students WHERE id = ? OR ug_id = ?",
+      [id, id]
+    );
+
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Student not found.' });
+    }
+
+    return res.json({ success: true, data: student });
+  } catch (err) {
+    console.error('[StudentController] getStudentById error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch student details.' });
+  }
+}
+
+// 4. Update Student
+async function updateStudent(req, res) {
+  try {
+    const { id } = req.params;
+    const { name, roll_number, password, status } = req.body;
+
+    const student = await db.get("SELECT * FROM students WHERE id = ? OR ug_id = ?", [id, id]);
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Student not found.' });
+    }
+
+    let updatedBatch = student.batch;
+    let rollNum = student.roll_number;
+
+    if (roll_number !== undefined && roll_number !== '') {
+      rollNum = parseInt(roll_number, 10);
+      updatedBatch = determineBatch(rollNum);
+    }
+
+    const updatedName = name ? name.trim() : student.name;
+    const updatedStatus = status || student.status;
+
+    let updatedPassHash = student.password_hash;
+    if (password && password.trim() !== '') {
+      updatedPassHash = await bcrypt.hash(password.trim(), 10);
+      await db.run("UPDATE users SET password_hash = ? WHERE ug_id = ?", [updatedPassHash, student.ug_id]);
+    }
+
+    await db.run(`
+      UPDATE students
+      SET name = ?, roll_number = ?, batch = ?, status = ?, password_hash = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `, [updatedName, rollNum, updatedBatch, updatedStatus, updatedPassHash, student.id]);
+
+    return res.json({
+      success: true,
+      message: 'Student updated successfully.',
+      student: {
+        id: student.id,
+        ug_id: student.ug_id,
+        name: updatedName,
+        roll_number: rollNum,
+        batch: updatedBatch,
+        status: updatedStatus
+      }
+    });
+  } catch (err) {
+    console.error('[StudentController] updateStudent error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to update student.' });
+  }
+}
+
+// 5. Delete Student
+async function deleteStudent(req, res) {
+  try {
+    const { id } = req.params;
+    const student = await db.get("SELECT * FROM students WHERE id = ? OR ug_id = ?", [id, id]);
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Student not found.' });
+    }
+
+    // Delete auth user & student
+    await db.run("DELETE FROM users WHERE ug_id = ?", [student.ug_id]);
+    await db.run("DELETE FROM students WHERE id = ?", [student.id]);
+    await db.run("DELETE FROM attendance_records WHERE ug_id = ?", [student.ug_id]);
+    await db.run("DELETE FROM attendance_manual WHERE ug_id = ?", [student.ug_id]);
+
+    return res.json({
+      success: true,
+      message: `Student ${student.name} (${student.ug_id}) deleted successfully.`
+    });
+  } catch (err) {
+    console.error('[StudentController] deleteStudent error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to delete student.' });
+  }
+}
+
+module.exports = {
+  addStudent,
+  getAllStudents,
+  getStudentById,
+  updateStudent,
+  deleteStudent
+};
