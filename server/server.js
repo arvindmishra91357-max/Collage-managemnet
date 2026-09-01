@@ -43,7 +43,7 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
-    app: 'Parul University B.Tech Cyber Security Student Portal & Admin Panel',
+    app: 'Mishra Group Institute B.Tech Cyber Security Student Portal & Admin Panel',
     division: '3CYBER7',
     semester: '3rd Semester',
     academicYear: '2026-27',
@@ -184,11 +184,9 @@ async function startServer() {
     await db.initDB();
     app.listen(PORT, () => {
       console.log(`====================================================`);
-      console.log(`🚀 Parul University Student Portal & Admin Backend`);
+      console.log(`🚀 Mishra Group Institute Student Portal & Admin Backend`);
       console.log(`   Running at: http://localhost:${PORT}`);
       console.log(`   Division: 3CYBER7 | Academic Year: 2026-27`);
-      console.log(`   Demo Student: 26UG033181 / Demo@123`);
-      console.log(`   Admin Login : admin / Admin@123`);
       console.log(`====================================================`);
     });
   } catch (err) {

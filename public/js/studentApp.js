@@ -32,7 +32,7 @@ const StudentApp = {
               </svg>
             </div>
             <div class="brand-text">
-              <h1>PARUL UNIVERSITY</h1>
+              <h1>MISHRA GROUP INSTITUTE</h1>
               <span>3CYBER7 • B.Tech</span>
             </div>
           </div>

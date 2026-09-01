@@ -1,7 +1,7 @@
 {
-  "name": "parul-university-portal",
+  "name": "mishra-group-institute-portal",
   "version": "1.0.0",
-  "description": "Production-Ready Responsive Web App & PWA for Parul University B.Tech Cyber Security Student Portal and Admin Panel",
+  "description": "Production-Ready Responsive Web App & PWA for Mishra Group Institute B.Tech Cyber Security Student Portal and Admin Panel",
   "main": "server/server.js",
   "scripts": {
     "start": "node server/server.js",
@@ -13,7 +13,7 @@
   "keywords": [
     "pwa",
     "student-portal",
-    "parul-university",
+    "mishra-group-institute",
     "attendance",
     "qr-attendance",
     "geofencing",

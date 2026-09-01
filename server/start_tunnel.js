@@ -16,7 +16,7 @@ async function getPublicIP() {
 
 function printBanner(url, method = 'Cloudflare Quick Tunnel (Direct HTTPS)') {
   console.log(`\n======================================================`);
-  console.log(`🎉 PARUL UNIVERSITY PORTAL IS NOW LIVE ONLINE!`);
+  console.log(`🎉 MISHRA GROUP INSTITUTE PORTAL IS NOW LIVE ONLINE!`);
   console.log(`======================================================`);
   console.log(`🌐 Public Online URL : ${url}`);
   console.log(`🔒 Security Provider : ${method}`);
@@ -69,7 +69,7 @@ async function tryFallback(port) {
     const lt = await localtunnel({ port });
     const ip = await getPublicIP();
     console.log(`\n======================================================`);
-    console.log(`🎉 PARUL UNIVERSITY PORTAL IS NOW LIVE ONLINE!`);
+    console.log(`🎉 MISHRA GROUP INSTITUTE PORTAL IS NOW LIVE ONLINE!`);
     console.log(`======================================================`);
     console.log(`🌐 Public Online URL : ${lt.url}`);
     console.log(`🔑 Tunnel Password   : ${ip}`);

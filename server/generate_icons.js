@@ -39,8 +39,8 @@ const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" w
   
   <!-- Text Label -->
   <text x="256" y="440" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" 
-        font-size="34" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="4">
-    PARUL UNIVERSITY
+        font-size="28" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="3">
+    MISHRA GROUP INSTITUTE
   </text>
   <text x="256" y="475" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" 
         font-size="20" font-weight="600" fill="#38bdf8" text-anchor="middle" letter-spacing="2">

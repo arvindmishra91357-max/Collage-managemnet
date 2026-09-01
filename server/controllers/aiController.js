@@ -82,7 +82,7 @@ async function chatWithAI(req, res) {
       if (pattern.test(queryText)) {
         return res.json({
           success: true,
-          response: `🛡️ **Security Notice**: I am your **Parul University Academic AI Tutor**. I am programmed with strict privacy & security protocols.\n\nI cannot access, reveal, or assist with private student data, passwords, administrative controls, or system modifications.\n\n💡 *How can I help you with your B.Tech Cyber Security coursework (DBMS, DSA, Java, NCS, FCS, COMA, DM) today?*`
+          response: `🛡️ **Security Notice**: I am your **Mishra Group Institute Academic AI Tutor**. I am programmed with strict privacy & security protocols.\n\nI cannot access, reveal, or assist with private student data, passwords, administrative controls, or system modifications.\n\n💡 *How can I help you with your B.Tech Cyber Security coursework (DBMS, DSA, Java, NCS, FCS, COMA, DM) today?*`
         });
       }
     }

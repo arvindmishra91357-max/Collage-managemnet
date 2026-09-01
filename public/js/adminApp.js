@@ -118,7 +118,7 @@ const AdminApp = {
               <h2 id="admin-page-title" style="font-size:18px; font-weight:800;">Dashboard Overview</h2>
             </div>
             <div style="display:flex; align-items:center; gap:12px;">
-              <span class="auth-badge" style="margin-top:0;">PARUL UNIVERSITY • 2026–27</span>
+              <span class="auth-badge" style="margin-top:0;">MISHRA GROUP INSTITUTE • 2026–27</span>
               <button class="icon-btn" onclick="window.App.toggleTheme()" title="Toggle Theme">🌓</button>
             </div>
           </header>
@@ -553,7 +553,7 @@ const AdminApp = {
                 <input type="text" id="qr-class-lat" class="form-control" placeholder="Latitude (e.g. 22.2887)" value="22.2887" required />
                 <input type="text" id="qr-class-lng" class="form-control" placeholder="Longitude (e.g. 73.3634)" value="73.3634" required />
               </div>
-              <div id="admin-gps-status" style="font-size:11px; color:var(--text-muted); margin-top:6px;">Parul University Campus Default Coordinates Set.</div>
+              <div id="admin-gps-status" style="font-size:11px; color:var(--text-muted); margin-top:6px;">Mishra Group Institute Campus Default Coordinates Set.</div>
             </div>
 
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:18px;">

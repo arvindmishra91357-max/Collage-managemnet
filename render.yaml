@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: parul-university-portal
+    name: mishra-group-institute-portal
     env: node
     plan: free
     buildCommand: npm install

@@ -45,7 +45,7 @@ const App = {
                 <path d="M256 260 L256 360 M230 310 L282 310" stroke="#38bdf8" stroke-width="20" stroke-linecap="round" />
               </svg>
             </div>
-            <h1 class="auth-title">PARUL UNIVERSITY</h1>
+            <h1 class="auth-title">MISHRA GROUP INSTITUTE</h1>
             <p class="auth-subtitle">Faculty of Engineering & Technology</p>
             <span class="auth-badge">B.TECH CYBER SECURITY • 3CYBER7</span>
           </div>

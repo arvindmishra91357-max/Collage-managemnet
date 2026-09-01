@@ -1,7 +1,7 @@
 {
-  "name": "Parul University - B.Tech Cyber Security Portal",
-  "short_name": "PU Cyber Portal",
-  "description": "Official Student Web App & PWA for Parul University B.Tech Cyber Security Division 3CYBER7",
+  "name": "Mishra Group Institute - B.Tech Cyber Security Portal",
+  "short_name": "MGI Cyber Portal",
+  "description": "Official Student Web App & PWA for Mishra Group Institute B.Tech Cyber Security Division 3CYBER7",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0b0f19",
