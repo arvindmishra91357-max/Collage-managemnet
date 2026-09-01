@@ -1,12 +1,12 @@
-const CACHE_NAME = 'pu-cyber-portal-v2';
+const CACHE_NAME = 'mgi-cyber-portal-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/css/style.css?v=2.0',
-  '/js/api.js?v=2.0',
-  '/js/studentApp.js?v=2.0',
-  '/js/adminApp.js?v=2.0',
-  '/js/app.js?v=2.0',
+  '/css/style.css?v=3.0.0',
+  '/js/api.js?v=3.0.0',
+  '/js/studentApp.js?v=3.0.0',
+  '/js/adminApp.js?v=3.0.0',
+  '/js/app.js?v=3.0.0',
   '/manifest.json'
 ];
 

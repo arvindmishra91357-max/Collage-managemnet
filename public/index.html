@@ -23,7 +23,19 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet">
   
   <!-- Main Stylesheet -->
-  <link rel="stylesheet" href="/css/style.css?v=2.0">
+  <link rel="stylesheet" href="/css/style.css?v=3.0.0">
+  <script>
+    // Force purge legacy service worker caches immediately
+    if ('caches' in window) {
+      caches.keys().then(function(keys) {
+        keys.forEach(function(key) {
+          if (key !== 'mgi-cyber-portal-v3') {
+            caches.delete(key);
+          }
+        });
+      });
+    }
+  </script>
 </head>
 <body>
   <!-- App Root Mount Point -->
@@ -40,10 +52,10 @@
     }
   </style>
 
-  <!-- Application Logic Scripts (v2.0) -->
-  <script src="/js/api.js?v=2.0"></script>
-  <script src="/js/studentApp.js?v=2.0"></script>
-  <script src="/js/adminApp.js?v=2.0"></script>
-  <script src="/js/app.js?v=2.0"></script>
+  <!-- Application Logic Scripts (v3.0.0) -->
+  <script src="/js/api.js?v=3.0.0"></script>
+  <script src="/js/studentApp.js?v=3.0.0"></script>
+  <script src="/js/adminApp.js?v=3.0.0"></script>
+  <script src="/js/app.js?v=3.0.0"></script>
 </body>
 </html>
