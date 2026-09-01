@@ -2,9 +2,22 @@ const db = require('../db');
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+// Helper to get current date & time in Indian Standard Time (IST / Asia/Kolkata)
+function getIndianDate() {
+  try {
+    const now = new Date();
+    const istString = now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
+    return new Date(istString);
+  } catch (e) {
+    const now = new Date();
+    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+    return new Date(utc + (3600000 * 5.5));
+  }
+}
+
 // Helper to get current day name
 function getCurrentDay() {
-  const date = new Date();
+  const date = getIndianDate();
   const dayName = DAYS[date.getDay()];
   return dayName === 'Sunday' ? 'Monday' : dayName; // Default Sunday to Monday schedule preview
 }
@@ -12,14 +25,24 @@ function getCurrentDay() {
 // Helper to convert time string to absolute minutes from midnight (09:30 -> 570 mins, 01:15 -> 795 mins)
 function timeToMinutes(timeStr) {
   if (!timeStr) return 0;
-  const clean = timeStr.trim();
-  const parts = clean.split(':');
+  let str = timeStr.toString().trim().toUpperCase();
+  const isPM = str.includes('PM');
+  const isAM = str.includes('AM');
+  str = str.replace(/AM|PM/g, '').trim();
+
+  const parts = str.split(':');
   let h = parseInt(parts[0], 10);
   const m = parseInt(parts[1], 10) || 0;
-  
-  // Convert 12-hour afternoon hours (01:xx to 07:xx PM) to 24-hour equivalent
-  if (h >= 1 && h <= 7) {
+
+  if (isPM && h < 12) {
     h += 12;
+  } else if (isAM && h === 12) {
+    h = 0;
+  } else if (!isAM && !isPM) {
+    // If no AM/PM specified, college afternoon hours (01:xx to 07:xx) are PM
+    if (h >= 1 && h <= 7) {
+      h += 12;
+    }
   }
   return h * 60 + m;
 }
@@ -86,7 +109,9 @@ async function getStudentTimetable(req, res) {
 async function getTodayClasses(req, res) {
   try {
     const studentBatch = req.user ? req.user.batch : (req.query.batch || 'Batch 2');
-    const requestedDay = req.query.day || getCurrentDay();
+    const istDate = getIndianDate();
+    const actualDay = DAYS[istDate.getDay()];
+    const requestedDay = req.query.day || (actualDay === 'Sunday' ? 'Monday' : actualDay);
 
     const sql = `
       SELECT * FROM timetable
@@ -95,15 +120,20 @@ async function getTodayClasses(req, res) {
     `;
     const classes = await db.query(sql, [requestedDay, studentBatch]);
 
-    // Chronological sort ensuring 09:30 AM is at index 0
+    // Chronological sort ensuring morning slots come first in order
     classes.sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time));
 
-    const now = new Date();
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    let currentMinutes;
+    if (req.query.client_minutes !== undefined && !isNaN(parseInt(req.query.client_minutes, 10))) {
+      currentMinutes = parseInt(req.query.client_minutes, 10);
+    } else {
+      currentMinutes = istDate.getHours() * 60 + istDate.getMinutes();
+    }
 
     let liveClass = null;
     let nextClass = null;
     let minDiff = Infinity;
+    let completedCount = 0;
 
     const formattedClasses = classes.map(c => {
       const startMin = timeToMinutes(c.start_time);
@@ -115,6 +145,7 @@ async function getTodayClasses(req, res) {
         liveClass = c;
       } else if (currentMinutes > endMin) {
         status = 'COMPLETED';
+        completedCount++;
       } else if (currentMinutes < startMin) {
         const diff = startMin - currentMinutes;
         if (diff < minDiff) {
@@ -125,13 +156,22 @@ async function getTodayClasses(req, res) {
 
       return {
         ...c,
-        status
+        status,
+        startMinutes: startMin,
+        endMinutes: endMin
       };
     });
+
+    const isSunday = actualDay === 'Sunday';
+    const dayCompleted = !isSunday && formattedClasses.length > 0 && completedCount === formattedClasses.length;
 
     return res.json({
       success: true,
       currentDay: requestedDay,
+      actualDay,
+      isSunday,
+      dayCompleted,
+      currentMinutes,
       studentBatch,
       classes: formattedClasses,
       liveClass,

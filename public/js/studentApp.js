@@ -147,11 +147,47 @@ const StudentApp = {
     else if (tab === 'profile') await this.renderProfileTab(container);
   },
 
+  getCurrentDayName() {
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const d = days[new Date().getDay()];
+    return d === 'Sunday' ? 'Monday' : d;
+  },
+
+  getGreetingTime() {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good Morning';
+    if (h < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  },
+
+  timeToMinutes(timeStr) {
+    if (!timeStr) return 0;
+    let str = timeStr.toString().trim().toUpperCase();
+    const isPM = str.includes('PM');
+    const isAM = str.includes('AM');
+    str = str.replace(/AM|PM/g, '').trim();
+
+    const parts = str.split(':');
+    let h = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10) || 0;
+
+    if (isPM && h < 12) {
+      h += 12;
+    } else if (isAM && h === 12) {
+      h = 0;
+    } else if (!isAM && !isPM) {
+      if (h >= 1 && h <= 7) {
+        h += 12;
+      }
+    }
+    return h * 60 + m;
+  },
+
   formatTimeSlot(t) {
     if (!t) return '';
-    const parts = t.trim().split(':');
+    const parts = t.toString().trim().replace(/AM|PM/gi, '').split(':');
     let h = parseInt(parts[0], 10);
-    const m = parts[1] || '00';
+    const m = parts[1] ? parts[1].trim() : '00';
     let ampm = 'AM';
     if (h === 12 || (h >= 1 && h <= 7)) {
       ampm = 'PM';
@@ -169,10 +205,51 @@ const StudentApp = {
   // ==================== TAB 1: HOME ====================
   async renderHomeTab(container) {
     const u = this.currentUser;
+    const now = new Date();
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const realDayName = days[now.getDay()];
+    const clientMin = now.getHours() * 60 + now.getMinutes();
 
-    // Fetch live timetable & today's classes (sorted chronologically: 09:30 AM morning first)
-    const todayRes = await API.getTodayClasses();
-    const todayData = todayRes.success ? todayRes : { classes: [], liveClass: null, nextClass: null };
+    // Fetch live timetable & today's classes
+    const todayRes = await API.getTodayClasses({
+      client_minutes: clientMin,
+      day: realDayName === 'Sunday' ? 'Monday' : realDayName
+    });
+
+    const todayData = todayRes && todayRes.success ? todayRes : { classes: [], liveClass: null, nextClass: null };
+
+    // Dynamic client-side verification with current real clock
+    let liveClass = todayData.liveClass;
+    let nextClass = todayData.nextClass;
+    let isSunday = realDayName === 'Sunday';
+    let dayCompleted = false;
+
+    if (todayData.classes && todayData.classes.length > 0 && !isSunday) {
+      liveClass = null;
+      nextClass = null;
+      let minDiff = Infinity;
+      let completedCount = 0;
+
+      for (const c of todayData.classes) {
+        const startMin = this.timeToMinutes(c.start_time);
+        const endMin = this.timeToMinutes(c.end_time);
+
+        if (clientMin >= startMin && clientMin <= endMin) {
+          liveClass = c;
+        } else if (clientMin > endMin) {
+          completedCount++;
+        } else if (clientMin < startMin) {
+          const diff = startMin - clientMin;
+          if (diff < minDiff) {
+            minDiff = diff;
+            nextClass = { ...c, startsInMinutes: diff };
+          }
+        }
+      }
+      if (completedCount === todayData.classes.length) {
+        dayCompleted = true;
+      }
+    }
 
     // Fetch attendance summary
     const attRes = await API.getStudentAttendance();
@@ -202,17 +279,25 @@ const StudentApp = {
         </div>
       </section>
 
-      <!-- Next Class Card -->
+      <!-- Next Class Card (Real-Time Synchronized) -->
       <section class="next-class-card">
         <div>
-          ${todayData.liveClass ? `
+          ${isSunday ? `
+            <span class="class-status-badge" style="background:rgba(16,185,129,0.15); color:#34d399;">🌴 SUNDAY HOLIDAY</span>
+            <div class="next-class-subject" style="font-size:15px;">No Classes Scheduled Today</div>
+            <div class="next-class-details">Next session starts Monday morning at 09:30 AM</div>
+          ` : liveClass ? `
             <span class="class-status-badge live">● LIVE NOW</span>
-            <div class="next-class-subject">${todayData.liveClass.subject}</div>
-            <div class="next-class-details">Room: <strong>${todayData.liveClass.room}</strong> • ${this.formatSlotRange(todayData.liveClass.start_time, todayData.liveClass.end_time)}</div>
-          ` : todayData.nextClass ? `
-            <span class="class-status-badge upcoming">⏳ Starts in ${todayData.nextClass.startsInMinutes}m</span>
-            <div class="next-class-subject">${todayData.nextClass.subject}</div>
-            <div class="next-class-details">Room: <strong>${todayData.nextClass.room}</strong> • Time: ${this.formatTimeSlot(todayData.nextClass.start_time)}</div>
+            <div class="next-class-subject">${liveClass.subject} ${liveClass.is_lab ? '<span class="lab-chip">LAB</span>' : ''}</div>
+            <div class="next-class-details">Room: <strong>${liveClass.room}</strong> • ${this.formatSlotRange(liveClass.start_time, liveClass.end_time)} ${liveClass.teacher && liveClass.teacher !== '-' ? `• Faculty: <strong>${liveClass.teacher}</strong>` : ''}</div>
+          ` : nextClass ? `
+            <span class="class-status-badge upcoming">⏳ Starts in ${nextClass.startsInMinutes} mins</span>
+            <div class="next-class-subject">${nextClass.subject} ${nextClass.is_lab ? '<span class="lab-chip">LAB</span>' : ''}</div>
+            <div class="next-class-details">Room: <strong>${nextClass.room}</strong> • Time: ${this.formatTimeSlot(nextClass.start_time)} ${nextClass.teacher && nextClass.teacher !== '-' ? `• Faculty: <strong>${nextClass.teacher}</strong>` : ''}</div>
+          ` : dayCompleted ? `
+            <span class="class-status-badge" style="background:rgba(59,130,246,0.15); color:#60a5fa;">✓ LECTURES COMPLETED</span>
+            <div class="next-class-subject" style="font-size:15px;">All classes completed for today!</div>
+            <div class="next-class-details">Next session starts tomorrow morning at 09:30 AM</div>
           ` : `
             <span class="class-status-badge" style="background:rgba(255,255,255,0.1); color:var(--text-muted);">✓ SCHEDULE CLEAR</span>
             <div class="next-class-subject" style="font-size:15px;">No active class right now</div>

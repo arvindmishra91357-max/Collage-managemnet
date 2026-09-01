@@ -137,8 +137,14 @@ const API = {
     return this.request(`/api/timetable${query}`);
   },
 
-  getTodayClasses(day) {
-    const query = day ? `?day=${day}` : '';
+  getTodayClasses(params = {}) {
+    let query = '';
+    if (typeof params === 'string') {
+      query = `?day=${encodeURIComponent(params)}`;
+    } else if (params && typeof params === 'object') {
+      const q = new URLSearchParams(params).toString();
+      query = q ? `?${q}` : '';
+    }
     return this.request(`/api/timetable/today${query}`);
   },
 

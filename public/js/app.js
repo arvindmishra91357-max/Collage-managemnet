@@ -78,20 +78,9 @@ const App = {
               </div>
             </div>
 
-            <button type="submit" class="btn-primary">
+            <button type="submit" class="btn-primary" style="margin-top:16px;">
               Log In to Student Portal
             </button>
-
-            <!-- Pre-Configured Demo Account Card (Requirement #9) -->
-            <div class="demo-credentials-box">
-              <strong style="display:block; margin-bottom:2px;">✨ Demo Student Account:</strong>
-              <div class="demo-row"><span>UG ID:</span> <strong>26UG033181</strong></div>
-              <div class="demo-row"><span>Password:</span> <strong>Demo@123</strong></div>
-              <div class="demo-row"><span>Assigned:</span> <strong>Batch 2 (Roll 31)</strong></div>
-              <button type="button" class="demo-btn-fill" onclick="App.fillDemoStudent()">
-                ⚡ Auto-Fill Demo Credentials
-              </button>
-            </div>
           </form>
 
           <!-- Admin Login Form -->
@@ -112,18 +101,9 @@ const App = {
               </div>
             </div>
 
-            <button type="submit" class="btn-primary" style="background:linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%);">
+            <button type="submit" class="btn-primary" style="margin-top:16px; background:linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%);">
               Log In to Admin Panel
             </button>
-
-            <div class="demo-credentials-box" style="background:rgba(37,99,235,0.1); border-color:rgba(59,130,246,0.3); color:#60a5fa;">
-              <strong style="display:block; margin-bottom:2px;">🛡️ Administrator Login:</strong>
-              <div class="demo-row"><span>Admin ID:</span> <strong>admin</strong></div>
-              <div class="demo-row"><span>Password:</span> <strong>Admin@123</strong></div>
-              <button type="button" class="demo-btn-fill" style="background:rgba(37,99,235,0.2); border-color:rgba(59,130,246,0.4); color:#60a5fa;" onclick="App.fillDemoAdmin()">
-                ⚡ Auto-Fill Admin Credentials
-              </button>
-            </div>
           </form>
         </div>
       </div>
@@ -136,16 +116,6 @@ const App = {
     document.getElementById('btn-tab-admin').classList.toggle('active', mode === 'admin');
     document.getElementById('student-login-form').style.display = mode === 'student' ? 'block' : 'none';
     document.getElementById('admin-login-form').style.display = mode === 'admin' ? 'block' : 'none';
-  },
-
-  fillDemoStudent() {
-    document.getElementById('student-ugid').value = '26UG033181';
-    document.getElementById('student-password').value = 'Demo@123';
-  },
-
-  fillDemoAdmin() {
-    document.getElementById('admin-username').value = 'admin';
-    document.getElementById('admin-password').value = 'Admin@123';
   },
 
   async handleStudentLogin() {
