@@ -732,36 +732,57 @@ const StudentApp = {
   },
 
   // ==================== TAB 3: TIMETABLE ====================
+  selectedTimetableDay: null,
+
   async renderTimetableTab(container) {
     const u = this.currentUser;
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const currentDay = this.getCurrentDayName();
+    const currentDay = this.selectedTimetableDay || this.getCurrentDayName();
+    this.selectedTimetableDay = currentDay;
 
     container.innerHTML = `
-      <div style="margin-bottom:16px;">
-        <h2 style="font-size:20px; font-weight:800; margin-bottom:4px;">📅 Official Timetable</h2>
-        <p style="font-size:13px; color:var(--text-secondary);">3CYBER7 • B.Tech Cyber Security • ${u.batch} Schedule</p>
+      <div style="margin-bottom:14px; display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:8px;">
+        <div>
+          <h2 style="font-size:20px; font-weight:800; margin-bottom:4px;">📅 Official Timetable</h2>
+          <p style="font-size:13px; color:var(--text-secondary);">3CYBER7 • B.Tech Cyber Security • ${u.batch} Schedule</p>
+        </div>
+        <div style="font-size:11px; color:#38bdf8; background:rgba(56,189,248,0.12); padding:4px 10px; border-radius:12px; border:1px solid rgba(56,189,248,0.25);">
+          👈 Swipe Left / Right to Change Day 👉
+        </div>
       </div>
 
-      <!-- Day Selector Carousel with Scroll Controls -->
+      <!-- Day Selector Carousel with Smooth Touch Scrolling & Arrow Controls -->
       <div class="day-scroll-wrapper">
-        <button class="scroll-arrow-btn" onclick="StudentApp.scrollDaysCarousel(-120)" title="Scroll Left">‹</button>
+        <button class="scroll-arrow-btn" onclick="StudentApp.scrollDaysCarousel(-140)" title="Scroll Left">‹</button>
         <div class="day-scroll-container" id="timetable-day-pills">
           ${days.map(d => `
-            <button class="day-pill-btn ${d === currentDay ? 'active' : ''}" onclick="StudentApp.loadDayTimetable('${d}')">
+            <button class="day-pill-btn ${d === currentDay ? 'active' : ''}" data-day="${d}" onclick="StudentApp.selectTimetableDay('${d}')">
               <span>📅</span>
               <span>${d}</span>
             </button>
           `).join('')}
         </div>
-        <button class="scroll-arrow-btn" onclick="StudentApp.scrollDaysCarousel(120)" title="Scroll Right">›</button>
+        <button class="scroll-arrow-btn" onclick="StudentApp.scrollDaysCarousel(140)" title="Scroll Right">›</button>
       </div>
 
-      <div id="timetable-day-content">
+      <!-- Schedule Content Box with Swipe Support -->
+      <div id="timetable-day-content" style="touch-action: pan-y; min-height: 200px;">
         <div style="text-align:center; padding:30px;"><div class="spinner"></div></div>
+      </div>
+
+      <!-- Day Navigation Footer for Quick Switching -->
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; gap:10px;">
+        <button class="btn-primary" style="flex:1; margin-top:0; padding:10px 14px; font-size:12px; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-secondary);" onclick="StudentApp.stepTimetableDay(-1)">
+          ‹ Previous Day
+        </button>
+        <button class="btn-primary" style="flex:1; margin-top:0; padding:10px 14px; font-size:12px; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-secondary);" onclick="StudentApp.stepTimetableDay(1)">
+          Next Day ›
+        </button>
       </div>
     `;
 
+    this.bindTimetableSwipeGestures();
+    this.bindTimetableDragScroll();
     await this.loadDayTimetable(currentDay);
   },
 
@@ -772,12 +793,95 @@ const StudentApp = {
     }
   },
 
+  async selectTimetableDay(day) {
+    this.selectedTimetableDay = day;
+    await this.loadDayTimetable(day);
+  },
+
+  stepTimetableDay(step) {
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const current = this.selectedTimetableDay || this.getCurrentDayName();
+    let idx = days.indexOf(current);
+    if (idx === -1) idx = 0;
+    let nextIdx = (idx + step + days.length) % days.length;
+    this.selectTimetableDay(days[nextIdx]);
+  },
+
+  bindTimetableSwipeGestures() {
+    const content = document.getElementById('timetable-day-content');
+    if (!content) return;
+
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchEndX = 0;
+    let touchEndY = 0;
+
+    content.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+      touchStartY = e.changedTouches[0].screenY;
+    }, { passive: true });
+
+    content.addEventListener('touchend', (e) => {
+      touchEndX = e.changedTouches[0].screenX;
+      touchEndY = e.changedTouches[0].screenY;
+      const diffX = touchEndX - touchStartX;
+      const diffY = touchEndY - touchStartY;
+
+      // Ensure horizontal swipe is dominant over vertical scroll
+      if (Math.abs(diffX) > 45 && Math.abs(diffX) > Math.abs(diffY) * 1.3) {
+        if (diffX < 0) {
+          // Swipe Left -> Next Day
+          StudentApp.stepTimetableDay(1);
+        } else {
+          // Swipe Right -> Previous Day
+          StudentApp.stepTimetableDay(-1);
+        }
+      }
+    }, { passive: true });
+  },
+
+  bindTimetableDragScroll() {
+    const slider = document.getElementById('timetable-day-pills');
+    if (!slider) return;
+
+    let isDown = false;
+    let startX;
+    let scrollLeft;
+
+    slider.addEventListener('mousedown', (e) => {
+      isDown = true;
+      slider.style.cursor = 'grabbing';
+      startX = e.pageX - slider.offsetLeft;
+      scrollLeft = slider.scrollLeft;
+    });
+
+    slider.addEventListener('mouseleave', () => {
+      isDown = false;
+      slider.style.cursor = 'pointer';
+    });
+
+    slider.addEventListener('mouseup', () => {
+      isDown = false;
+      slider.style.cursor = 'pointer';
+    });
+
+    slider.addEventListener('mousemove', (e) => {
+      if (!isDown) return;
+      e.preventDefault();
+      const x = e.pageX - slider.offsetLeft;
+      const walk = (x - startX) * 1.5;
+      slider.scrollLeft = scrollLeft - walk;
+    });
+  },
+
   async loadDayTimetable(day) {
     const content = document.getElementById('timetable-day-content');
     if (!content) return;
 
-    document.querySelectorAll('.day-pill-btn').forEach(b => {
-      const isMatch = b.innerText.includes(day);
+    this.selectedTimetableDay = day;
+
+    document.querySelectorAll('#timetable-day-pills .day-pill-btn').forEach(b => {
+      const isMatch = b.getAttribute('data-day') === day;
       b.classList.toggle('active', isMatch);
       if (isMatch) {
         b.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
@@ -789,7 +893,7 @@ const StudentApp = {
 
     if (slots.length === 0) {
       content.innerHTML = `
-        <div class="glass-card" style="padding:28px; text-align:center;">
+        <div class="glass-card" style="padding:28px; text-align:center; animation:fadeIn 0.3s ease;">
           <div style="font-size:32px; margin-bottom:8px;">🌴</div>
           <h4 style="font-size:15px; font-weight:700;">No Classes Scheduled</h4>
           <p style="font-size:12px; color:var(--text-muted); margin-top:2px;">No lectures or lab sessions scheduled for ${day}.</p>
@@ -798,27 +902,31 @@ const StudentApp = {
       return;
     }
 
-    content.innerHTML = slots.map(s => `
-      <div class="schedule-item-card" style="margin-bottom:12px; padding:15px;">
-        <div class="schedule-time-box" style="min-width:84px; padding:8px;">
-          <div style="font-size:12px; font-weight:800; color:#38bdf8;">${StudentApp.formatTimeSlot(s.start_time)}</div>
-          <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">${StudentApp.formatTimeSlot(s.end_time)}</div>
-        </div>
-        <div class="schedule-info">
-          <div class="schedule-title" style="font-size:15px;">
-            <span>${s.subject}</span>
-            ${s.is_lab ? `<span class="lab-chip">PRACTICAL LAB</span>` : ''}
+    content.innerHTML = `
+      <div style="animation:fadeIn 0.3s ease;">
+        ${slots.map(s => `
+          <div class="schedule-item-card" style="margin-bottom:12px; padding:15px;">
+            <div class="schedule-time-box" style="min-width:84px; padding:8px;">
+              <div style="font-size:12px; font-weight:800; color:#38bdf8;">${StudentApp.formatTimeSlot(s.start_time)}</div>
+              <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">${StudentApp.formatTimeSlot(s.end_time)}</div>
+            </div>
+            <div class="schedule-info">
+              <div class="schedule-title" style="font-size:15px;">
+                <span>${s.subject}</span>
+                ${s.is_lab ? `<span class="lab-chip">PRACTICAL LAB</span>` : ''}
+              </div>
+              <div class="schedule-meta" style="margin-top:4px;">
+                Room: <strong style="color:#ffffff;">${s.room}</strong> • Faculty: <strong>${s.teacher || '-'}</strong>
+              </div>
+              <div style="font-size:11px; color:var(--text-muted); margin-top:4px; display:flex; align-items:center; gap:6px;">
+                <span>Batch Scope:</span>
+                <span class="batch-badge ${s.batch === 'Batch 1' ? 'batch-1' : s.batch === 'Batch 2' ? 'batch-2' : ''}">${s.batch}</span>
+              </div>
+            </div>
           </div>
-          <div class="schedule-meta" style="margin-top:4px;">
-            Room: <strong style="color:#ffffff;">${s.room}</strong> • Faculty: <strong>${s.teacher || '-'}</strong>
-          </div>
-          <div style="font-size:11px; color:var(--text-muted); margin-top:4px; display:flex; align-items:center; gap:6px;">
-            <span>Batch Scope:</span>
-            <span class="batch-badge ${s.batch === 'Batch 1' ? 'batch-1' : s.batch === 'Batch 2' ? 'batch-2' : ''}">${s.batch}</span>
-          </div>
-        </div>
+        `).join('')}
       </div>
-    `).join('');
+    `;
   },
 
   // ==================== TAB 4: ATTENDANCE & QR SCANNER ====================
