@@ -431,6 +431,52 @@ async function deleteAnnouncement(req, res) {
   }
 }
 
+// 19. Get Official Subjects
+async function getSubjects(req, res) {
+  try {
+    const subjects = await db.query("SELECT * FROM subjects ORDER BY id ASC");
+    return res.json({ success: true, data: subjects });
+  } catch (err) {
+    console.error('[AcademicController] getSubjects error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to retrieve subjects.' });
+  }
+}
+
+// 20. Get Subject Study Hub Overview (All subjects with notes, materials, assignments, question papers)
+async function getSubjectStudyHub(req, res) {
+  try {
+    const subjects = await db.query("SELECT * FROM subjects ORDER BY id ASC");
+    const notes = await db.query("SELECT * FROM class_notes ORDER BY subject ASC, unit ASC, created_at DESC");
+    const materials = await db.query("SELECT * FROM study_material ORDER BY created_at DESC");
+    const assignments = await db.query("SELECT * FROM assignments ORDER BY due_date ASC");
+    const papers = await db.query("SELECT * FROM question_papers ORDER BY academic_year DESC");
+
+    const studyHub = subjects.map(sub => {
+      const subNotes = notes.filter(n => n.subject === sub.short_name || n.subject === sub.name);
+      const subMaterials = materials.filter(m => m.subject === sub.short_name || m.subject === sub.name);
+      const subAssignments = assignments.filter(a => a.subject === sub.short_name || a.subject === sub.name);
+      const subPapers = papers.filter(p => p.subject === sub.short_name || p.subject === sub.name);
+
+      return {
+        subject: sub,
+        notes: subNotes,
+        materials: subMaterials,
+        assignments: subAssignments,
+        questionPapers: subPapers,
+        totalResources: subNotes.length + subMaterials.length + subAssignments.length + subPapers.length
+      };
+    });
+
+    return res.json({
+      success: true,
+      data: studyHub
+    });
+  } catch (err) {
+    console.error('[AcademicController] getSubjectStudyHub error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to retrieve study hub overview.' });
+  }
+}
+
 module.exports = {
   getClassNotes,
   uploadClassNote,
@@ -449,5 +495,7 @@ module.exports = {
   deleteCalendarEvent,
   getAnnouncements,
   createAnnouncement,
-  deleteAnnouncement
+  deleteAnnouncement,
+  getSubjects,
+  getSubjectStudyHub
 };

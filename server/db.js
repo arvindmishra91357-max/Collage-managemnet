@@ -435,68 +435,7 @@ async function seedInitialData() {
     console.log('[DB] Admin user created (admin / Admin@123)');
   }
 
-  // 3. Demo Student (Requirement #9)
-  // Name: Demo Student, UG ID: 26UG033181, Pass: Demo@123, Roll: 31, Batch 2, 2nd Year, 3rd Sem, 3CYBER7, 2026-27
-  const demoStudent = await get("SELECT * FROM students WHERE ug_id = ?", ['26UG033181']);
-  const demoPassHash = await bcrypt.hash('Demo@123', 10);
-
-  if (!demoStudent) {
-    await run(`
-      INSERT INTO students (
-        ug_id, name, password_hash, roll_number, batch, program, year, semester, division, academic_year, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
-      '26UG033181', 'Demo Student', demoPassHash, 31, 'Batch 2',
-      'B.Tech Cyber Security', '2nd Year', '3rd Semester', '3CYBER7', '2026-27', 'ACTIVE'
-    ]);
-    console.log('[DB] Demo student created (26UG033181 / Demo@123 / Roll 31 / Batch 2)');
-  }
-
-  // Seed demo credentials into users table for fast unified login
-  const studentUser = await get("SELECT * FROM users WHERE ug_id = ?", ['26UG033181']);
-  if (!studentUser) {
-    await run(
-      "INSERT INTO users (role, ug_id, password_hash, status) VALUES (?, ?, ?, ?)",
-      ['STUDENT', '26UG033181', demoPassHash, 'ACTIVE']
-    );
-  }
-
-  // Seed additional sample students for full class rosters (Batch 1: 1-30, Batch 2: 31+)
-  const studentCount = await get("SELECT COUNT(*) as count FROM students");
-  if (studentCount && studentCount.count <= 1) {
-    console.log('[DB] Seeding additional class students for 3CYBER7...');
-    const extraStudents = [
-      // Batch 1 (Roll 1 - 30)
-      { ug_id: '26UG033001', name: 'Aarav Patel', roll: 1, pass: 'Aarav@123' },
-      { ug_id: '26UG033005', name: 'Aditi Sharma', roll: 5, pass: 'Aditi@123' },
-      { ug_id: '26UG033012', name: 'Bhavin Desai', roll: 12, pass: 'Bhavin@123' },
-      { ug_id: '26UG033020', name: 'Divya Joshi', roll: 20, pass: 'Divya@123' },
-      { ug_id: '26UG033030', name: 'Hardik Mehta', roll: 30, pass: 'Hardik@123' },
-      // Batch 2 (Roll 31+)
-      { ug_id: '26UG033182', name: 'Karan Dave', roll: 32, pass: 'Karan@123' },
-      { ug_id: '26UG033185', name: 'Mansi Shah', roll: 35, pass: 'Mansi@123' },
-      { ug_id: '26UG033190', name: 'Pooja Trivedi', roll: 40, pass: 'Pooja@123' },
-      { ug_id: '26UG033200', name: 'Rohan Rathod', roll: 45, pass: 'Rohan@123' },
-      { ug_id: '26UG033210', name: 'Siddharth Solanki', roll: 55, pass: 'Sid@123' }
-    ];
-
-    for (const s of extraStudents) {
-      const pHash = await bcrypt.hash(s.pass, 10);
-      const batch = s.roll <= 30 ? 'Batch 1' : 'Batch 2';
-      await run(`
-        INSERT INTO students (
-          ug_id, name, password_hash, roll_number, batch, program, year, semester, division, academic_year, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [s.ug_id, s.name, pHash, s.roll, batch, 'B.Tech Cyber Security', '2nd Year', '3rd Semester', '3CYBER7', '2026-27', 'ACTIVE']);
-
-      await run(
-        "INSERT INTO users (role, ug_id, password_hash, status) VALUES (?, ?, ?, ?)",
-        ['STUDENT', s.ug_id, pHash, 'ACTIVE']
-      );
-    }
-  }
-
-  // 4. Seed Official Subjects
+  // 3. Seed Official Subjects
   const subjCount = await get("SELECT COUNT(*) as count FROM subjects");
   if (subjCount && subjCount.count === 0) {
     console.log('[DB] Seeding official B.Tech Cyber Security 3rd Semester subjects...');
@@ -519,73 +458,55 @@ async function seedInitialData() {
     }
   }
 
-  // 5. Seed Official Timetable (EXACT MATCH from official timetable image 3CYBER7 effective 09-06-2026)
+  // 4. Seed Official Timetable (3CYBER7 Schedule effective 2026-27)
   const ttCount = await get("SELECT COUNT(*) as count FROM timetable");
   if (ttCount && ttCount.count === 0) {
-    console.log('[DB] Seeding official 3CYBER7 Timetable from image...');
+    console.log('[DB] Seeding official 3CYBER7 Timetable...');
     const officialTimetable = [
       // ==================== MONDAY ====================
       { day: 'Monday', start: '09:30', end: '10:25', subject: 'DBMS', teacher: 'NW', room: 'NB-202', batch: 'Both', is_lab: 0 },
       { day: 'Monday', start: '10:25', end: '11:20', subject: 'DM', teacher: 'RAP', room: 'NB-202', batch: 'Both', is_lab: 0 },
-      // Recess: 11:20 - 12:20
-      // Mon 12:20-02:10 Lab: Batch 2 DSA (T3, L-313), Batch 1 NCS (AP, L-804)
       { day: 'Monday', start: '12:20', end: '02:10', subject: 'DSA Lab', teacher: 'T3', room: 'L-313', batch: 'Batch 2', is_lab: 1 },
       { day: 'Monday', start: '12:20', end: '02:10', subject: 'NCS Lab', teacher: 'AP', room: 'L-804', batch: 'Batch 1', is_lab: 1 },
-      // Recess: 02:10 - 02:30
       { day: 'Monday', start: '02:30', end: '03:25', subject: 'FCS', teacher: 'PG', room: 'NB-202', batch: 'Both', is_lab: 0 },
       { day: 'Monday', start: '03:25', end: '04:20', subject: 'NCS', teacher: 'LV', room: 'NB-202', batch: 'Both', is_lab: 0 },
 
       // ==================== TUESDAY ====================
       { day: 'Tuesday', start: '09:30', end: '10:25', subject: 'DM', teacher: 'RAP', room: 'NB-114', batch: 'Both', is_lab: 0 },
       { day: 'Tuesday', start: '10:25', end: '11:20', subject: 'JAVA', teacher: 'SU', room: 'NB-114', batch: 'Both', is_lab: 0 },
-      // Recess: 11:20 - 12:20
       { day: 'Tuesday', start: '12:20', end: '01:15', subject: 'JAVA', teacher: 'SU', room: 'NB-114', batch: 'Both', is_lab: 0 },
       { day: 'Tuesday', start: '01:15', end: '02:10', subject: 'COMA', teacher: 'SPB', room: 'NB-114', batch: 'Both', is_lab: 0 },
-      // Recess: 02:10 - 02:30
-      // Tue 02:30-04:20 Lab: Batch 2 JAVA (VP, L-408), Batch 1 DSA (T3, L-313)
       { day: 'Tuesday', start: '02:30', end: '04:20', subject: 'JAVA Lab', teacher: 'VP', room: 'L-408', batch: 'Batch 2', is_lab: 1 },
       { day: 'Tuesday', start: '02:30', end: '04:20', subject: 'DSA Lab', teacher: 'T3', room: 'L-313', batch: 'Batch 1', is_lab: 1 },
 
       // ==================== WEDNESDAY ====================
       { day: 'Wednesday', start: '09:30', end: '10:25', subject: 'DBMS', teacher: 'NW', room: 'NB-204', batch: 'Both', is_lab: 0 },
       { day: 'Wednesday', start: '10:25', end: '11:20', subject: 'COMA', teacher: 'SPB', room: 'NB-204', batch: 'Both', is_lab: 0 },
-      // Recess: 11:20 - 12:20
       { day: 'Wednesday', start: '12:20', end: '01:15', subject: 'LIBRARY', teacher: '-', room: 'Central Library', batch: 'Both', is_lab: 0 },
       { day: 'Wednesday', start: '01:15', end: '02:10', subject: 'DM', teacher: 'RAP', room: 'NB-114', batch: 'Both', is_lab: 0 },
-      // Recess: 02:10 - 02:30
-      // Wed 02:30-04:20 Lab: Batch 1 DBMS (NW, L-311), Batch 2 NCS (AP, L-312)
       { day: 'Wednesday', start: '02:30', end: '04:20', subject: 'DBMS Lab', teacher: 'NW', room: 'L-311', batch: 'Batch 1', is_lab: 1 },
       { day: 'Wednesday', start: '02:30', end: '04:20', subject: 'NCS Lab', teacher: 'AP', room: 'L-312', batch: 'Batch 2', is_lab: 1 },
 
       // ==================== THURSDAY ====================
       { day: 'Thursday', start: '09:30', end: '11:20', subject: 'LIBRARY', teacher: '-', room: 'Central Library', batch: 'Both', is_lab: 0 },
-      // Recess: 11:20 - 12:20
-      // Thu 12:20-02:10 Lab: Batch 1 DSA (T3, L-802), Batch 2 DBMS (NW, L-313)
       { day: 'Thursday', start: '12:20', end: '02:10', subject: 'DSA Lab', teacher: 'T3', room: 'L-802', batch: 'Batch 1', is_lab: 1 },
       { day: 'Thursday', start: '12:20', end: '02:10', subject: 'DBMS Lab', teacher: 'NW', room: 'L-313', batch: 'Batch 2', is_lab: 1 },
-      // Recess: 02:10 - 02:30
-      // Thu 02:30-04:20 Lab: Batch 1 COMA (SS, L-313), Batch 2 DSA (T3, L-408)
       { day: 'Thursday', start: '02:30', end: '04:20', subject: 'COMA Lab', teacher: 'SS', room: 'L-313', batch: 'Batch 1', is_lab: 1 },
       { day: 'Thursday', start: '02:30', end: '04:20', subject: 'DSA Lab', teacher: 'T3', room: 'L-408', batch: 'Batch 2', is_lab: 1 },
 
       // ==================== FRIDAY ====================
       { day: 'Friday', start: '09:30', end: '10:25', subject: 'DBMS', teacher: 'NW', room: 'NB-204', batch: 'Both', is_lab: 0 },
       { day: 'Friday', start: '10:25', end: '11:20', subject: 'LIBRARY', teacher: '-', room: 'Central Library', batch: 'Both', is_lab: 0 },
-      // Recess: 11:20 - 12:20
       { day: 'Friday', start: '12:20', end: '01:15', subject: 'DSA', teacher: 'JC', room: 'NB-114', batch: 'Both', is_lab: 0 },
       { day: 'Friday', start: '01:15', end: '02:10', subject: 'NCS', teacher: 'LV', room: 'NB-114', batch: 'Both', is_lab: 0 },
-      // Recess: 02:10 - 02:30
-      // Fri 02:30-04:20 Lab: Batch 1 JAVA (VP, L-311), Batch 2 COMA (RS, L-312)
       { day: 'Friday', start: '02:30', end: '04:20', subject: 'JAVA Lab', teacher: 'VP', room: 'L-311', batch: 'Batch 1', is_lab: 1 },
       { day: 'Friday', start: '02:30', end: '04:20', subject: 'COMA Lab', teacher: 'RS', room: 'L-312', batch: 'Batch 2', is_lab: 1 },
 
       // ==================== SATURDAY ====================
       { day: 'Saturday', start: '09:30', end: '10:25', subject: 'NCS', teacher: 'LV', room: 'NB-111', batch: 'Both', is_lab: 0 },
       { day: 'Saturday', start: '10:25', end: '11:20', subject: 'DSA', teacher: 'JC', room: 'NB-111', batch: 'Both', is_lab: 0 },
-      // Recess: 11:20 - 12:20
       { day: 'Saturday', start: '12:20', end: '01:15', subject: 'JAVA', teacher: 'SU', room: 'NB-114', batch: 'Both', is_lab: 0 },
       { day: 'Saturday', start: '01:15', end: '02:10', subject: 'DSA', teacher: 'JC', room: 'NB-114', batch: 'Both', is_lab: 0 },
-      // Recess: 02:10 - 02:30
       { day: 'Saturday', start: '02:30', end: '04:20', subject: 'FCS', teacher: 'PG', room: 'NB-114', batch: 'Both', is_lab: 0 }
     ];
 
@@ -595,314 +516,6 @@ async function seedInitialData() {
           day, start_time, end_time, subject, teacher, room, batch, division, semester, year, program, academic_year, is_lab, active
         ) VALUES (?, ?, ?, ?, ?, ?, ?, '3CYBER7', '3rd Semester', '2nd Year', 'B.Tech Cyber Security', '2026-27', ?, 1)
       `, [slot.day, slot.start, slot.end, slot.subject, slot.teacher, slot.room, slot.batch, slot.is_lab]);
-    }
-  }
-
-  // 6. Seed Sample Class Notes
-  const notesCount = await get("SELECT COUNT(*) as count FROM class_notes");
-  if (notesCount && notesCount.count === 0) {
-    console.log('[DB] Seeding Class Notes categorized by Subject, Unit, Chapter, Topic...');
-    const sampleNotes = [
-      {
-        subject: 'DBMS', unit: 'Unit 1', chapter: 'Introduction to Database Systems',
-        topic: 'DBMS Architecture, Data Independence, Schema & Instances',
-        title: 'DBMS Introduction & Architecture Notes',
-        desc: 'Comprehensive notes covering 3-Tier Architecture and Data Independence.',
-        file_url: '/uploads/notes/DBMS_Unit4_Query_Optimization.pdf', file_name: 'DBMS_Unit1_Introduction.pdf',
-        size: '1.2 MB', type: 'pdf'
-      },
-      {
-        subject: 'DBMS', unit: 'Unit 2', chapter: 'Relational Model & ER Diagrams',
-        topic: 'Entity Relationships, Keys, ER-to-Relational Mapping',
-        title: 'ER Modeling & Relational Algebra',
-        desc: 'Detailed diagrams and rules for converting ER models into tables.',
-        file_url: '/uploads/notes/DBMS_Cheat_Sheet.pdf', file_name: 'DBMS_Unit2_ER_Model.pdf',
-        size: '2.4 MB', type: 'pdf'
-      },
-      {
-        subject: 'DBMS', unit: 'Unit 3', chapter: 'Normalization & Functional Dependencies',
-        topic: '1NF, 2NF, 3NF, BCNF and Dependency Preservation',
-        title: 'Normalization Techniques & Practice Problems',
-        desc: 'Full step-by-step decomposition examples for university semester exams.',
-        file_url: '/uploads/notes/DBMS_Assignment1.pdf', file_name: 'DBMS_Unit3_Normalization.pdf',
-        size: '3.1 MB', type: 'pdf'
-      },
-      {
-        subject: 'NCS', unit: 'Unit 1', chapter: 'Cryptography & Encryption Algorithms',
-        topic: 'Symmetric & Asymmetric Ciphers, DES, AES, RSA Algorithm',
-        title: 'Network Security Fundamentals & RSA Math',
-        desc: 'Cryptographic algorithms explained with worked mathematical examples.',
-        file_url: '/uploads/notes/CN_Unit2_Data_Link_Layer.pdf', file_name: 'NCS_Unit1_Cryptography.pdf',
-        size: '1.8 MB', type: 'pdf'
-      },
-      {
-        subject: 'DSA', unit: 'Unit 2', chapter: 'Trees & Balanced Search Trees',
-        topic: 'Binary Search Trees, AVL Tree Rotations, Red-Black Trees',
-        title: 'AVL Tree Rotations & Balanced Search Trees',
-        desc: 'Complete algorithm visualizations for LL, RR, LR, RL tree rotations.',
-        file_url: '/uploads/notes/OS_Unit3_Memory_Management.pdf', file_name: 'DSA_Unit2_AVL_Trees.pdf',
-        size: '2.0 MB', type: 'pdf'
-      },
-      {
-        subject: 'JAVA', unit: 'Unit 1', chapter: 'Core Java & Multithreading',
-        topic: 'Thread Life Cycle, Synchronization, Inter-thread Communication',
-        title: 'Java Multithreading & Concurrency Notes',
-        desc: 'Complete guide with code snippets for synchronized blocks and thread pools.',
-        file_url: '/uploads/notes/Linux_Kernel_Architecture.pptx', file_name: 'JAVA_Unit1_Multithreading.pdf',
-        size: '1.5 MB', type: 'pdf'
-      }
-    ];
-
-    for (const n of sampleNotes) {
-      await run(`
-        INSERT INTO class_notes (subject, unit, chapter, topic, title, description, file_url, file_name, file_size, file_type, uploaded_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Prof. N. Wagh')
-      `, [n.subject, n.unit, n.chapter, n.topic, n.title, n.desc, n.file_url, n.file_name, n.size, n.type]);
-    }
-  }
-
-  // 7. Seed Study Material
-  const matCount = await get("SELECT COUNT(*) as count FROM study_material");
-  if (matCount && matCount.count === 0) {
-    console.log('[DB] Seeding Study Materials...');
-    const sampleMaterials = [
-      {
-        subject: 'DBMS', title: 'DBMS Quick Revision Cheat Sheet & SQL Syntax Guide',
-        desc: 'Quick reference sheet containing SQL joins, indexing, and transaction ACID properties.',
-        cat: 'REFERENCE', file_url: '/uploads/material/DBMS_Cheat_Sheet.pdf', file_name: 'DBMS_Cheat_Sheet.pdf',
-        size: '850 KB', type: 'pdf'
-      },
-      {
-        subject: 'NCS', title: 'Network Protocols & Packet Capture Practical Manual',
-        desc: 'Step-by-step Wireshark packet capture lab guidelines for Cyber Security.',
-        cat: 'MANUAL', file_url: '/uploads/material/CN_Unit2_Data_Link_Layer.pdf', file_name: 'NCS_Lab_Manual.pdf',
-        size: '2.5 MB', type: 'pdf'
-      },
-      {
-        subject: 'JAVA', title: 'Java OOPs Design Patterns & Architecture Slides',
-        desc: 'Lecture slides on Factory Pattern, Singleton, and MVC in Java Enterprise.',
-        cat: 'SLIDES', file_url: '/uploads/material/Linux_Kernel_Architecture.pptx', file_name: 'Java_Design_Patterns.pptx',
-        size: '4.2 MB', type: 'pptx'
-      }
-    ];
-
-    for (const m of sampleMaterials) {
-      await run(`
-        INSERT INTO study_material (subject, title, description, category, file_url, file_name, file_size, file_type, uploaded_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Admin')
-      `, [m.subject, m.title, m.desc, m.cat, m.file_url, m.file_name, m.size, m.type]);
-    }
-  }
-
-  // 8. Seed Assignments
-  const assignCount = await get("SELECT COUNT(*) as count FROM assignments");
-  if (assignCount && assignCount.count === 0) {
-    console.log('[DB] Seeding Assignments...');
-    const sampleAssignments = [
-      {
-        subject: 'DBMS', title: 'Assignment 1: ER Diagram & Normalization Case Study',
-        desc: 'Design a complete ER diagram for a Hospital Management System and normalize to 3NF. Submit handwritten / typed PDF.',
-        due: '2026-09-15', marks: 100, file_url: '/uploads/assignments/DBMS_Assignment1.pdf', file_name: 'DBMS_Assignment_1.pdf', size: '540 KB'
-      },
-      {
-        subject: 'DSA', title: 'Assignment 2: Graph Traversal & Shortest Path (Dijkstra)',
-        desc: 'Implement BFS, DFS, and Dijkstra algorithm in C++/Java and analyze space-time complexity.',
-        due: '2026-09-20', marks: 50, file_url: '/uploads/assignments/OS_Assignment2.pdf', file_name: 'DSA_Assignment_2.pdf', size: '420 KB'
-      },
-      {
-        subject: 'NCS', title: 'Assignment 1: RSA Public Key Encryption Implementation',
-        desc: 'Solve given 5 numerical problems on Modular Arithmetic and RSA key generation.',
-        due: '2026-09-25', marks: 50, file_url: '/uploads/assignments/CN_Unit2_Data_Link_Layer.pdf', file_name: 'NCS_Assignment_1.pdf', size: '610 KB'
-      }
-    ];
-
-    for (const a of sampleAssignments) {
-      await run(`
-        INSERT INTO assignments (subject, title, description, due_date, max_marks, attachment_url, attachment_name, attachment_size)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `, [a.subject, a.title, a.desc, a.due, a.marks, a.file_url, a.file_name, a.size]);
-    }
-  }
-
-  // 9. Seed Question Papers
-  const qpCount = await get("SELECT COUNT(*) as count FROM question_papers");
-  if (qpCount && qpCount.count === 0) {
-    console.log('[DB] Seeding Previous Year Question Papers...');
-    const sampleQPs = [
-      { subject: 'DBMS', exam: 'End-Semester Final Exam', sem: '3rd Semester', year: '2025-26', url: '/uploads/papers/BCA_Sem5_DBMS_2025_Final.pdf', name: 'DBMS_Final_Exam_2025.pdf', size: '890 KB' },
-      { subject: 'NCS', exam: 'Mid-Semester Exam', sem: '3rd Semester', year: '2025-26', url: '/uploads/papers/BCA_Sem5_CN_2024_EndTerm.pdf', name: 'NCS_MidSem_2025.pdf', size: '750 KB' },
-      { subject: 'DSA', exam: 'End-Semester Final Exam', sem: '3rd Semester', year: '2025-26', url: '/uploads/papers/BCA_Sem5_OS_2025_MidTerm.pdf', name: 'DSA_Final_Exam_2025.pdf', size: '920 KB' }
-    ];
-
-    for (const q of sampleQPs) {
-      await run(`
-        INSERT INTO question_papers (subject, exam_name, semester, academic_year, file_url, file_name, file_size)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `, [q.subject, q.exam, q.sem, q.year, q.url, q.name, q.size]);
-    }
-  }
-
-  // 10. Seed Sample Results for Demo Student
-  const resCount = await get("SELECT COUNT(*) as count FROM results WHERE ug_id = '26UG033181'");
-  if (resCount && resCount.count === 0) {
-    console.log('[DB] Seeding Results for Demo Student...');
-    const sampleResults = [
-      { ug_id: '26UG033181', exam: 'Mid-Semester Exam', sem: '3rd Semester', subject: 'Database Management System', marks: 28.5, max: 30, grade: 'AA', remarks: 'Outstanding performance in SQL queries' },
-      { ug_id: '26UG033181', exam: 'Mid-Semester Exam', sem: '3rd Semester', subject: 'Network & Cyber Security', marks: 27.0, max: 30, grade: 'AA', remarks: 'Excellent grasp of cryptography' },
-      { ug_id: '26UG033181', exam: 'Mid-Semester Exam', sem: '3rd Semester', subject: 'Data Structures & Algorithms', marks: 25.5, max: 30, grade: 'AB', remarks: 'Good logic in tree algorithms' },
-      { ug_id: '26UG033181', exam: 'Mid-Semester Exam', sem: '3rd Semester', subject: 'Java Programming', marks: 26.0, max: 30, grade: 'AB', remarks: 'Well-structured OOP implementation' },
-      { ug_id: '26UG033181', exam: 'Mid-Semester Exam', sem: '3rd Semester', subject: 'Discrete Mathematics', marks: 24.0, max: 30, grade: 'BB', remarks: 'Satisfactory mathematical proofs' }
-    ];
-
-    for (const r of sampleResults) {
-      await run(`
-        INSERT INTO results (ug_id, exam_name, semester, subject, marks, max_marks, grade, remarks)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `, [r.ug_id, r.exam, r.sem, r.subject, r.marks, r.max, r.grade, r.remarks]);
-    }
-  }
-
-  // 11. Seed Notifications & Announcements
-  const notifCount = await get("SELECT COUNT(*) as count FROM notifications");
-  if (notifCount && notifCount.count === 0) {
-    console.log('[DB] Seeding Notifications & Announcements...');
-    await run(`
-      INSERT INTO notifications (title, message, type, target_type)
-      VALUES (?, ?, ?, ?)
-    `, [
-      'Welcome to 3rd Semester 3CYBER7',
-      'Welcome B.Tech Cyber Security 2nd Year students! Your classes for Academic Year 2026-27 are now active as per official schedule.',
-      'ACADEMIC', 'ALL'
-    ]);
-
-    await run(`
-      INSERT INTO notifications (title, message, type, target_type, target_batch)
-      VALUES (?, ?, ?, ?, ?)
-    `, [
-      'Batch 2 Lab Schedule Notice',
-      'Batch 2 (Roll 31+) students: Monday Practical Lab for DSA is in Room L-313 from 12:20 PM to 02:10 PM.',
-      'ACADEMIC', 'BATCH_2', 'Batch 2'
-    ]);
-
-    await run(`
-      INSERT INTO notifications (title, message, type, target_type)
-      VALUES (?, ?, ?, ?)
-    `, [
-      'New DBMS Assignment Posted',
-      'Prof. N. Wagh has uploaded Assignment 1 on ER Modeling & Normalization. Due date is 15th September 2026.',
-      'ALERT', 'ALL'
-    ]);
-
-    // Announcements
-    await run(`
-      INSERT INTO announcements (title, content, category, priority)
-      VALUES (?, ?, ?, ?)
-    `, [
-      'Cyber Security Workshop: Ethical Hacking & Kali Linux',
-      'Department of Cyber Security is organizing a 2-day hands-on workshop on Vulnerability Assessment & Penetration Testing on 18th & 19th September 2026 in Lab L-408.',
-      'EVENT', 'HIGH'
-    ]);
-
-    await run(`
-      INSERT INTO announcements (title, content, category, priority)
-      VALUES (?, ?, ?, ?)
-    `, [
-      'Mid-Semester Examination Schedule Announced',
-      'The Mid-Semester examinations for 3rd Semester will commence from October 12, 2026. Detailed timetable will be published shortly.',
-      'EXAM', 'URGENT'
-    ]);
-  }
-
-  // 12. Seed Academic Calendar
-  const calCount = await get("SELECT COUNT(*) as count FROM academic_calendar");
-  if (calCount && calCount.count === 0) {
-    console.log('[DB] Seeding Academic Calendar...');
-    const sampleCalendar = [
-      { title: 'Commencement of 3rd Semester Classes', type: 'EVENT', start: '2026-06-09', end: '2026-06-09', desc: 'Official start of academic term 2026-27 for B.Tech Cyber Security.' },
-      { title: 'DBMS Assignment 1 Deadline', type: 'DEADLINE', start: '2026-09-15', end: '2026-09-15', desc: 'Last date for submission of ER Diagram & Normalization case study.' },
-      { title: 'National Cyber Safety Day Workshop', type: 'WORKSHOP', start: '2026-09-18', end: '2026-09-19', desc: 'Hands-on practical security auditing session.' },
-      { title: 'Mid-Semester Examinations', type: 'EXAM', start: '2026-10-12', end: '2026-10-20', desc: 'Written internal examinations for all theory subjects.' },
-      { title: 'Diwali Vacation', type: 'HOLIDAY', start: '2026-11-05', end: '2026-11-18', desc: 'University holiday for Diwali festivities.' },
-      { title: 'End-Semester Final Practical & Theory Exams', type: 'EXAM', start: '2026-12-15', end: '2026-12-30', desc: 'Final university semester examinations.' }
-    ];
-
-    for (const c of sampleCalendar) {
-      await run(`
-        INSERT INTO academic_calendar (title, event_type, start_date, end_date, description)
-        VALUES (?, ?, ?, ?, ?)
-      `, [c.title, c.type, c.start, c.end, c.desc]);
-    }
-  }
-
-  // 13. Seed AI Knowledge for Cyber Security Subjects
-  const aiCount = await get("SELECT COUNT(*) as count FROM ai_knowledge");
-  if (aiCount && aiCount.count === 0) {
-    console.log('[DB] Seeding AI Academic Knowledge Base...');
-    const aiSubjects = [
-      {
-        subject: 'DBMS', unit: 'Unit 1 to 4', topic: 'Relational Databases, Normalization, SQL, Transactions',
-        summary: 'Database Management Systems deals with structured data storage, relational model, normalization (1NF, 2NF, 3NF, BCNF), indexing (B-Trees), SQL queries, and ACID transactional properties (Atomicity, Consistency, Isolation, Durability).',
-        concepts: 'Keys: Primary, Foreign, Candidate, Super Key. Normalization decomposes relations to remove insertion, deletion, and update anomalies.'
-      },
-      {
-        subject: 'NCS', unit: 'Unit 1 to 4', topic: 'Network & Cyber Security, Cryptography, Firewalls, Protocols',
-        summary: 'Network and Cyber Security covers cryptographic techniques (Symmetric: AES/DES, Asymmetric: RSA/ECC), cryptographic hash functions (SHA-256, MD5), network security protocols (SSL/TLS, IPsec, SSH), packet inspection, firewall architectures, and intrusion detection systems (IDS/IPS).',
-        concepts: 'Confidentiality, Integrity, Availability (CIA Triad), Public Key Infrastructure (PKI), Digital Signatures, Man-In-The-Middle (MITM) defense.'
-      },
-      {
-        subject: 'DSA', unit: 'Unit 1 to 5', topic: 'Data Structures and Algorithms, Trees, Graphs, Sorting',
-        summary: 'Data Structures & Algorithms covers linear and non-linear data structures including Arrays, Linked Lists, Stacks, Queues, Binary Search Trees, AVL Trees, Heaps, and Graph algorithms (BFS, DFS, Dijkstra, Prim, Kruskal) with Big-O time and space complexity analysis.',
-        concepts: 'Time complexity, Space complexity, Recursion, Divide and Conquer, Dynamic Programming, Greedy approaches.'
-      },
-      {
-        subject: 'JAVA', unit: 'Unit 1 to 4', topic: 'OOPs Concepts, Multithreading, Collections, Exception Handling',
-        summary: 'Object-Oriented Programming with Java covers Classes, Objects, Inheritance, Polymorphism, Encapsulation, Abstraction, Java Virtual Machine (JVM) internals, Exception Hierarchy, Java Collections Framework (ArrayList, HashMap, HashSet), and Multithreading with synchronization.',
-        concepts: 'Encapsulation, Polymorphism (Overloading & Overriding), Abstract classes vs Interfaces, Concurrency, Garbage Collection.'
-      },
-      {
-        subject: 'COMA', unit: 'Unit 1 to 4', topic: 'Computer Organization & Microprocessor Architecture',
-        summary: 'Computer Organization and Architecture focuses on instruction set architecture, CPU registers, ALU design, memory hierarchy (Registers, Cache L1/L2/L3, RAM, Secondary storage), Pipelining, Bus standards, and 8086/ARM microprocessor pinouts and timing diagrams.',
-        concepts: 'Von Neumann Architecture, Instruction Cycle (Fetch-Decode-Execute), Pipelining Hazards (Data, Structural, Control), Cache hit/miss.'
-      },
-      {
-        subject: 'DM', unit: 'Unit 1 to 4', topic: 'Discrete Mathematics, Set Theory, Graph Theory, Combinatorics',
-        summary: 'Discrete Mathematics covers Propositional Logic, Truth Tables, Predicate Calculus, Set Theory, Relations & Functions, Equivalence Relations, Partially Ordered Sets (Posets), Recurrence Relations, and Planar Graphs.',
-        concepts: 'Tautology, Modus Ponens, Pigeonhole Principle, Eulerian & Hamiltonian paths, Graph coloring.'
-      }
-    ];
-
-    for (const k of aiSubjects) {
-      await run(`
-        INSERT INTO ai_knowledge (subject, unit, topic, summary, key_concepts)
-        VALUES (?, ?, ?, ?, ?)
-      `, [k.subject, k.unit, k.topic, k.summary, k.concepts]);
-    }
-  }
-
-  // 14. Seed Sample Attendance Records for demo student so attendance stats show realistic percentages!
-  const attRecCount = await get("SELECT COUNT(*) as count FROM attendance_manual WHERE ug_id = '26UG033181'");
-  if (attRecCount && attRecCount.count === 0) {
-    console.log('[DB] Seeding baseline attendance records for Demo Student...');
-    const pastAttendance = [
-      { date: '2026-08-24', subject: 'DBMS', status: 'PRESENT' },
-      { date: '2026-08-24', subject: 'DM', status: 'PRESENT' },
-      { date: '2026-08-24', subject: 'DSA', status: 'PRESENT' },
-      { date: '2026-08-25', subject: 'JAVA', status: 'PRESENT' },
-      { date: '2026-08-25', subject: 'COMA', status: 'PRESENT' },
-      { date: '2026-08-26', subject: 'DBMS', status: 'PRESENT' },
-      { date: '2026-08-26', subject: 'NCS', status: 'PRESENT' },
-      { date: '2026-08-27', subject: 'DSA', status: 'ABSENT' },
-      { date: '2026-08-28', subject: 'DBMS', status: 'PRESENT' },
-      { date: '2026-08-28', subject: 'JAVA', status: 'PRESENT' },
-      { date: '2026-08-29', subject: 'NCS', status: 'PRESENT' },
-      { date: '2026-08-29', subject: 'DSA', status: 'PRESENT' }
-    ];
-
-    for (const a of pastAttendance) {
-      await run(`
-        INSERT INTO attendance_manual (ug_id, student_name, date, subject, batch, status, remarks, marked_by)
-        VALUES ('26UG033181', 'Demo Student', ?, ?, 'Batch 2', ?, 'Regular Class', 'Admin')
-      `, [a.date, a.subject, a.status]);
     }
   }
 

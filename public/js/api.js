@@ -218,6 +218,14 @@ const API = {
   },
 
   // Academic Content
+  getSubjects() {
+    return this.request('/api/academic/subjects');
+  },
+
+  getSubjectStudyHub() {
+    return this.request('/api/academic/study-hub');
+  },
+
   getClassNotes(params = {}) {
     const query = new URLSearchParams(params).toString();
     return this.request(`/api/academic/notes?${query}`);

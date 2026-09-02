@@ -110,15 +110,18 @@ const AdminApp = {
           </div>
         </aside>
 
+        <!-- Mobile Sidebar Backdrop Overlay -->
+        <div class="admin-sidebar-backdrop" id="admin-sidebar-backdrop" onclick="AdminApp.toggleSidebar(false)"></div>
+
         <!-- Main Content Area -->
         <main class="admin-main">
           <header class="admin-topbar">
-            <div style="display:flex; align-items:center; gap:14px;">
-              <button class="icon-btn" id="btn-toggle-sidebar" style="display:none;" onclick="document.getElementById('admin-sidebar').classList.toggle('open')">☰</button>
-              <h2 id="admin-page-title" style="font-size:18px; font-weight:800;">Dashboard Overview</h2>
-            </div>
             <div style="display:flex; align-items:center; gap:12px;">
-              <span class="auth-badge" style="margin-top:0;">MISHRA GROUP INSTITUTE • 2026–27</span>
+              <button class="icon-btn" id="btn-toggle-sidebar" onclick="AdminApp.toggleSidebar()">☰</button>
+              <h2 id="admin-page-title" style="font-size:17px; font-weight:800;">Dashboard Overview</h2>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span class="auth-badge" style="margin-top:0; font-size:11px; padding:3px 8px;">MGI • 2026–27</span>
               <button class="icon-btn" onclick="window.App.toggleTheme()" title="Toggle Theme">🌓</button>
             </div>
           </header>
@@ -134,10 +137,21 @@ const AdminApp = {
     `;
   },
 
+  toggleSidebar(forceState) {
+    const sidebar = document.getElementById('admin-sidebar');
+    const backdrop = document.getElementById('admin-sidebar-backdrop');
+    if (!sidebar) return;
+
+    const isOpen = forceState !== undefined ? forceState : !sidebar.classList.contains('open');
+    sidebar.classList.toggle('open', isOpen);
+    if (backdrop) backdrop.classList.toggle('open', isOpen);
+  },
+
   bindSidebarEvents() {
     document.querySelectorAll('.admin-sidebar .sidebar-item').forEach(btn => {
       if (btn.dataset.section) {
         btn.addEventListener('click', () => {
+          this.toggleSidebar(false);
           this.switchSection(btn.dataset.section);
         });
       }

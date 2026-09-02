@@ -427,200 +427,308 @@ const StudentApp = {
         </section>
       ` : ''}
     `;
-  },
+  // ==================== TAB 2: SUBJECT-WISE STUDY HUB ====================
+  studyHubData: null,
+  activeSubjectFilter: 'ALL',
+  subjectSubTabs: {}, // Map of subject code -> active sub tab ('notes', 'material', 'assignments', 'papers')
 
-  // ==================== TAB 2: STUDY HUB ====================
-  async renderStudyTab(container, defaultSub = 'notes') {
+  async renderStudyTab(container, targetSubject = 'ALL') {
+    this.activeSubjectFilter = targetSubject || 'ALL';
+
     container.innerHTML = `
-      <div style="margin-bottom:18px;">
-        <h2 style="font-size:20px; font-weight:800; margin-bottom:4px;">📚 Study Hub</h2>
-        <p style="font-size:13px; color:var(--text-secondary);">Official Academic Resources for B.Tech Cyber Security (3CYBER7)</p>
+      <div style="margin-bottom:16px;">
+        <h2 style="font-size:20px; font-weight:800; margin-bottom:4px;">📚 Academic Study Hub</h2>
+        <p style="font-size:13px; color:var(--text-secondary);">Subject-Wise Notes, Reference Materials, Assignments & Question Papers</p>
       </div>
 
-      <!-- Sub Tabs -->
-      <div class="auth-toggle-tabs" style="margin-bottom:18px;">
-        <button class="auth-toggle-btn ${defaultSub === 'notes' ? 'active' : ''}" onclick="StudentApp.loadStudySubTab('notes')">Class Notes</button>
-        <button class="auth-toggle-btn ${defaultSub === 'material' ? 'active' : ''}" onclick="StudentApp.loadStudySubTab('material')">Study Material</button>
-        <button class="auth-toggle-btn ${defaultSub === 'assignments' ? 'active' : ''}" onclick="StudentApp.loadStudySubTab('assignments')">Assignments</button>
-        <button class="auth-toggle-btn ${defaultSub === 'papers' ? 'active' : ''}" onclick="StudentApp.loadStudySubTab('papers')">Papers</button>
+      <!-- Quick Search Bar -->
+      <div style="margin-bottom:14px; position:relative;">
+        <input type="text" id="study-search-input" class="form-control" placeholder="🔍 Search by topic, chapter, unit, or title..." oninput="StudentApp.filterStudySearch(this.value)" style="padding-left:16px; font-size:13px;">
       </div>
 
-      <div id="study-subtab-content">
-        <div style="text-align:center; padding:30px;"><div class="spinner"></div></div>
+      <!-- Subject Carousel Tabs (Scrollable on phone) -->
+      <div class="subject-carousel-wrapper">
+        <div class="subject-carousel-tabs" id="subject-filter-tabs">
+          <button class="subject-filter-pill ${this.activeSubjectFilter === 'ALL' ? 'active' : ''}" onclick="StudentApp.selectSubjectFilter('ALL')">
+            ✨ All Subjects
+          </button>
+        </div>
+      </div>
+
+      <!-- Subject Columns / Cards Container -->
+      <div id="subject-cards-container">
+        <div style="text-align:center; padding:40px;"><div class="spinner"></div><p style="color:var(--text-muted); margin-top:10px;">Loading Subjects & Academic Resources...</p></div>
       </div>
     `;
 
-    await this.loadStudySubTab(defaultSub);
+    await this.loadStudyHubData();
+  },
+
+  async loadStudyHubData() {
+    const container = document.getElementById('subject-cards-container');
+    const tabsContainer = document.getElementById('subject-filter-tabs');
+    if (!container) return;
+
+    const res = await API.getSubjectStudyHub();
+    if (!res.success || !res.data) {
+      container.innerHTML = `<div class="glass-card" style="padding:24px; text-align:center; color:var(--text-muted);">Failed to load academic subjects.</div>`;
+      return;
+    }
+
+    this.studyHubData = res.data;
+
+    // Render Subject Filter Tabs
+    if (tabsContainer) {
+      tabsContainer.innerHTML = `
+        <button class="subject-filter-pill ${this.activeSubjectFilter === 'ALL' ? 'active' : ''}" onclick="StudentApp.selectSubjectFilter('ALL')">
+          ✨ All Subjects (${this.studyHubData.length})
+        </button>
+        ${this.studyHubData.map(item => `
+          <button class="subject-filter-pill ${this.activeSubjectFilter === item.subject.short_name ? 'active' : ''}" onclick="StudentApp.selectSubjectFilter('${item.subject.short_name}')">
+            ${item.subject.short_name}
+          </button>
+        `).join('')}
+      `;
+    }
+
+    this.renderSubjectColumns(this.studyHubData);
+  },
+
+  selectSubjectFilter(shortName) {
+    this.activeSubjectFilter = shortName;
+    document.querySelectorAll('.subject-filter-pill').forEach(btn => {
+      const isAll = shortName === 'ALL' && btn.innerText.includes('All Subjects');
+      const isMatch = btn.innerText.trim() === shortName;
+      btn.classList.toggle('active', isAll || isMatch);
+      if (isAll || isMatch) {
+        btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    });
+
+    if (!this.studyHubData) return;
+    const filtered = shortName === 'ALL' 
+      ? this.studyHubData 
+      : this.studyHubData.filter(item => item.subject.short_name === shortName);
+
+    this.renderSubjectColumns(filtered);
+  },
+
+  filterStudySearch(query) {
+    if (!this.studyHubData) return;
+    const q = (query || '').trim().toLowerCase();
+    if (!q) {
+      this.selectSubjectFilter(this.activeSubjectFilter);
+      return;
+    }
+
+    const filtered = this.studyHubData.map(item => {
+      const matchSub = item.subject.name.toLowerCase().includes(q) || item.subject.short_name.toLowerCase().includes(q) || item.subject.code.toLowerCase().includes(q);
+      const subNotes = item.notes.filter(n => (n.title && n.title.toLowerCase().includes(q)) || (n.chapter && n.chapter.toLowerCase().includes(q)) || (n.topic && n.topic.toLowerCase().includes(q)) || (n.unit && n.unit.toLowerCase().includes(q)));
+      const subMaterials = item.materials.filter(m => (m.title && m.title.toLowerCase().includes(q)) || (m.description && m.description.toLowerCase().includes(q)) || (m.category && m.category.toLowerCase().includes(q)));
+      const subAssignments = item.assignments.filter(a => (a.title && a.title.toLowerCase().includes(q)) || (a.description && a.description.toLowerCase().includes(q)));
+      const subPapers = item.questionPapers.filter(p => (p.exam_name && p.exam_name.toLowerCase().includes(q)));
+
+      if (matchSub || subNotes.length > 0 || subMaterials.length > 0 || subAssignments.length > 0 || subPapers.length > 0) {
+        return {
+          ...item,
+          notes: subNotes,
+          materials: subMaterials,
+          assignments: subAssignments,
+          questionPapers: subPapers
+        };
+      }
+      return null;
+    }).filter(Boolean);
+
+    this.renderSubjectColumns(filtered);
+  },
+
+  renderSubjectColumns(subjectItems) {
+    const container = document.getElementById('subject-cards-container');
+    if (!container) return;
+
+    if (!subjectItems || subjectItems.length === 0) {
+      container.innerHTML = `
+        <div class="glass-card" style="padding:30px; text-align:center;">
+          <div style="font-size:36px; margin-bottom:10px;">🔍</div>
+          <h4 style="font-size:16px; font-weight:700;">No Academic Resources Found</h4>
+          <p style="font-size:13px; color:var(--text-muted); margin-top:4px;">No notes or materials match your selected filter.</p>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = subjectItems.map(item => {
+      const sub = item.subject;
+      const activeTab = this.subjectSubTabs[sub.code] || 'notes';
+
+      return `
+        <div class="subject-column-card" id="subject-card-${sub.code}">
+          <!-- Subject Header -->
+          <div class="subject-header-top">
+            <div class="subject-title-box">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span class="subject-code-tag">${sub.code}</span>
+                <span style="font-size:11px; color:var(--accent-cyan); font-weight:700;">${sub.credits || 4} Credits</span>
+              </div>
+              <h3>${sub.short_name} • ${sub.name}</h3>
+              <p>Faculty: <strong style="color:var(--text-secondary);">${sub.faculty_default || 'Department Faculty'}</strong></p>
+            </div>
+          </div>
+
+          <!-- Quick Stat Counters -->
+          <div class="subject-stats-bar">
+            <span class="subject-stat-chip">📚 Notes: <strong>${item.notes.length}</strong></span>
+            <span class="subject-stat-chip">📖 Material: <strong>${item.materials.length}</strong></span>
+            <span class="subject-stat-chip">📝 Assignments: <strong>${item.assignments.length}</strong></span>
+            <span class="subject-stat-chip">📄 Papers: <strong>${item.questionPapers.length}</strong></span>
+          </div>
+
+          <!-- Subject Resource Sub Tabs -->
+          <div class="subject-inner-tabs">
+            <button class="subject-inner-tab-btn ${activeTab === 'notes' ? 'active' : ''}" onclick="StudentApp.switchSubjectSubTab('${sub.code}', 'notes')">
+              📚 Notes (${item.notes.length})
+            </button>
+            <button class="subject-inner-tab-btn ${activeTab === 'material' ? 'active' : ''}" onclick="StudentApp.switchSubjectSubTab('${sub.code}', 'material')">
+              📖 Material (${item.materials.length})
+            </button>
+            <button class="subject-inner-tab-btn ${activeTab === 'assignments' ? 'active' : ''}" onclick="StudentApp.switchSubjectSubTab('${sub.code}', 'assignments')">
+              📝 Assignments (${item.assignments.length})
+            </button>
+            <button class="subject-inner-tab-btn ${activeTab === 'papers' ? 'active' : ''}" onclick="StudentApp.switchSubjectSubTab('${sub.code}', 'papers')">
+              📄 Papers (${item.questionPapers.length})
+            </button>
+          </div>
+
+          <!-- Sub Tab Content Body -->
+          <div id="subject-content-${sub.code}">
+            ${this.renderSubjectTabContent(item, activeTab)}
+          </div>
+        </div>
+      `;
+    }).join('');
+  },
+
+  switchSubjectSubTab(code, tabName) {
+    this.subjectSubTabs[code] = tabName;
+    const card = document.getElementById(`subject-card-${code}`);
+    if (!card) return;
+
+    card.querySelectorAll('.subject-inner-tab-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.innerText.toLowerCase().includes(tabName.slice(0, 4)));
+    });
+
+    const item = this.studyHubData.find(i => i.subject.code === code);
+    if (!item) return;
+
+    const contentBox = document.getElementById(`subject-content-${code}`);
+    if (contentBox) {
+      contentBox.innerHTML = this.renderSubjectTabContent(item, tabName);
+    }
+  },
+
+  renderSubjectTabContent(item, tabName) {
+    const sub = item.subject;
+
+    if (tabName === 'notes') {
+      if (item.notes.length === 0) {
+        return `<div class="empty-resource-box">No notes uploaded for ${sub.short_name} yet. Faculty will upload soon.</div>`;
+      }
+      return item.notes.map(n => `
+        <div class="subject-resource-card">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
+            <div>
+              <span class="lab-chip" style="background:rgba(6,182,212,0.2); color:#38bdf8;">${n.unit || 'Unit'}</span>
+              <h4 style="font-size:14px; font-weight:700; margin-top:4px;">${n.title}</h4>
+            </div>
+            <span style="font-size:10px; color:var(--text-muted);">${n.file_size || 'PDF'}</span>
+          </div>
+          ${n.chapter ? `<div style="font-size:12px; color:#93c5fd; margin-bottom:2px;">📖 ${n.chapter}</div>` : ''}
+          ${n.topic ? `<div style="font-size:11px; color:var(--text-secondary); margin-bottom:6px;">📌 ${n.topic}</div>` : ''}
+          ${n.description ? `<p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">${n.description}</p>` : ''}
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <a href="${n.file_url}" target="_blank" class="btn-primary" style="flex:1; padding:7px 10px; font-size:11px; margin-top:0; background:rgba(37,99,235,0.2); border:1px solid rgba(59,130,246,0.4); color:#60a5fa;">
+              👁️ View
+            </a>
+            <a href="${n.file_url}" download target="_blank" class="btn-primary" style="flex:1; padding:7px 10px; font-size:11px; margin-top:0;">
+              📥 Download
+            </a>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    if (tabName === 'material') {
+      if (item.materials.length === 0) {
+        return `<div class="empty-resource-box">No study materials (manuals, cheat sheets, slides) uploaded for ${sub.short_name} yet.</div>`;
+      }
+      return item.materials.map(m => `
+        <div class="subject-resource-card" style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <span class="lab-chip" style="background:rgba(16,185,129,0.2); color:#34d399;">${m.category || 'REFERENCE'}</span>
+            <h4 style="font-size:14px; font-weight:700; margin-top:4px;">${m.title}</h4>
+            <p style="font-size:11px; color:var(--text-muted); margin-top:2px;">${m.description || ''}</p>
+          </div>
+          <a href="${m.file_url}" target="_blank" download class="btn-primary" style="width:auto; padding:6px 12px; font-size:11px; margin-top:0;">
+            📥 Open
+          </a>
+        </div>
+      `).join('');
+    }
+
+    if (tabName === 'assignments') {
+      if (item.assignments.length === 0) {
+        return `<div class="empty-resource-box">No pending assignments for ${sub.short_name}.</div>`;
+      }
+      return item.assignments.map(a => `
+        <div class="subject-resource-card">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
+            <h4 style="font-size:14px; font-weight:700;">${a.title}</h4>
+            <span style="font-size:10px; padding:2px 8px; border-radius:10px; background:rgba(245,158,11,0.15); color:#fbbf24; font-weight:700;">
+              Due: ${a.due_date}
+            </span>
+          </div>
+          <p style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">${a.description || ''}</p>
+          <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-color); padding-top:8px;">
+            <span style="font-size:11px; color:var(--text-muted);">Max Marks: <strong>${a.max_marks}</strong></span>
+            ${a.attachment_url ? `
+              <a href="${a.attachment_url}" target="_blank" download class="btn-primary" style="width:auto; padding:5px 12px; font-size:11px; margin-top:0;">
+                📥 Attachment
+              </a>
+            ` : '<span style="font-size:11px; color:var(--text-muted);">No File</span>'}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    if (tabName === 'papers') {
+      if (item.questionPapers.length === 0) {
+        return `<div class="empty-resource-box">No previous question papers uploaded for ${sub.short_name} yet.</div>`;
+      }
+      return item.questionPapers.map(p => `
+        <div class="subject-resource-card" style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <h4 style="font-size:13px; font-weight:700;">${p.exam_name}</h4>
+            <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Year: ${p.academic_year} • ${p.semester}</div>
+          </div>
+          <a href="${p.file_url}" target="_blank" download class="btn-primary" style="width:auto; padding:5px 12px; font-size:11px; margin-top:0;">
+            📥 PDF
+          </a>
+        </div>
+      `).join('');
+    }
+
+    return '';
   },
 
   openStudySubTab(subTab) {
     this.switchTab('study');
-    setTimeout(() => this.loadStudySubTab(subTab), 100);
-  },
-
-  async loadStudySubTab(subTab) {
-    const container = document.getElementById('study-subtab-content');
-    if (!container) return;
-
-    document.querySelectorAll('.auth-toggle-tabs .auth-toggle-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.innerText.toLowerCase().includes(subTab.toLowerCase().slice(0, 4)));
-    });
-
-    if (subTab === 'notes') {
-      const res = await API.getClassNotes();
-      const notes = res.success ? res.data : [];
-
-      container.innerHTML = `
-        <div style="display:flex; gap:8px; margin-bottom:14px;">
-          <select class="form-control" id="notes-subject-filter" onchange="StudentApp.filterNotes()" style="padding:8px 12px; font-size:12px;">
-            <option value="ALL">All Subjects</option>
-            <option value="DBMS">DBMS</option>
-            <option value="NCS">NCS</option>
-            <option value="DSA">DSA</option>
-            <option value="JAVA">JAVA</option>
-            <option value="COMA">COMA</option>
-            <option value="DM">DM</option>
-            <option value="FCS">FCS</option>
-          </select>
-        </div>
-
-        <div id="notes-list-wrapper">
-          ${this.renderNotesList(notes)}
-        </div>
-      `;
-    } else if (subTab === 'material') {
-      const res = await API.getStudyMaterial();
-      const materials = res.success ? res.data : [];
-
-      container.innerHTML = `
-        <div style="display:flex; gap:8px; margin-bottom:14px;">
-          <select class="form-control" id="material-category-filter" onchange="StudentApp.filterMaterial()" style="padding:8px 12px; font-size:12px;">
-            <option value="ALL">All Categories</option>
-            <option value="REFERENCE">Reference / Cheat Sheet</option>
-            <option value="MANUAL">Lab Manual</option>
-            <option value="SLIDES">Lecture Slides</option>
-            <option value="BOOK">E-Books</option>
-            <option value="VIDEO">Recorded Videos</option>
-          </select>
-        </div>
-
-        <div id="material-list-wrapper">
-          ${this.renderMaterialList(materials)}
-        </div>
-      `;
-    } else if (subTab === 'assignments') {
-      const res = await API.getAssignments();
-      const assignments = res.success ? res.data : [];
-
-      container.innerHTML = `
-        <div id="assignments-list-wrapper">
-          ${assignments.map(a => `
-            <div class="glass-card" style="padding:16px; margin-bottom:12px;">
-              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
-                <div>
-                  <span class="lab-chip" style="background:rgba(37,99,235,0.2); color:#60a5fa;">${a.subject}</span>
-                  <h4 style="font-size:15px; font-weight:700; margin-top:4px;">${a.title}</h4>
-                </div>
-                <span style="font-size:11px; padding:3px 8px; border-radius:12px; background:rgba(245,158,11,0.15); color:#fbbf24; font-weight:700;">
-                  Due: ${a.due_date}
-                </span>
-              </div>
-              <p style="font-size:13px; color:var(--text-secondary); line-height:1.4; margin-bottom:12px;">${a.description || 'No description provided.'}</p>
-              <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-color); padding-top:10px;">
-                <span style="font-size:12px; color:var(--text-muted);">Max Marks: <strong>${a.max_marks}</strong></span>
-                ${a.attachment_url ? `
-                  <a href="${a.attachment_url}" target="_blank" download class="btn-primary" style="width:auto; padding:6px 14px; font-size:12px; margin-top:0;">
-                    📥 Download Attachment
-                  </a>
-                ` : '<span style="font-size:12px; color:var(--text-muted);">No Attachment</span>'}
-              </div>
-            </div>
-          `).join('')}
-        </div>
-      `;
-    } else if (subTab === 'papers') {
-      const res = await API.getQuestionPapers();
-      const papers = res.success ? res.data : [];
-
-      container.innerHTML = `
-        <div id="papers-list-wrapper">
-          ${papers.map(p => `
-            <div class="glass-card" style="padding:16px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
-              <div>
-                <span class="lab-chip" style="background:rgba(139,92,246,0.2); color:#c084fc;">${p.subject}</span>
-                <h4 style="font-size:14px; font-weight:700; margin-top:4px;">${p.exam_name}</h4>
-                <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Academic Year: ${p.academic_year} • Semester: ${p.semester}</div>
-              </div>
-              <a href="${p.file_url}" target="_blank" download class="btn-primary" style="width:auto; padding:6px 14px; font-size:12px; margin-top:0;">
-                📥 PDF
-              </a>
-            </div>
-          `).join('')}
-        </div>
-      `;
+    if (this.studyHubData) {
+      this.studyHubData.forEach(item => {
+        this.subjectSubTabs[item.subject.code] = subTab;
+      });
+      this.renderSubjectColumns(this.studyHubData);
     }
-  },
-
-  renderNotesList(notes) {
-    if (!notes || notes.length === 0) {
-      return `<div class="glass-card" style="padding:24px; text-align:center; color:var(--text-muted);">No notes found for selected criteria.</div>`;
-    }
-
-    return notes.map(n => `
-      <div class="glass-card" style="padding:16px; margin-bottom:12px;">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
-          <div>
-            <span class="lab-chip" style="background:rgba(6,182,212,0.2); color:#38bdf8;">${n.subject}</span>
-            <span style="font-size:11px; color:var(--text-muted); margin-left:6px;">${n.unit}</span>
-            <h4 style="font-size:15px; font-weight:700; margin-top:4px;">${n.title}</h4>
-          </div>
-          <span style="font-size:10px; color:var(--text-muted);">${n.file_size || 'PDF'}</span>
-        </div>
-        ${n.chapter ? `<div style="font-size:12px; color:#93c5fd; margin-bottom:4px;">📖 ${n.chapter}</div>` : ''}
-        ${n.topic ? `<div style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">📌 ${n.topic}</div>` : ''}
-        <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">${n.description || ''}</p>
-        <div style="display:flex; gap:10px;">
-          <a href="${n.file_url}" target="_blank" class="btn-primary" style="flex:1; padding:8px 12px; font-size:12px; margin-top:0; background:rgba(37,99,235,0.2); border:1px solid rgba(59,130,246,0.4); color:#60a5fa;">
-            👁️ Open / View
-          </a>
-          <a href="${n.file_url}" download target="_blank" class="btn-primary" style="flex:1; padding:8px 12px; font-size:12px; margin-top:0;">
-            📥 Download
-          </a>
-        </div>
-      </div>
-    `).join('');
-  },
-
-  renderMaterialList(materials) {
-    if (!materials || materials.length === 0) {
-      return `<div class="glass-card" style="padding:24px; text-align:center; color:var(--text-muted);">No study materials available.</div>`;
-    }
-
-    return materials.map(m => `
-      <div class="glass-card" style="padding:16px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
-        <div>
-          <span class="lab-chip" style="background:rgba(16,185,129,0.2); color:#34d399;">${m.subject}</span>
-          <span style="font-size:10px; color:var(--text-muted); margin-left:6px;">[${m.category}]</span>
-          <h4 style="font-size:14px; font-weight:700; margin-top:4px;">${m.title}</h4>
-          <p style="font-size:12px; color:var(--text-muted); margin-top:2px;">${m.description || ''}</p>
-        </div>
-        <a href="${m.file_url}" target="_blank" download class="btn-primary" style="width:auto; padding:6px 14px; font-size:12px; margin-top:0;">
-          📥 Open
-        </a>
-      </div>
-    `).join('');
-  },
-
-  async filterNotes() {
-    const subject = document.getElementById('notes-subject-filter').value;
-    const res = await API.getClassNotes({ subject });
-    document.getElementById('notes-list-wrapper').innerHTML = this.renderNotesList(res.data);
-  },
-
-  async filterMaterial() {
-    const category = document.getElementById('material-category-filter').value;
-    const res = await API.getStudyMaterial({ category });
-    document.getElementById('material-list-wrapper').innerHTML = this.renderMaterialList(res.data);
   },
 
   // ==================== TAB 3: TIMETABLE ====================
@@ -630,18 +738,21 @@ const StudentApp = {
     const currentDay = this.getCurrentDayName();
 
     container.innerHTML = `
-      <div style="margin-bottom:18px;">
+      <div style="margin-bottom:16px;">
         <h2 style="font-size:20px; font-weight:800; margin-bottom:4px;">📅 Official Timetable</h2>
         <p style="font-size:13px; color:var(--text-secondary);">3CYBER7 • B.Tech Cyber Security • ${u.batch} Schedule</p>
       </div>
 
-      <!-- Day Selector Carousel -->
-      <div style="display:flex; gap:6px; overflow-x:auto; padding-bottom:8px; margin-bottom:16px;">
-        ${days.map(d => `
-          <button class="auth-toggle-btn ${d === currentDay ? 'active' : ''}" style="flex:0 0 auto; padding:8px 14px; font-size:12px;" onclick="StudentApp.loadDayTimetable('${d}')">
-            ${d}
-          </button>
-        `).join('')}
+      <!-- Day Selector Carousel (Smooth Touch Scrolling on Phone) -->
+      <div class="day-scroll-wrapper">
+        <div class="day-scroll-container" id="timetable-day-pills">
+          ${days.map(d => `
+            <button class="day-pill-btn ${d === currentDay ? 'active' : ''}" onclick="StudentApp.loadDayTimetable('${d}')">
+              <span>📅</span>
+              <span>${d}</span>
+            </button>
+          `).join('')}
+        </div>
       </div>
 
       <div id="timetable-day-content">
@@ -656,20 +767,30 @@ const StudentApp = {
     const content = document.getElementById('timetable-day-content');
     if (!content) return;
 
-    document.querySelectorAll('.auth-toggle-btn').forEach(b => {
-      b.classList.toggle('active', b.innerText.trim() === day);
+    document.querySelectorAll('.day-pill-btn').forEach(b => {
+      const isMatch = b.innerText.includes(day);
+      b.classList.toggle('active', isMatch);
+      if (isMatch) {
+        b.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
     });
 
     const res = await API.getStudentTimetable(day);
     const slots = res.success ? res.data : [];
 
     if (slots.length === 0) {
-      content.innerHTML = `<div class="glass-card" style="padding:24px; text-align:center; color:var(--text-muted);">No classes scheduled for ${day}.</div>`;
+      content.innerHTML = `
+        <div class="glass-card" style="padding:28px; text-align:center;">
+          <div style="font-size:32px; margin-bottom:8px;">🌴</div>
+          <h4 style="font-size:15px; font-weight:700;">No Classes Scheduled</h4>
+          <p style="font-size:12px; color:var(--text-muted); margin-top:2px;">No lectures or lab sessions scheduled for ${day}.</p>
+        </div>
+      `;
       return;
     }
 
     content.innerHTML = slots.map(s => `
-      <div class="schedule-item-card" style="margin-bottom:12px; padding:16px;">
+      <div class="schedule-item-card" style="margin-bottom:12px; padding:15px;">
         <div class="schedule-time-box" style="min-width:84px; padding:8px;">
           <div style="font-size:12px; font-weight:800; color:#38bdf8;">${StudentApp.formatTimeSlot(s.start_time)}</div>
           <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">${StudentApp.formatTimeSlot(s.end_time)}</div>
@@ -682,8 +803,9 @@ const StudentApp = {
           <div class="schedule-meta" style="margin-top:4px;">
             Room: <strong style="color:#ffffff;">${s.room}</strong> • Faculty: <strong>${s.teacher || '-'}</strong>
           </div>
-          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">
-            Batch Scope: <span class="batch-badge ${s.batch === 'Batch 1' ? 'batch-1' : s.batch === 'Batch 2' ? 'batch-2' : ''}">${s.batch}</span>
+          <div style="font-size:11px; color:var(--text-muted); margin-top:4px; display:flex; align-items:center; gap:6px;">
+            <span>Batch Scope:</span>
+            <span class="batch-badge ${s.batch === 'Batch 1' ? 'batch-1' : s.batch === 'Batch 2' ? 'batch-2' : ''}">${s.batch}</span>
           </div>
         </div>
       </div>

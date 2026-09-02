@@ -23,8 +23,7 @@ function printBanner(url, method = 'Cloudflare Quick Tunnel (Direct HTTPS)') {
   console.log(`📱 Works On         : Any smartphone, laptop, or tablet`);
   console.log(`======================================================`);
   console.log(`🎓 Student Portal   : ${url}`);
-  console.log(`⚙️ Admin Dashboard  : ${url} (Click "Staff / Admin Portal")`);
-  console.log(`🔑 Demo Student     : 26UG033181 | Pass: Demo@123`);
+  console.log(`⚙️ Admin Dashboard  : ${url} (Click "Admin Panel")`);
   console.log(`🔑 Admin Login      : admin | Pass: Admin@123`);
   console.log(`======================================================\n`);
 }
@@ -76,8 +75,7 @@ async function tryFallback(port) {
     console.log(`   (If prompted on first visit, enter your IP: ${ip})`);
     console.log(`======================================================`);
     console.log(`🎓 Student Portal    : ${lt.url}`);
-    console.log(`⚙️ Admin Dashboard   : ${lt.url} (Click "Staff / Admin Portal")`);
-    console.log(`🔑 Demo Student      : 26UG033181 | Pass: Demo@123`);
+    console.log(`⚙️ Admin Dashboard   : ${lt.url} (Click "Admin Panel")`);
     console.log(`🔑 Admin Login       : admin | Pass: Admin@123`);
     console.log(`======================================================\n`);
   } catch (err) {

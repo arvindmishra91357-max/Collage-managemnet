@@ -84,6 +84,10 @@ app.get('/api/attendance/student-summary', authenticateToken, requireStudent, at
 app.get('/api/attendance/admin-report', authenticateToken, requireAdmin, attendanceCtrl.getAdminAttendanceReport);
 
 // 6. Academic Content (Class Notes, Study Material, Assignments, Question Papers, Calendar, Announcements)
+// Subjects & Subject Study Hub
+app.get('/api/academic/subjects', authenticateToken, academicCtrl.getSubjects);
+app.get('/api/academic/study-hub', authenticateToken, academicCtrl.getSubjectStudyHub);
+
 // Class Notes
 app.get('/api/academic/notes', authenticateToken, academicCtrl.getClassNotes);
 app.post('/api/academic/notes', authenticateToken, requireAdmin, uploadDocument('notes').single('file'), academicCtrl.uploadClassNote);
