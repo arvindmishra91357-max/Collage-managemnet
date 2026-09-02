@@ -743,8 +743,9 @@ const StudentApp = {
         <p style="font-size:13px; color:var(--text-secondary);">3CYBER7 • B.Tech Cyber Security • ${u.batch} Schedule</p>
       </div>
 
-      <!-- Day Selector Carousel (Smooth Touch Scrolling on Phone) -->
+      <!-- Day Selector Carousel with Scroll Controls -->
       <div class="day-scroll-wrapper">
+        <button class="scroll-arrow-btn" onclick="StudentApp.scrollDaysCarousel(-120)" title="Scroll Left">‹</button>
         <div class="day-scroll-container" id="timetable-day-pills">
           ${days.map(d => `
             <button class="day-pill-btn ${d === currentDay ? 'active' : ''}" onclick="StudentApp.loadDayTimetable('${d}')">
@@ -753,6 +754,7 @@ const StudentApp = {
             </button>
           `).join('')}
         </div>
+        <button class="scroll-arrow-btn" onclick="StudentApp.scrollDaysCarousel(120)" title="Scroll Right">›</button>
       </div>
 
       <div id="timetable-day-content">
@@ -761,6 +763,13 @@ const StudentApp = {
     `;
 
     await this.loadDayTimetable(currentDay);
+  },
+
+  scrollDaysCarousel(offset) {
+    const container = document.getElementById('timetable-day-pills');
+    if (container) {
+      container.scrollBy({ left: offset, behavior: 'smooth' });
+    }
   },
 
   async loadDayTimetable(day) {
