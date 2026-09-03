@@ -557,7 +557,7 @@ const AdminApp = {
   // ==================== 4. DYNAMIC QR ATTENDANCE CONTROL CENTER (Requirements #30, #31, #32) ====================
   async renderQRAttendanceCenter(container) {
     container.innerHTML = `
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:22px;">
+      <div class="admin-grid-2col">
         <!-- Left: Start New Dynamic QR Session Form -->
         <div class="glass-card" style="padding:24px;">
           <h3 style="font-size:17px; font-weight:800; margin-bottom:6px;">🚀 Start Live Dynamic QR Session</h3>
@@ -590,20 +590,20 @@ const AdminApp = {
 
             <!-- GPS Classroom Reference Location (Requirement #32) -->
             <div style="padding:14px; background:var(--bg-input); border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:16px;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
                 <label class="form-label" style="margin-bottom:0;">📍 Classroom Reference Location *</label>
                 <button type="button" class="btn-primary" onclick="AdminApp.captureAdminGPS()" style="width:auto; padding:5px 12px; font-size:11px; margin-top:0; background:rgba(6,182,212,0.2); border:1px solid rgba(6,182,212,0.4); color:#38bdf8;">
                   📍 USE MY CURRENT LOCATION
                 </button>
               </div>
-              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+              <div class="modal-grid-2col">
                 <input type="text" id="qr-class-lat" class="form-control" placeholder="Latitude (e.g. 22.2887)" value="22.2887" required />
                 <input type="text" id="qr-class-lng" class="form-control" placeholder="Longitude (e.g. 73.3634)" value="73.3634" required />
               </div>
               <div id="admin-gps-status" style="font-size:11px; color:var(--text-muted); margin-top:6px;">Mishra Group Institute Campus Default Coordinates Set.</div>
             </div>
 
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:18px;">
+            <div class="modal-grid-2col" style="margin-bottom:18px;">
               <div class="form-group" style="margin-bottom:0;">
                 <label class="form-label">Allowed Radius (Meters)</label>
                 <input type="number" id="qr-allowed-radius" class="form-control" value="50" min="10" max="500" />
@@ -1106,7 +1106,7 @@ const AdminApp = {
                 <option value="Saturday">Saturday</option>
               </select>
             </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div class="modal-grid-2col">
               <div class="form-group">
                 <label class="form-label">Start Time</label>
                 <input type="text" id="tt-start" class="form-control" placeholder="09:30" />
@@ -1120,7 +1120,7 @@ const AdminApp = {
               <label class="form-label">Subject</label>
               <input type="text" id="tt-subject" class="form-control" placeholder="e.g. DBMS, DSA, JAVA, NCS" />
             </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div class="modal-grid-2col">
               <div class="form-group">
                 <label class="form-label">Faculty Initial / Name</label>
                 <input type="text" id="tt-teacher" class="form-control" placeholder="e.g. NW, RAP, JC" />
@@ -1130,7 +1130,7 @@ const AdminApp = {
                 <input type="text" id="tt-room" class="form-control" placeholder="e.g. NB-202, L-313" />
               </div>
             </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div class="modal-grid-2col">
               <div class="form-group">
                 <label class="form-label">Batch Scope</label>
                 <select id="tt-batch" class="form-control">
@@ -1189,7 +1189,7 @@ const AdminApp = {
             <button class="icon-btn" onclick="AdminApp.closeModal('edit-tt-modal')" style="width:30px; height:30px;">✕</button>
           </div>
           <div class="modal-body">
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div class="modal-grid-2col">
               <div class="form-group">
                 <label class="form-label">Start Time</label>
                 <input type="text" id="ett-start" class="form-control" value="${start}" />
@@ -1292,7 +1292,7 @@ const AdminApp = {
       </div>
 
       ${activeTab === 'notes' ? `
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:22px;">
+        <div class="admin-grid-2col">
           <!-- Upload Form -->
           <div class="glass-card" style="padding:24px;">
             <h3 style="font-size:17px; font-weight:800; margin-bottom:14px;">📤 Upload Official Class Notes</h3>
@@ -1309,7 +1309,7 @@ const AdminApp = {
                   <option value="FCS">FCS (Cyber Security Fundamentals)</option>
                 </select>
               </div>
-              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+              <div class="modal-grid-2col">
                 <div class="form-group">
                   <label class="form-label">Unit *</label>
                   <input type="text" id="note-unit" class="form-control" placeholder="e.g. Unit 1" required />
@@ -1365,7 +1365,7 @@ const AdminApp = {
       ` : ''}
 
       ${activeTab === 'material' ? `
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:22px;">
+        <div class="admin-grid-2col">
           <!-- Upload Material Form -->
           <div class="glass-card" style="padding:24px;">
             <h3 style="font-size:17px; font-weight:800; margin-bottom:14px;">📖 Upload Study Material & Reference</h3>
@@ -1438,7 +1438,7 @@ const AdminApp = {
       ` : ''}
 
       ${activeTab === 'papers' ? `
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:22px;">
+        <div class="admin-grid-2col">
           <!-- Upload Papers Form -->
           <div class="glass-card" style="padding:24px;">
             <h3 style="font-size:17px; font-weight:800; margin-bottom:14px;">📄 Upload Previous Question Papers</h3>
@@ -1459,7 +1459,7 @@ const AdminApp = {
                 <label class="form-label">Exam Name *</label>
                 <input type="text" id="paper-exam" class="form-control" placeholder="e.g. End-Semester Exam / Mid-Sem Paper" required />
               </div>
-              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+              <div class="modal-grid-2col">
                 <div class="form-group">
                   <label class="form-label">Semester</label>
                   <input type="text" id="paper-sem" class="form-control" value="3rd Semester" />
@@ -1615,7 +1615,7 @@ const AdminApp = {
     const assignments = res.success ? res.data : [];
 
     container.innerHTML = `
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:22px;">
+      <div class="admin-grid-2col">
         <!-- Create Assignment Form -->
         <div class="glass-card" style="padding:24px;">
           <h3 style="font-size:17px; font-weight:800; margin-bottom:14px;">📝 Create New Assignment</h3>
@@ -1640,7 +1640,7 @@ const AdminApp = {
               <label class="form-label">Description & Questions</label>
               <textarea id="assign-desc" class="form-control" rows="3" placeholder="Provide problem statement, guidelines, and submission instructions..."></textarea>
             </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div class="modal-grid-2col">
               <div class="form-group">
                 <label class="form-label">Due Date *</label>
                 <input type="date" id="assign-due" class="form-control" required />
@@ -1729,7 +1729,7 @@ const AdminApp = {
     const results = res.success ? res.data : [];
 
     container.innerHTML = `
-      <div style="display:grid; grid-template-columns: 1fr 2fr; gap:22px;">
+      <div class="admin-grid-1to2col">
         <!-- Enter Marks Form -->
         <div class="glass-card" style="padding:22px;">
           <h3 style="font-size:17px; font-weight:800; margin-bottom:14px;">🏆 Enter Student Marks</h3>
@@ -1758,7 +1758,7 @@ const AdminApp = {
                 <option value="Discrete Mathematics">DM</option>
               </select>
             </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div class="modal-grid-2col">
               <div class="form-group">
                 <label class="form-label">Marks Scored *</label>
                 <input type="number" step="0.5" id="res-marks" class="form-control" placeholder="28.5" required />
@@ -1835,7 +1835,7 @@ const AdminApp = {
     const notifs = res.success ? res.data : [];
 
     container.innerHTML = `
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:22px;">
+      <div class="admin-grid-2col">
         <div class="glass-card" style="padding:24px;">
           <h3 style="font-size:17px; font-weight:800; margin-bottom:14px;">📢 Publish Live Notification</h3>
           <form id="admin-notif-form" onsubmit="event.preventDefault(); AdminApp.submitNotification();">
@@ -1917,7 +1917,7 @@ const AdminApp = {
     const events = res.success ? res.data : [];
 
     container.innerHTML = `
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:22px;">
+      <div class="admin-grid-2col">
         <div class="glass-card" style="padding:24px;">
           <h3 style="font-size:17px; font-weight:800; margin-bottom:14px;">📅 Add University Event / Holiday</h3>
           <form id="admin-cal-form" onsubmit="event.preventDefault(); AdminApp.submitCalendarEvent();">
@@ -1935,7 +1935,7 @@ const AdminApp = {
               <label class="form-label">Title *</label>
               <input type="text" id="cal-title" class="form-control" placeholder="e.g. Mid-Sem Exams / Diwali Break" required />
             </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div class="modal-grid-2col">
               <div class="form-group">
                 <label class="form-label">Start Date *</label>
                 <input type="date" id="cal-start" class="form-control" required />

@@ -1481,7 +1481,7 @@ const StudentApp = {
     const modalContainer = document.getElementById('student-modal-container');
     modalContainer.innerHTML = `
       <div class="modal-backdrop" id="ai-tutor-modal">
-        <div class="modal-card" style="max-width:540px; height:85vh; display:flex; flex-direction:column;">
+        <div class="modal-card modal-card-chat">
           <div class="modal-header" style="background:var(--secondary-gradient); color:#ffffff;">
             <div style="display:flex; align-items:center; gap:10px;">
               <div style="font-size:22px;">✨</div>
