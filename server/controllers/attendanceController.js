@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const QRCode = require('qrcode');
 const db = require('../db');
 
 // Server-side Haversine Distance Formula (calculates distance in meters between two GPS coordinates)
@@ -84,6 +85,16 @@ async function startQRSession(req, res) {
 
     const sessionId = result.id;
     const initialToken = generateDynamicToken(sessionId, sessionSecret, refreshSec);
+    let initialQrImage = '';
+    try {
+      initialQrImage = await QRCode.toDataURL(initialToken, {
+        width: 320,
+        margin: 1,
+        color: { dark: '#090d16', light: '#ffffff' }
+      });
+    } catch (qrErr) {
+      console.error('[AttendanceController] QR gen error:', qrErr);
+    }
 
     return res.status(201).json({
       success: true,
@@ -98,7 +109,8 @@ async function startQRSession(req, res) {
         allowed_radius_meters: radius,
         qr_refresh_interval: refreshSec,
         expiry_time: expiryTime.toISOString(),
-        initial_token: initialToken
+        initial_token: initialToken,
+        initial_qr_image: initialQrImage
       }
     });
   } catch (err) {
@@ -126,11 +138,23 @@ async function getLiveQRToken(req, res) {
     }
 
     const token = generateDynamicToken(session.id, session.session_token, session.qr_refresh_interval || 15);
+    let qrImage = '';
+    try {
+      qrImage = await QRCode.toDataURL(token, {
+        width: 320,
+        margin: 1,
+        color: { dark: '#090d16', light: '#ffffff' }
+      });
+    } catch (qrErr) {
+      console.error('[AttendanceController] QR gen error:', qrErr);
+    }
+
     const scannedCount = await db.get("SELECT COUNT(*) as count FROM attendance_records WHERE session_id = ?", [session.id]);
 
     return res.json({
       success: true,
       token,
+      qr_image: qrImage,
       sessionId: session.id,
       subject: session.subject,
       batch: session.batch,

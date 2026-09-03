@@ -698,7 +698,7 @@ const AdminApp = {
         <!-- Rotating QR Code Display (Graphic + Token) -->
         <div style="background:#ffffff; padding:18px; border-radius:var(--radius-xl); display:inline-block; box-shadow:0 0 45px rgba(6,182,212,0.45); margin:12px auto; text-align:center; max-width:100%;">
           <div id="qr-code-canvas-container" style="display:flex; justify-content:center; align-items:center; width:220px; height:220px; margin:0 auto; background:#ffffff; border-radius:10px; overflow:hidden;">
-            <div style="color:#0f172a; font-weight:700; font-size:13px;">Generating QR Matrix...</div>
+            ${session.initial_qr_image ? `<img id="qr-code-image" src="${session.initial_qr_image}" alt="Classroom QR" style="width:220px; height:220px; display:block; border-radius:8px; object-fit:contain;" />` : `<div style="color:#0f172a; font-weight:700; font-size:13px;">Generating QR Matrix...</div>`}
           </div>
 
           <div style="margin-top:10px; padding:6px 12px; background:#f1f5f9; border-radius:8px; border:1px solid #cbd5e1;">
@@ -726,7 +726,7 @@ const AdminApp = {
     `;
 
     // Render initial QR Code
-    this.renderGraphicQRCode(session.initial_token || 'MGI_CYBER_ATTENDANCE');
+    this.renderGraphicQRCode(session.initial_token, session.initial_qr_image);
 
     if (this.activeQrInterval) clearInterval(this.activeQrInterval);
 
@@ -742,7 +742,7 @@ const AdminApp = {
         // Fetch new rotating token
         const tokenRes = await API.getLiveQRToken(session.id);
         if (tokenRes.success && tokenRes.token) {
-          this.updateGraphicQRCode(tokenRes.token);
+          this.updateGraphicQRCode(tokenRes.token, tokenRes.qr_image);
           const displayEl = document.getElementById('dynamic-qr-token-display');
           const countEl = document.getElementById('qr-scanned-count');
           if (displayEl) displayEl.innerText = tokenRes.token;
@@ -752,26 +752,49 @@ const AdminApp = {
     }, 1000);
   },
 
-  renderGraphicQRCode(token) {
+  renderGraphicQRCode(token, qrImage) {
     const container = document.getElementById('qr-code-canvas-container');
     if (!container) return;
 
+    if (qrImage) {
+      container.innerHTML = `<img id="qr-code-image" src="${qrImage}" alt="Classroom QR" style="width:220px; height:220px; display:block; border-radius:8px; object-fit:contain;" />`;
+      return;
+    }
+
     container.innerHTML = '';
-    if (window.QRCode) {
-      this.currentQrCodeInstance = new window.QRCode(container, {
-        text: token,
-        width: 220,
-        height: 220,
-        colorDark: "#090d16",
-        colorLight: "#ffffff",
-        correctLevel: window.QRCode.CorrectLevel.H
-      });
+    if (window.QRCode && token) {
+      try {
+        this.currentQrCodeInstance = new window.QRCode(container, {
+          text: token,
+          width: 220,
+          height: 220,
+          colorDark: "#090d16",
+          colorLight: "#ffffff",
+          correctLevel: window.QRCode.CorrectLevel.H
+        });
+      } catch (err) {
+        console.warn('Client QR render fallback:', err);
+      }
     }
   },
 
-  updateGraphicQRCode(token) {
+  updateGraphicQRCode(token, qrImage) {
+    if (qrImage) {
+      const img = document.getElementById('qr-code-image');
+      if (img) {
+        img.src = qrImage;
+      } else {
+        this.renderGraphicQRCode(token, qrImage);
+      }
+      return;
+    }
+
     if (this.currentQrCodeInstance && typeof this.currentQrCodeInstance.makeCode === 'function') {
-      this.currentQrCodeInstance.makeCode(token);
+      try {
+        this.currentQrCodeInstance.makeCode(token);
+      } catch (err) {
+        this.renderGraphicQRCode(token);
+      }
     } else {
       this.renderGraphicQRCode(token);
     }
