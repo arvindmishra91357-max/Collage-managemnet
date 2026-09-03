@@ -588,34 +588,17 @@ const AdminApp = {
               </select>
             </div>
 
-            <!-- GPS Classroom Reference Location (Requirement #32) -->
-            <div style="padding:14px; background:var(--bg-input); border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:16px;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
-                <label class="form-label" style="margin-bottom:0;">📍 Classroom Reference Location *</label>
-                <button type="button" class="btn-primary" onclick="AdminApp.captureAdminGPS()" style="width:auto; padding:5px 12px; font-size:11px; margin-top:0; background:rgba(6,182,212,0.2); border:1px solid rgba(6,182,212,0.4); color:#38bdf8;">
-                  📍 USE MY CURRENT LOCATION
-                </button>
-              </div>
-              <div class="modal-grid-2col">
-                <input type="text" id="qr-class-lat" class="form-control" placeholder="Latitude (e.g. 22.2887)" value="22.2887" required />
-                <input type="text" id="qr-class-lng" class="form-control" placeholder="Longitude (e.g. 73.3634)" value="73.3634" required />
-              </div>
-              <div id="admin-gps-status" style="font-size:11px; color:var(--text-muted); margin-top:6px;">Mishra Group Institute Campus Default Coordinates Set.</div>
-            </div>
-
-            <div class="modal-grid-2col" style="margin-bottom:18px;">
-              <div class="form-group" style="margin-bottom:0;">
-                <label class="form-label">Allowed Radius (Meters)</label>
-                <input type="number" id="qr-allowed-radius" class="form-control" value="50" min="10" max="500" />
-              </div>
-              <div class="form-group" style="margin-bottom:0;">
-                <label class="form-label">QR Refresh Speed (Sec)</label>
-                <input type="number" id="qr-refresh-sec" class="form-control" value="15" min="10" max="60" />
-              </div>
+            <div class="form-group" style="margin-bottom:18px;">
+              <label class="form-label">QR Refresh Speed</label>
+              <select id="qr-refresh-sec" class="form-control">
+                <option value="15" selected>Every 15 Seconds (Recommended - Maximum Security)</option>
+                <option value="30">Every 30 Seconds</option>
+                <option value="60">Every 60 Seconds</option>
+              </select>
             </div>
 
             <button type="submit" class="btn-primary" style="padding:14px; font-size:15px; background:linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%);">
-              ⚡ GENERATE DYNAMIC CLASSROOM QR
+              ⚡ START LIVE ATTENDANCE QR SESSION
             </button>
           </form>
         </div>
@@ -625,47 +608,21 @@ const AdminApp = {
           <div style="font-size:48px; margin-bottom:12px;">📽️</div>
           <h3 style="font-size:18px; font-weight:800;">Classroom Projector View</h3>
           <p style="font-size:13px; color:var(--text-secondary); max-width:320px; margin:8px auto 0;">
-            When you click "GENERATE DYNAMIC CLASSROOM QR", the live rotating QR token and verified student counter will display here in real time.
+            When you click "START LIVE ATTENDANCE QR SESSION", the live rotating QR Code and real-time student count will display here.
           </p>
         </div>
       </div>
     `;
   },
 
-  captureAdminGPS() {
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          document.getElementById('qr-class-lat').value = pos.coords.latitude.toFixed(6);
-          document.getElementById('qr-class-lng').value = pos.coords.longitude.toFixed(6);
-          const st = document.getElementById('admin-gps-status');
-          if (st) {
-            st.style.color = '#34d399';
-            st.innerText = `✓ Captured live classroom coordinates (Accuracy: ±${Math.round(pos.coords.accuracy)}m)`;
-          }
-        },
-        (err) => {
-          window.App.showToast('Could not access device GPS: ' + err.message, 'error');
-        },
-        { enableHighAccuracy: true }
-      );
-    }
-  },
-
   async submitStartQRSession() {
     const subject = document.getElementById('qr-subject-select').value;
     const batch = document.getElementById('qr-batch-select').value;
-    const classroom_lat = document.getElementById('qr-class-lat').value;
-    const classroom_lng = document.getElementById('qr-class-lng').value;
-    const allowed_radius_meters = document.getElementById('qr-allowed-radius').value;
     const qr_refresh_interval = document.getElementById('qr-refresh-sec').value;
 
     const res = await API.startQRSession({
       subject,
       batch,
-      classroom_lat,
-      classroom_lng,
-      allowed_radius_meters,
       qr_refresh_interval
     });
 
@@ -686,9 +643,9 @@ const AdminApp = {
       <div style="width:100%;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
           <div>
-            <span class="class-status-badge live">● LIVE DYNAMIC QR SESSION</span>
+            <span class="class-status-badge live">● LIVE ATTENDANCE SESSION</span>
             <h3 style="font-size:18px; font-weight:800; margin-top:4px;">${session.subject}</h3>
-            <span style="font-size:12px; color:var(--text-muted);">Batch: ${session.batch} • Radius: ${session.allowed_radius_meters}m</span>
+            <span style="font-size:12px; color:var(--text-muted);">Designated: ${session.batch}</span>
           </div>
           <button class="btn-primary" onclick="AdminApp.stopActiveSession()" style="width:auto; padding:6px 14px; background:rgba(239,68,68,0.2); border:1px solid rgba(239,68,68,0.4); color:#f87171; margin-top:0; font-size:12px;">
             ⏹ Stop Session

@@ -53,22 +53,22 @@ function verifyDynamicToken(tokenString, secret, intervalSeconds = 15) {
   return { valid: true, sessionId: parseInt(sessionId, 10) };
 }
 
-// 1. Admin: Start Dynamic QR Attendance Session (with GPS classroom coordinate)
+// 1. Admin: Start Dynamic QR Attendance Session
 async function startQRSession(req, res) {
   try {
-    const { subject, batch, classroom_lat, classroom_lng, allowed_radius_meters, qr_refresh_interval, duration_minutes = 15 } = req.body;
+    const { subject, batch, classroom_lat, classroom_lng, allowed_radius_meters, qr_refresh_interval, duration_minutes = 30 } = req.body;
 
-    if (!subject || classroom_lat === undefined || classroom_lng === undefined) {
+    if (!subject) {
       return res.status(400).json({
         success: false,
-        message: 'Subject and Classroom GPS Coordinates (Latitude & Longitude) are required.'
+        message: 'Please select a Subject for the attendance session.'
       });
     }
 
     const assignedBatch = batch || 'Both';
-    const lat = parseFloat(classroom_lat);
-    const lng = parseFloat(classroom_lng);
-    const radius = parseFloat(allowed_radius_meters) || 50.0;
+    const lat = classroom_lat !== undefined ? parseFloat(classroom_lat) : 22.2887;
+    const lng = classroom_lng !== undefined ? parseFloat(classroom_lng) : 73.3634;
+    const radius = parseFloat(allowed_radius_meters) || 5000.0;
     const refreshSec = parseInt(qr_refresh_interval, 10) || 15;
 
     const dateStr = new Date().toISOString().split('T')[0];
@@ -168,7 +168,7 @@ async function getLiveQRToken(req, res) {
   }
 }
 
-// 3. Student: Scan Dynamic QR & Verify GPS Location (Server-Side Authority)
+// 3. Student: Scan Dynamic QR (Instant Verification)
 async function markQRScan(req, res) {
   try {
     const { token, student_lat, student_lng, accuracy } = req.body;
@@ -176,13 +176,6 @@ async function markQRScan(req, res) {
 
     if (!token) {
       return res.status(400).json({ success: false, message: 'Missing QR attendance token.' });
-    }
-
-    if (student_lat === undefined || student_lng === undefined) {
-      return res.status(400).json({
-        success: false,
-        message: 'Classroom location access is required. Please allow location permissions in your browser/device.'
-      });
     }
 
     // 1. Get Student details
@@ -238,54 +231,32 @@ async function markQRScan(req, res) {
       });
     }
 
-    // 6. Server-Side GPS Geofencing Distance Calculation
-    const sLat = parseFloat(student_lat);
-    const sLng = parseFloat(student_lng);
-    const distanceMeters = calculateHaversineDistance(session.classroom_lat, session.classroom_lng, sLat, sLng);
-    const allowedRadius = session.allowed_radius_meters || 50.0;
+    // 6. Record Attendance (Location geofencing check removed as requested)
+    const sLat = student_lat !== undefined ? parseFloat(student_lat) : 0;
+    const sLng = student_lng !== undefined ? parseFloat(student_lng) : 0;
 
-    // Location Spoofing / Inaccuracy Guard (if GPS accuracy is worse than 150m, warn/reject)
-    if (accuracy && accuracy > 150) {
-      return res.status(400).json({
-        success: false,
-        message: `GPS accuracy is too low (${Math.round(accuracy)}m). Please step closer to a window or refresh GPS.`
-      });
-    }
-
-    // 7. Distance Verification check
-    if (distanceMeters > allowedRadius) {
-      return res.status(403).json({
-        success: false,
-        message: `Location verification failed. You appear to be outside the classroom attendance area (${Math.round(distanceMeters)} meters away). Maximum allowed radius is ${Math.round(allowedRadius)} meters.`
-      });
-    }
-
-    // 8. Record Attendance
     await db.run(`
       INSERT INTO attendance_records (
         session_id, ug_id, student_name, roll_number, batch, subject, date, status, method, verified_distance_meters, student_lat, student_lng
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'PRESENT', 'QR_GPS', ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'PRESENT', 'QR_SCAN', 0, ?, ?)
     `, [
       sessionId, ugId, student.name, student.roll_number, student.batch,
-      session.subject, session.date, parseFloat(distanceMeters.toFixed(2)), sLat, sLng
+      session.subject, session.date, sLat, sLng
     ]);
 
-    // Also update legacy/manual log table for aggregated reporting
+    // Also update aggregated logs table for marksheets and student stats
     await db.run(`
       INSERT OR REPLACE INTO attendance_manual (ug_id, student_name, date, subject, batch, status, remarks, marked_by)
-      VALUES (?, ?, ?, ?, ?, 'PRESENT', 'Verified via Classroom GPS QR Scan', 'QR_SYSTEM')
+      VALUES (?, ?, ?, ?, ?, 'PRESENT', 'Verified via Live Classroom QR Scan', 'QR_SYSTEM')
     `, [ugId, student.name, session.date, session.subject, student.batch]);
 
     return res.json({
       success: true,
-      message: `✓ Attendance Verified & Marked PRESENT for ${session.subject}! Distance: ${Math.round(distanceMeters)}m.`,
-      record: {
+      message: `✓ Attendance Verified & Marked PRESENT for ${session.subject}!`,
+      session: {
         subject: session.subject,
-        date: session.date,
-        student_name: student.name,
-        ug_id: ugId,
-        distance_meters: Math.round(distanceMeters),
-        status: 'PRESENT'
+        batch: student.batch,
+        date: session.date
       }
     });
   } catch (err) {

@@ -1158,13 +1158,12 @@ const StudentApp = {
             <button class="icon-btn" onclick="StudentApp.closeScannerModal()" style="width:32px; height:32px;">✕</button>
           </div>
           <div class="modal-body">
-            <!-- GPS Permission & Accuracy Banner (Requirement #33, #34, #35) -->
-            <div class="gps-permission-banner" id="gps-banner">
-              <div>
-                <strong style="display:block; margin-bottom:2px;">📍 Classroom Geofencing Active</strong>
-                <span id="gps-status-text" style="color:var(--text-secondary);">Acquiring GPS classroom location...</span>
+            <!-- Instructions Banner -->
+            <div style="padding:10px 14px; background:rgba(56,189,248,0.1); border:1px solid rgba(56,189,248,0.25); border-radius:var(--radius-md); margin-bottom:14px; text-align:center;">
+              <span style="font-size:13px; font-weight:700; color:#38bdf8;">⚡ Live Auto-Scanner Active</span>
+              <div style="font-size:11px; color:var(--text-secondary); margin-top:2px;">
+                Point your camera at the QR code on the screen to mark attendance instantly.
               </div>
-              <span class="gps-status-pill acquiring" id="gps-pill">GPS LOCATING</span>
             </div>
 
             <!-- Video Viewport -->
@@ -1193,41 +1192,7 @@ const StudentApp = {
   },
 
   async startCameraAndGPS() {
-    // 1. Request GPS Permission
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          this.currentLocation = {
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
-            accuracy: pos.coords.accuracy,
-            timestamp: pos.timestamp
-          };
-          const pill = document.getElementById('gps-pill');
-          const txt = document.getElementById('gps-status-text');
-          if (pill && txt) {
-            pill.className = 'gps-status-pill ready';
-            pill.innerText = 'GPS READY ✓';
-            txt.innerText = `Location verified (Accuracy: ±${Math.round(pos.coords.accuracy)}m)`;
-          }
-        },
-        (err) => {
-          console.warn('GPS Error:', err.message);
-          const pill = document.getElementById('gps-pill');
-          const txt = document.getElementById('gps-status-text');
-          if (pill && txt) {
-            pill.className = 'gps-status-pill';
-            pill.style.background = 'rgba(239,68,68,0.2)';
-            pill.style.color = '#f87171';
-            pill.innerText = 'GPS DENIED';
-            txt.innerText = 'Location permission required to verify classroom presence.';
-          }
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
-    }
-
-    // 2. Start Camera & Continuous jsQR Live Scanner
+    // Start Camera & Continuous jsQR Live Scanner
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
@@ -1310,7 +1275,7 @@ const StudentApp = {
       try { navigator.vibrate(150); } catch (e) {}
     }
 
-    window.App.showToast('📷 QR Code Scanned! Verifying presence...', 'info');
+    window.App.showToast('📷 QR Code Scanned! Marking presence...', 'info');
     await this.processAttendanceVerification(token);
     this.isProcessingScan = false;
   },
@@ -1327,22 +1292,10 @@ const StudentApp = {
   },
 
   async processAttendanceVerification(token) {
-    if (!this.currentLocation) {
-      // Default to reference coordinate with fallback if in dev/simulator
-      this.currentLocation = {
-        latitude: 22.2887,
-        longitude: 73.3634,
-        accuracy: 10
-      };
-    }
-
-    window.App.showToast('Verifying dynamic token & classroom distance...', 'info');
+    window.App.showToast('Verifying live classroom token...', 'info');
 
     const res = await API.submitQRScan({
-      token,
-      student_lat: this.currentLocation.latitude,
-      student_lng: this.currentLocation.longitude,
-      accuracy: this.currentLocation.accuracy
+      token
     });
 
     if (res.success) {
