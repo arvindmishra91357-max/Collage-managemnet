@@ -359,10 +359,6 @@ const AdminApp = {
             <span style="color:var(--text-muted); font-size:11px;">ACADEMIC YEAR</span>
             <div style="font-weight:800; color:#ffffff; margin-top:2px;">2026–27</div>
           </div>
-          <div style="padding:12px; background:var(--bg-input); border-radius:var(--radius-md);">
-            <span style="color:var(--text-muted); font-size:11px;">BATCH DETERMINATION</span>
-            <div style="font-weight:800; color:#38bdf8; margin-top:2px;">Roll 1–30 $\rightarrow$ Batch 1 | 31+ $\rightarrow$ Batch 2</div>
-          </div>
         </div>
       </div>
     `;
