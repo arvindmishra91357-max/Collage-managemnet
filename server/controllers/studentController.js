@@ -8,12 +8,12 @@ function determineBatch(rollNumber) {
   return roll <= 30 ? 'Batch 1' : 'Batch 2';
 }
 
-// 1. Admin Add Student (Strictly 4 input fields: Name, UG ID, Password, Roll Number)
+// 1. Admin Add Student (Name, UG ID, Password, Roll Number, Phone Number)
 async function addStudent(req, res) {
   try {
-    const { name, ug_id, password, roll_number } = req.body;
+    const { name, ug_id, password, roll_number, phone_number } = req.body;
 
-    // Strict validation of the 4 fields
+    // Strict validation of the 4 required fields
     if (!name || !ug_id || !password || roll_number === undefined || roll_number === '') {
       return res.status(400).json({
         success: false,
@@ -23,6 +23,7 @@ async function addStudent(req, res) {
 
     const cleanUgId = ug_id.trim().toUpperCase();
     const cleanName = name.trim();
+    const cleanPhone = phone_number ? phone_number.trim() : null;
     const rollNum = parseInt(roll_number, 10);
 
     if (isNaN(rollNum) || rollNum <= 0) {
@@ -50,7 +51,7 @@ async function addStudent(req, res) {
       });
     }
 
-    // Automatic Configuration (Requirement #6, #7, #8)
+    // Automatic Configuration
     const program = 'B.Tech Cyber Security';
     const year = '2nd Year';
     const semester = '3rd Semester';
@@ -60,12 +61,12 @@ async function addStudent(req, res) {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Insert student record (STRICT: NO email, mobile, dob, parent fields)
+    // Insert student record
     const result = await db.run(`
       INSERT INTO students (
-        ug_id, name, password_hash, roll_number, batch, program, year, semester, division, academic_year, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE')
-    `, [cleanUgId, cleanName, passwordHash, rollNum, batch, program, year, semester, division, academicYear]);
+        ug_id, name, roll_number, phone_number, password_hash, batch, program, year, semester, division, academic_year, status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE')
+    `, [cleanUgId, cleanName, rollNum, cleanPhone, passwordHash, batch, program, year, semester, division, academicYear]);
 
     // Insert user auth entry
     await db.run(
@@ -81,6 +82,7 @@ async function addStudent(req, res) {
         ug_id: cleanUgId,
         name: cleanName,
         roll_number: rollNum,
+        phone_number: cleanPhone,
         batch,
         program,
         year,
@@ -100,7 +102,7 @@ async function addStudent(req, res) {
 async function getAllStudents(req, res) {
   try {
     const { batch, search, page = 1, limit = 100 } = req.query;
-    let sql = "SELECT id, ug_id, name, roll_number, batch, program, year, semester, division, academic_year, profile_photo_url, status, created_at FROM students WHERE 1=1";
+    let sql = "SELECT id, ug_id, name, roll_number, phone_number, batch, program, year, semester, division, academic_year, profile_photo_url, status, created_at FROM students WHERE 1=1";
     const params = [];
 
     if (batch && (batch === 'Batch 1' || batch === 'Batch 2')) {
@@ -109,9 +111,9 @@ async function getAllStudents(req, res) {
     }
 
     if (search && search.trim() !== '') {
-      sql += " AND (UPPER(name) LIKE ? OR UPPER(ug_id) LIKE ? OR CAST(roll_number AS TEXT) LIKE ?)";
+      sql += " AND (UPPER(name) LIKE ? OR UPPER(ug_id) LIKE ? OR CAST(roll_number AS TEXT) LIKE ? OR phone_number LIKE ?)";
       const s = `%${search.trim().toUpperCase()}%`;
-      params.push(s, s, s);
+      params.push(s, s, s, `%${search.trim()}%`);
     }
 
     sql += " ORDER BY roll_number ASC";
@@ -143,7 +145,7 @@ async function getStudentById(req, res) {
   try {
     const { id } = req.params;
     const student = await db.get(
-      "SELECT id, ug_id, name, roll_number, batch, program, year, semester, division, academic_year, profile_photo_url, status, created_at FROM students WHERE id = ? OR ug_id = ?",
+      "SELECT id, ug_id, name, roll_number, phone_number, batch, program, year, semester, division, academic_year, profile_photo_url, status, created_at FROM students WHERE id = ? OR ug_id = ?",
       [id, id]
     );
 
@@ -162,7 +164,7 @@ async function getStudentById(req, res) {
 async function updateStudent(req, res) {
   try {
     const { id } = req.params;
-    const { name, roll_number, password, status } = req.body;
+    const { name, roll_number, phone_number, password, status } = req.body;
 
     const student = await db.get("SELECT * FROM students WHERE id = ? OR ug_id = ?", [id, id]);
     if (!student) {
@@ -178,6 +180,7 @@ async function updateStudent(req, res) {
     }
 
     const updatedName = name ? name.trim() : student.name;
+    const updatedPhone = phone_number !== undefined ? (phone_number ? phone_number.trim() : null) : student.phone_number;
     const updatedStatus = status || student.status;
 
     let updatedPassHash = student.password_hash;
@@ -188,9 +191,9 @@ async function updateStudent(req, res) {
 
     await db.run(`
       UPDATE students
-      SET name = ?, roll_number = ?, batch = ?, status = ?, password_hash = ?, updated_at = CURRENT_TIMESTAMP
+      SET name = ?, roll_number = ?, phone_number = ?, batch = ?, status = ?, password_hash = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `, [updatedName, rollNum, updatedBatch, updatedStatus, updatedPassHash, student.id]);
+    `, [updatedName, rollNum, updatedPhone, updatedBatch, updatedStatus, updatedPassHash, student.id]);
 
     return res.json({
       success: true,
@@ -200,6 +203,7 @@ async function updateStudent(req, res) {
         ug_id: student.ug_id,
         name: updatedName,
         roll_number: rollNum,
+        phone_number: updatedPhone,
         batch: updatedBatch,
         status: updatedStatus
       }

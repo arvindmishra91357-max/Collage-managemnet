@@ -56,7 +56,7 @@ async function studentLogin(req, res) {
       role: 'STUDENT'
     });
 
-    // Return student profile info (NO email, phone, dob, parent fields)
+    // Return student profile info
     return res.json({
       success: true,
       message: 'Student login successful.',
@@ -66,6 +66,7 @@ async function studentLogin(req, res) {
         ug_id: student.ug_id,
         name: student.name,
         roll_number: student.roll_number,
+        phone_number: student.phone_number || null,
         batch: student.batch,
         program: student.program,
         year: student.year,
@@ -149,6 +150,7 @@ async function getProfile(req, res) {
           ug_id: student.ug_id,
           name: student.name,
           roll_number: student.roll_number,
+          phone_number: student.phone_number || null,
           batch: student.batch,
           program: student.program,
           year: student.year,
