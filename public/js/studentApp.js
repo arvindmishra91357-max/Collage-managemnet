@@ -8,12 +8,26 @@ const StudentApp = {
   activeVideoTrack: null,
   currentLocation: null,
   isScanning: false,
+  tabHistory: ['home'],
 
   async init(user) {
     this.currentUser = user;
+    this.tabHistory = ['home'];
+
+    // Check URL hash for direct deep link
+    const hash = window.location.hash.replace('#', '').trim();
+    const validTabs = ['home', 'study', 'timetable', 'attendance', 'profile'];
+    const initialTab = validTabs.includes(hash) ? hash : 'home';
+    this.currentTab = initialTab;
+    if (initialTab !== 'home') this.tabHistory.push(initialTab);
+
+    try {
+      history.replaceState({ role: 'STUDENT', tab: initialTab }, '', '#' + initialTab);
+    } catch (e) {}
+
     this.renderLayout();
     this.bindEvents();
-    await this.loadTabData('home');
+    await this.loadTabData(initialTab);
     this.setupNotificationBadge();
   },
 
@@ -127,13 +141,29 @@ const StudentApp = {
     });
   },
 
-  switchTab(tab) {
+  switchTab(tab, pushState = true) {
+    if (pushState) {
+      if (this.tabHistory[this.tabHistory.length - 1] !== tab) {
+        this.tabHistory.push(tab);
+      }
+      try {
+        history.pushState({ role: 'STUDENT', tab: tab }, '', '#' + tab);
+      } catch (e) {}
+    }
     this.currentTab = tab;
     document.querySelectorAll('.bottom-nav-item').forEach(b => {
       b.classList.toggle('active', b.dataset.tab === tab);
     });
     this.stopCamera();
     this.loadTabData(tab);
+  },
+
+  closeModal(modalId) {
+    const el = document.getElementById(modalId);
+    if (el) el.remove();
+    if (history.state && history.state.modal === modalId) {
+      history.back();
+    }
   },
 
   async loadTabData(tab) {
@@ -427,6 +457,16 @@ const StudentApp = {
         </section>
       ` : ''}
     `;
+  },
+
+  openStudySubTab(subTab) {
+    this.switchTab('study');
+    setTimeout(() => {
+      const searchBox = document.getElementById('study-search-input');
+      if (searchBox) searchBox.focus();
+    }, 150);
+  },
+
   // ==================== TAB 2: SUBJECT-WISE STUDY HUB ====================
   studyHubData: null,
   activeSubjectFilter: 'ALL',
@@ -1103,6 +1143,10 @@ const StudentApp = {
 
   // Dynamic QR Scanner Modal with GPS Geofencing
   openScannerModal() {
+    try {
+      history.pushState({ role: 'STUDENT', modal: 'scanner-modal' }, '', '#' + this.currentTab + '-scanner');
+    } catch (e) {}
+
     const modalContainer = document.getElementById('student-modal-container');
     modalContainer.innerHTML = `
       <div class="modal-backdrop" id="scanner-modal">
@@ -1241,6 +1285,9 @@ const StudentApp = {
     this.stopCamera();
     const modal = document.getElementById('scanner-modal');
     if (modal) modal.remove();
+    if (history.state && history.state.modal === 'scanner-modal') {
+      history.back();
+    }
   },
 
   stopCamera() {
@@ -1360,13 +1407,17 @@ const StudentApp = {
 
   // Self-Service Profile Photo Upload Modal (Requirement #11)
   openPhotoUploadModal() {
+    try {
+      history.pushState({ role: 'STUDENT', modal: 'photo-modal' }, '', '#' + this.currentTab + '-photo');
+    } catch (e) {}
+
     const modalContainer = document.getElementById('student-modal-container');
     modalContainer.innerHTML = `
       <div class="modal-backdrop" id="photo-modal">
         <div class="modal-card">
           <div class="modal-header">
             <h3 style="font-size:16px; font-weight:800;">Upload Profile Photo</h3>
-            <button class="icon-btn" onclick="document.getElementById('photo-modal').remove()" style="width:30px; height:30px;">✕</button>
+            <button class="icon-btn" onclick="StudentApp.closeModal('photo-modal')" style="width:30px; height:30px;">✕</button>
           </div>
           <div class="modal-body">
             <p style="font-size:13px; color:var(--text-secondary); margin-bottom:14px;">
@@ -1378,7 +1429,7 @@ const StudentApp = {
             </div>
           </div>
           <div class="modal-footer">
-            <button class="btn-primary" style="width:auto; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-secondary); margin-top:0;" onclick="document.getElementById('photo-modal').remove()">Cancel</button>
+            <button class="btn-primary" style="width:auto; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-secondary); margin-top:0;" onclick="StudentApp.closeModal('photo-modal')">Cancel</button>
             <button class="btn-primary" style="width:auto; margin-top:0;" onclick="StudentApp.uploadPhotoSubmit()">Upload & Save</button>
           </div>
         </div>
@@ -1414,7 +1465,7 @@ const StudentApp = {
       window.App.showToast('Profile photo updated successfully!', 'success');
       this.currentUser.profile_photo_url = res.profile_photo_url;
       API.setUser(this.currentUser);
-      document.getElementById('photo-modal').remove();
+      this.closeModal('photo-modal');
       this.loadTabData('profile');
     } else {
       window.App.showToast(res.message || 'Failed to upload photo.', 'error');
@@ -1423,6 +1474,10 @@ const StudentApp = {
 
   // ==================== CONNECT WITH AI TUTOR (Requirement #49, #50) ====================
   openAIModal() {
+    try {
+      history.pushState({ role: 'STUDENT', modal: 'ai-tutor-modal' }, '', '#' + this.currentTab + '-ai');
+    } catch (e) {}
+
     const modalContainer = document.getElementById('student-modal-container');
     modalContainer.innerHTML = `
       <div class="modal-backdrop" id="ai-tutor-modal">
@@ -1435,7 +1490,7 @@ const StudentApp = {
                 <span style="font-size:11px; opacity:0.9;">Trained on 3CYBER7 Syllabus & College Notes</span>
               </div>
             </div>
-            <button class="icon-btn" onclick="document.getElementById('ai-tutor-modal').remove()" style="width:30px; height:30px; color:#ffffff; background:rgba(0,0,0,0.2);">✕</button>
+            <button class="icon-btn" onclick="StudentApp.closeModal('ai-tutor-modal')" style="width:30px; height:30px; color:#ffffff; background:rgba(0,0,0,0.2);">✕</button>
           </div>
 
           <!-- Chat Conversation View -->
@@ -1515,13 +1570,17 @@ const StudentApp = {
 
   // ==================== GLOBAL SEARCH MODAL (Requirement #48) ====================
   openSearchModal() {
+    try {
+      history.pushState({ role: 'STUDENT', modal: 'search-modal' }, '', '#' + this.currentTab + '-search');
+    } catch (e) {}
+
     const modalContainer = document.getElementById('student-modal-container');
     modalContainer.innerHTML = `
       <div class="modal-backdrop" id="search-modal">
         <div class="modal-card" style="max-width:540px;">
           <div class="modal-header">
             <h3 style="font-size:16px; font-weight:800;">🔍 Global Academic Search</h3>
-            <button class="icon-btn" onclick="document.getElementById('search-modal').remove()" style="width:30px; height:30px;">✕</button>
+            <button class="icon-btn" onclick="StudentApp.closeModal('search-modal')" style="width:30px; height:30px;">✕</button>
           </div>
           <div class="modal-body">
             <input type="text" id="global-search-input" class="form-control" placeholder="Type subject (e.g. DBMS, DSA, Java) or topic..." oninput="StudentApp.performGlobalSearch(this.value)" autofocus />
@@ -1621,6 +1680,10 @@ const StudentApp = {
 
   // ==================== NOTIFICATIONS DRAWER ====================
   async openNotificationsDrawer() {
+    try {
+      history.pushState({ role: 'STUDENT', modal: 'notif-modal' }, '', '#' + this.currentTab + '-notif');
+    } catch (e) {}
+
     const res = await API.getStudentNotifications();
     const notifs = res.success ? res.data : [];
 
@@ -1630,7 +1693,7 @@ const StudentApp = {
         <div class="modal-card" style="max-width:480px; max-height:80vh;">
           <div class="modal-header">
             <h3 style="font-size:16px; font-weight:800;">🔔 Notifications & Notices</h3>
-            <button class="icon-btn" onclick="document.getElementById('notif-modal').remove()" style="width:30px; height:30px;">✕</button>
+            <button class="icon-btn" onclick="StudentApp.closeModal('notif-modal')" style="width:30px; height:30px;">✕</button>
           </div>
           <div class="modal-body">
             ${notifs.length > 0 ? notifs.map(n => `

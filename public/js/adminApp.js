@@ -7,12 +7,25 @@ const AdminApp = {
   currentUser: null,
   activeQrInterval: null,
   activeQrSessionId: null,
+  sectionHistory: ['dashboard'],
 
   async init(user) {
     this.currentUser = user;
+    this.sectionHistory = ['dashboard'];
+
+    const hash = window.location.hash.replace('#admin-', '').replace('#', '').trim();
+    const validSections = ['dashboard', 'students', 'add-student', 'batch-1', 'batch-2', 'qr-attendance', 'manual-attendance', 'attendance-reports', 'timetable-editor', 'academic-uploads', 'assignments-manage', 'results-manage', 'notifications-manage', 'calendar-manage'];
+    const initialSection = validSections.includes(hash) ? hash : 'dashboard';
+    this.currentSection = initialSection;
+    if (initialSection !== 'dashboard') this.sectionHistory.push(initialSection);
+
+    try {
+      history.replaceState({ role: 'ADMIN', section: initialSection }, '', '#admin-' + initialSection);
+    } catch (e) {}
+
     this.renderLayout();
     this.bindSidebarEvents();
-    await this.loadSectionData('dashboard');
+    await this.loadSectionData(initialSection);
   },
 
   renderLayout() {
@@ -158,7 +171,15 @@ const AdminApp = {
     });
   },
 
-  switchSection(section) {
+  switchSection(section, pushState = true) {
+    if (pushState) {
+      if (this.sectionHistory[this.sectionHistory.length - 1] !== section) {
+        this.sectionHistory.push(section);
+      }
+      try {
+        history.pushState({ role: 'ADMIN', section: section }, '', '#admin-' + section);
+      } catch (e) {}
+    }
     this.currentSection = section;
     document.querySelectorAll('.admin-sidebar .sidebar-item').forEach(b => {
       b.classList.toggle('active', b.dataset.section === section);
@@ -185,6 +206,14 @@ const AdminApp = {
     if (titleEl) titleEl.innerText = titles[section] || 'Admin Panel';
 
     this.loadSectionData(section);
+  },
+
+  closeModal(modalId) {
+    const el = document.getElementById(modalId);
+    if (el) el.remove();
+    if (history.state && history.state.modal === modalId) {
+      history.back();
+    }
   },
 
   async loadSectionData(section) {
@@ -463,13 +492,17 @@ const AdminApp = {
   },
 
   openEditStudentModal(id, name, ug_id, roll) {
+    try {
+      history.pushState({ role: 'ADMIN', modal: 'edit-student-modal' }, '', '#admin-students-edit');
+    } catch (e) {}
+
     const modalContainer = document.getElementById('admin-modal-container');
     modalContainer.innerHTML = `
       <div class="modal-backdrop" id="edit-student-modal">
         <div class="modal-card">
           <div class="modal-header">
             <h3 style="font-size:16px; font-weight:800;">Edit Student: ${ug_id}</h3>
-            <button class="icon-btn" onclick="document.getElementById('edit-student-modal').remove()" style="width:30px; height:30px;">✕</button>
+            <button class="icon-btn" onclick="AdminApp.closeModal('edit-student-modal')" style="width:30px; height:30px;">✕</button>
           </div>
           <div class="modal-body">
             <div class="form-group">
@@ -486,7 +519,7 @@ const AdminApp = {
             </div>
           </div>
           <div class="modal-footer">
-            <button class="btn-primary" style="width:auto; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-secondary); margin-top:0;" onclick="document.getElementById('edit-student-modal').remove()">Cancel</button>
+            <button class="btn-primary" style="width:auto; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-secondary); margin-top:0;" onclick="AdminApp.closeModal('edit-student-modal')">Cancel</button>
             <button class="btn-primary" style="width:auto; margin-top:0;" onclick="AdminApp.submitEditStudent(${id})">Save Changes</button>
           </div>
         </div>
@@ -1049,13 +1082,17 @@ const AdminApp = {
   },
 
   openAddTimetableModal() {
+    try {
+      history.pushState({ role: 'ADMIN', modal: 'timetable-modal' }, '', '#admin-timetable-add');
+    } catch (e) {}
+
     const modalContainer = document.getElementById('admin-modal-container');
     modalContainer.innerHTML = `
       <div class="modal-backdrop" id="timetable-modal">
         <div class="modal-card">
           <div class="modal-header">
             <h3 style="font-size:16px; font-weight:800;">Add Timetable Slot</h3>
-            <button class="icon-btn" onclick="document.getElementById('timetable-modal').remove()" style="width:30px; height:30px;">✕</button>
+            <button class="icon-btn" onclick="AdminApp.closeModal('timetable-modal')" style="width:30px; height:30px;">✕</button>
           </div>
           <div class="modal-body">
             <div class="form-group">
@@ -1112,7 +1149,7 @@ const AdminApp = {
             </div>
           </div>
           <div class="modal-footer">
-            <button class="btn-primary" style="width:auto; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-secondary); margin-top:0;" onclick="document.getElementById('timetable-modal').remove()">Cancel</button>
+            <button class="btn-primary" style="width:auto; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-secondary); margin-top:0;" onclick="AdminApp.closeModal('timetable-modal')">Cancel</button>
             <button class="btn-primary" style="width:auto; margin-top:0;" onclick="AdminApp.submitAddTimetable()">Save Slot</button>
           </div>
         </div>
@@ -1133,19 +1170,23 @@ const AdminApp = {
     const res = await API.createTimetableEntry({ day, start_time, end_time, subject, teacher, room, batch, is_lab });
     if (res.success) {
       window.App.showToast('Timetable slot added.', 'success');
-      document.getElementById('timetable-modal').remove();
+      this.closeModal('timetable-modal');
       this.switchSection('timetable-editor');
     }
   },
 
   openEditTimetableModal(id, day, start, end, subject, teacher, room, batch, is_lab) {
+    try {
+      history.pushState({ role: 'ADMIN', modal: 'edit-tt-modal' }, '', '#admin-timetable-edit');
+    } catch (e) {}
+
     const modalContainer = document.getElementById('admin-modal-container');
     modalContainer.innerHTML = `
       <div class="modal-backdrop" id="edit-tt-modal">
         <div class="modal-card">
           <div class="modal-header">
             <h3 style="font-size:16px; font-weight:800;">Edit Slot: ${subject} (${day})</h3>
-            <button class="icon-btn" onclick="document.getElementById('edit-tt-modal').remove()" style="width:30px; height:30px;">✕</button>
+            <button class="icon-btn" onclick="AdminApp.closeModal('edit-tt-modal')" style="width:30px; height:30px;">✕</button>
           </div>
           <div class="modal-body">
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
@@ -1168,6 +1209,7 @@ const AdminApp = {
             </div>
           </div>
           <div class="modal-footer">
+            <button class="btn-primary" style="width:auto; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-secondary); margin-top:0;" onclick="AdminApp.closeModal('edit-tt-modal')">Cancel</button>
             <button class="btn-primary" style="width:auto; margin-top:0;" onclick="AdminApp.submitEditTimetable(${id})">Update & Sync</button>
           </div>
         </div>

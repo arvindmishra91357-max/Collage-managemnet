@@ -225,6 +225,83 @@ const App = {
       this.deferredPrompt = e;
       console.log('[PWA] App install prompt captured.');
     });
+  },
+
+  // ==================== IN-APP ROUTING & BACK BUTTON HISTORY CONTROLLER ====================
+  lastBackPressTime: 0,
+
+  setupRouter() {
+    window.addEventListener('popstate', (e) => {
+      this.handlePopState(e);
+    });
+  },
+
+  handlePopState(e) {
+    // 1. Check if any modal backdrop or drawer is currently active
+    const openModals = document.querySelectorAll('.modal-backdrop, #photo-modal, #ai-tutor-modal, #search-modal, #notif-modal, #scanner-modal, #student-modal, #timetable-modal, #edit-tt-modal, #notice-modal, #event-modal');
+    if (openModals.length > 0) {
+      const topModal = openModals[openModals.length - 1];
+      if (topModal.id === 'scanner-modal' && window.StudentApp) {
+        window.StudentApp.stopCamera();
+      }
+      topModal.remove();
+      return;
+    }
+
+    // 2. Check if mobile sidebar is open in Admin Panel
+    const adminSidebar = document.getElementById('admin-sidebar');
+    if (adminSidebar && adminSidebar.classList.contains('open')) {
+      if (window.AdminApp) window.AdminApp.toggleSidebar(false);
+      return;
+    }
+
+    const user = API.getUser();
+    if (!user) return;
+
+    // 3. Student App Back Navigation
+    if (user.role === 'STUDENT' && window.StudentApp) {
+      if (window.StudentApp.tabHistory && window.StudentApp.tabHistory.length > 1) {
+        window.StudentApp.tabHistory.pop(); // Remove current
+        const prevTab = window.StudentApp.tabHistory[window.StudentApp.tabHistory.length - 1] || 'home';
+        window.StudentApp.switchTab(prevTab, false);
+        return;
+      } else if (window.StudentApp.currentTab !== 'home') {
+        window.StudentApp.switchTab('home', false);
+        return;
+      } else {
+        // Double-back to exit protection on Home tab
+        const now = Date.now();
+        if (now - this.lastBackPressTime < 2500) {
+          return; // Allow standard browser exit
+        }
+        this.lastBackPressTime = now;
+        this.showToast('Press back again to exit', 'info');
+        history.pushState({ role: 'STUDENT', tab: 'home' }, '', '#home');
+        return;
+      }
+    }
+
+    // 4. Admin App Back Navigation
+    if (user.role === 'ADMIN' && window.AdminApp) {
+      if (window.AdminApp.sectionHistory && window.AdminApp.sectionHistory.length > 1) {
+        window.AdminApp.sectionHistory.pop(); // Remove current
+        const prevSection = window.AdminApp.sectionHistory[window.AdminApp.sectionHistory.length - 1] || 'dashboard';
+        window.AdminApp.switchSection(prevSection, false);
+        return;
+      } else if (window.AdminApp.currentSection !== 'dashboard') {
+        window.AdminApp.switchSection('dashboard', false);
+        return;
+      } else {
+        const now = Date.now();
+        if (now - this.lastBackPressTime < 2500) {
+          return;
+        }
+        this.lastBackPressTime = now;
+        this.showToast('Press back again to exit', 'info');
+        history.pushState({ role: 'ADMIN', section: 'dashboard' }, '', '#admin-dashboard');
+        return;
+      }
+    }
   }
 };
 
@@ -232,5 +309,6 @@ window.App = App;
 
 // Bootstrap on DOM Ready
 document.addEventListener('DOMContentLoaded', () => {
+  App.setupRouter();
   App.init();
 });
