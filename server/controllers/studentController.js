@@ -33,24 +33,6 @@ async function addStudent(req, res) {
       });
     }
 
-    // Check if UG ID already exists
-    const existing = await db.get("SELECT id FROM students WHERE UPPER(ug_id) = ?", [cleanUgId]);
-    if (existing) {
-      return res.status(409).json({
-        success: false,
-        message: `Student with UG ID ${cleanUgId} already exists.`
-      });
-    }
-
-    // Check if Roll Number already exists in the same division
-    const existingRoll = await db.get("SELECT id, name FROM students WHERE roll_number = ? AND division = '3CYBER7'", [rollNum]);
-    if (existingRoll) {
-      return res.status(409).json({
-        success: false,
-        message: `Roll Number ${rollNum} is already assigned to ${existingRoll.name}.`
-      });
-    }
-
     // Automatic Configuration
     const program = 'B.Tech Cyber Security';
     const year = '2nd Year';
@@ -59,9 +41,52 @@ async function addStudent(req, res) {
     const academicYear = '2026-27';
     const batch = determineBatch(rollNum);
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(password.trim(), 10);
 
-    // Insert student record
+    // Check if student already exists by UG ID or Roll Number
+    const existing = await db.get(
+      "SELECT id, ug_id, roll_number, name FROM students WHERE UPPER(ug_id) = ? OR roll_number = ?",
+      [cleanUgId, rollNum]
+    );
+
+    if (existing) {
+      // Smoothly update existing student profile & credentials instead of rejecting
+      await db.run(`
+        UPDATE students
+        SET name = ?, roll_number = ?, ug_id = ?, phone_number = COALESCE(?, phone_number),
+            password_hash = ?, batch = ?, status = 'ACTIVE', updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `, [cleanName, rollNum, cleanUgId, cleanPhone, passwordHash, batch, existing.id]);
+
+      // Sync user authentication record
+      const existingUser = await db.get("SELECT id FROM users WHERE UPPER(ug_id) = ? OR UPPER(ug_id) = ?", [cleanUgId, existing.ug_id.toUpperCase()]);
+      if (existingUser) {
+        await db.run("UPDATE users SET ug_id = ?, password_hash = ?, status = 'ACTIVE' WHERE id = ?", [cleanUgId, passwordHash, existingUser.id]);
+      } else {
+        await db.run("INSERT INTO users (role, ug_id, password_hash, status) VALUES ('STUDENT', ?, ?, 'ACTIVE')", [cleanUgId, passwordHash]);
+      }
+
+      return res.json({
+        success: true,
+        message: `Student ${cleanName} (Roll #${rollNum}, ${cleanUgId}) stored and updated successfully! Assigned to ${batch}.`,
+        student: {
+          id: existing.id,
+          ug_id: cleanUgId,
+          name: cleanName,
+          roll_number: rollNum,
+          phone_number: cleanPhone,
+          batch,
+          program,
+          year,
+          semester,
+          division,
+          academic_year: academicYear,
+          status: 'ACTIVE'
+        }
+      });
+    }
+
+    // Insert new student record
     const result = await db.run(`
       INSERT INTO students (
         ug_id, name, roll_number, phone_number, password_hash, batch, program, year, semester, division, academic_year, status

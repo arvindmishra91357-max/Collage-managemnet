@@ -10,14 +10,25 @@ const StudentApp = {
   isScanning: false,
   tabHistory: ['home'],
 
-  async init(user) {
+  async init(user, forceTab = null) {
     this.currentUser = user;
     this.tabHistory = ['home'];
 
-    // Check URL hash for direct deep link
-    const hash = window.location.hash.replace('#', '').trim();
-    const validTabs = ['home', 'study', 'timetable', 'attendance', 'profile'];
-    const initialTab = validTabs.includes(hash) ? hash : 'home';
+    // On login or refresh, always default to 'home' (prevent getting stuck on profile or attendance)
+    let initialTab = 'home';
+    if (forceTab) {
+      initialTab = forceTab;
+    } else {
+      const hash = window.location.hash.replace('#', '').trim();
+      const validSubTabs = ['study', 'timetable'];
+      // Only keep hash if it's study or timetable; NEVER default to profile or attendance on refresh/login!
+      if (validSubTabs.includes(hash)) {
+        initialTab = hash;
+      } else {
+        initialTab = 'home';
+      }
+    }
+
     this.currentTab = initialTab;
     if (initialTab !== 'home') this.tabHistory.push(initialTab);
 
@@ -27,6 +38,12 @@ const StudentApp = {
 
     this.renderLayout();
     this.bindEvents();
+
+    // Ensure bottom navigation active tab is correctly set
+    document.querySelectorAll('.bottom-nav-item').forEach(b => {
+      b.classList.toggle('active', b.dataset.tab === initialTab);
+    });
+
     await this.loadTabData(initialTab);
     this.setupNotificationBadge();
   },

@@ -60,10 +60,10 @@ async function runTests() {
 
     // 2. Admin Login
     const adminLogin = await makeRequest('/api/auth/admin-login', 'POST', {
-      username: 'admin',
-      password: 'Admin@123'
+      username: 'Bettu&Bunny',
+      password: 'Bettu&bunny@9135'
     });
-    assert(adminLogin.status === 200 && adminLogin.data.token && adminLogin.data.user.role === 'ADMIN', 'Admin Login (admin / Admin@123)');
+    assert(adminLogin.status === 200 && adminLogin.data.token && adminLogin.data.user.role === 'ADMIN', 'Admin Login (Bettu&Bunny / Bettu&bunny@9135)');
     const adminToken = adminLogin.data.token;
 
     // 3. Admin Student Creation (Strict 4 Fields) & Automatic Batch Logic

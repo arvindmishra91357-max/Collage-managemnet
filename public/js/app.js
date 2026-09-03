@@ -53,10 +53,10 @@ const App = {
           <!-- Unified Single Login Form for Students and Admins -->
           <form id="unified-login-form" onsubmit="event.preventDefault(); App.handleUnifiedLogin();" style="margin-top:10px;">
             <div class="form-group">
-              <label class="form-label">Official ID / Username *</label>
+              <label class="form-label">Enter UG ID *</label>
               <div class="input-container">
                 <span class="input-icon">🆔</span>
-                <input type="text" id="login-identifier" class="form-control" placeholder="e.g. 26UG033181 or admin" autocomplete="username" required />
+                <input type="text" id="login-identifier" class="form-control" placeholder="Enter UG ID (e.g. 26UG033181) or Admin ID" autocomplete="username" required />
               </div>
             </div>
 
@@ -87,7 +87,7 @@ const App = {
     const submitBtn = document.getElementById('login-submit-btn');
 
     if (!identifier || !password) {
-      this.showToast('Please enter both ID/Username and Password.', 'error');
+      this.showToast('Please enter UG ID and Password.', 'error');
       return;
     }
 
@@ -109,14 +109,20 @@ const App = {
       API.setUser(res.user);
 
       if (res.user.role === 'ADMIN') {
-        this.showToast('Admin login verified. Opening Admin Panel...', 'success');
-        AdminApp.init(res.user);
+        try {
+          history.replaceState({ role: 'ADMIN', section: 'dashboard' }, '', '#admin-dashboard');
+        } catch (e) {}
+        this.showToast('Admin login verified. Opening Admin Dashboard...', 'success');
+        AdminApp.init(res.user, 'dashboard');
       } else {
+        try {
+          history.replaceState({ role: 'STUDENT', tab: 'home' }, '', '#home');
+        } catch (e) {}
         this.showToast(`Welcome back, ${res.user.name}!`, 'success');
-        StudentApp.init(res.user);
+        StudentApp.init(res.user, 'home');
       }
     } else {
-      this.showToast(res.message || 'Login failed. Invalid ID or Password.', 'error');
+      this.showToast(res.message || 'Login failed. Invalid UG ID or Password.', 'error');
     }
   },
 
@@ -135,6 +141,10 @@ const App = {
   logout() {
     API.setToken(null);
     API.setUser(null);
+    try {
+      history.replaceState(null, '', window.location.pathname);
+      window.location.hash = '';
+    } catch (e) {}
     this.showToast('Logged out successfully.', 'info');
     this.showAuth();
   },

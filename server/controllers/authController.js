@@ -2,27 +2,26 @@ const bcrypt = require('bcryptjs');
 const db = require('../db');
 const { generateToken } = require('../middleware/auth');
 
-// 1. Student Login (UG ID + Password)
+// 1. Student Login (Strictly UG ID + Password)
 async function studentLogin(req, res) {
   try {
     const { ug_id, password } = req.body;
+    const cleanUgId = (ug_id || '').toString().trim().toUpperCase();
 
-    if (!ug_id || !password) {
+    if (!cleanUgId || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide both UG ID and Password.'
+        message: 'Please provide both Student UG ID and Password.'
       });
     }
 
-    const cleanUgId = ug_id.trim().toUpperCase();
-
-    // Query student record
+    // Query student record strictly by UG ID (Roll number login disabled as requested)
     const student = await db.get("SELECT * FROM students WHERE UPPER(ug_id) = ?", [cleanUgId]);
 
     if (!student) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid UG ID or Password. Please check your credentials.'
+        message: 'Invalid Student credentials. Please login using your official UG ID (e.g. 26UG033181).'
       });
     }
 
@@ -38,7 +37,7 @@ async function studentLogin(req, res) {
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid UG ID or Password. Please check your credentials.'
+        message: 'Invalid Student credentials. Please check your Password.'
       });
     }
 
@@ -95,7 +94,7 @@ async function adminLogin(req, res) {
     }
 
     const cleanUser = username.trim();
-    const admin = await db.get("SELECT * FROM users WHERE (username = ? OR ug_id = ?) AND role = 'ADMIN'", [cleanUser, cleanUser]);
+    const admin = await db.get("SELECT * FROM users WHERE (LOWER(username) = LOWER(?) OR LOWER(ug_id) = LOWER(?)) AND role = 'ADMIN'", [cleanUser, cleanUser]);
 
     if (!admin) {
       return res.status(401).json({
@@ -220,11 +219,7 @@ async function unifiedLogin(req, res) {
     );
 
     if (admin) {
-      let isMatch = await bcrypt.compare(password, admin.password_hash);
-      if (!isMatch && (password === 'admin123' || password === 'Admin@123')) {
-        isMatch = true;
-      }
-
+      const isMatch = await bcrypt.compare(password, admin.password_hash);
       if (isMatch) {
         const token = generateToken({
           id: admin.id,
@@ -244,7 +239,7 @@ async function unifiedLogin(req, res) {
       }
     }
 
-    // B. Check Students table (UG ID)
+    // B. Check Students table strictly by UG ID (Roll number login disabled as requested)
     const cleanUgId = loginId.toUpperCase();
     const student = await db.get("SELECT * FROM students WHERE UPPER(ug_id) = ?", [cleanUgId]);
 
@@ -256,11 +251,7 @@ async function unifiedLogin(req, res) {
         });
       }
 
-      let isMatch = await bcrypt.compare(password, student.password_hash);
-      if (!isMatch && (password === 'student123' || password === 'Student@123')) {
-        isMatch = true;
-      }
-
+      const isMatch = await bcrypt.compare(password, student.password_hash);
       if (isMatch) {
         const token = generateToken({
           id: student.id,

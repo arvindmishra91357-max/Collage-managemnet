@@ -39,21 +39,30 @@ async function getStudentResults(req, res) {
 // 2. Admin: Enter or Update Result
 async function addOrUpdateResult(req, res) {
   try {
-    const { ug_id, exam_name, semester, subject, marks, max_marks, grade, remarks } = req.body;
+    const { ug_id, roll_number, exam_name, semester, subject, marks, max_marks, grade, remarks } = req.body;
 
-    if (!ug_id || !exam_name || !subject || marks === undefined) {
+    const rawId = (ug_id || roll_number || '').toString().trim();
+    if (!rawId || !exam_name || !subject || marks === undefined) {
       return res.status(400).json({
         success: false,
-        message: 'UG ID, Exam Name, Subject, and Marks are required.'
+        message: 'Student UG ID (or Roll Number), Exam Name, Subject, and Marks are required.'
       });
     }
 
-    const cleanUgId = ug_id.trim().toUpperCase();
-    const student = await db.get("SELECT id, name FROM students WHERE ug_id = ?", [cleanUgId]);
-    if (!student) {
-      return res.status(404).json({ success: false, message: `Student with UG ID ${cleanUgId} not found.` });
+    const cleanId = rawId.toUpperCase();
+    const rollNumMatch = rawId.match(/^(?:student\s*)?#?(\d+)$/i);
+
+    let student = await db.get("SELECT id, name, ug_id, roll_number FROM students WHERE UPPER(ug_id) = ?", [cleanId]);
+    if (!student && rollNumMatch) {
+      const parsedRoll = parseInt(rollNumMatch[1], 10);
+      student = await db.get("SELECT id, name, ug_id, roll_number FROM students WHERE roll_number = ?", [parsedRoll]);
     }
 
+    if (!student) {
+      return res.status(404).json({ success: false, message: `Student with identifier "${rawId}" not found in division 3CYBER7.` });
+    }
+
+    const cleanUgId = student.ug_id;
     const m = parseFloat(marks);
     const maxM = parseFloat(max_marks) || 100;
 
@@ -73,7 +82,7 @@ async function addOrUpdateResult(req, res) {
     const sem = semester || '3rd Semester';
 
     const existing = await db.get(
-      "SELECT id FROM results WHERE ug_id = ? AND exam_name = ? AND semester = ? AND subject = ?",
+      "SELECT id FROM results WHERE UPPER(ug_id) = ? AND exam_name = ? AND semester = ? AND subject = ?",
       [cleanUgId, exam_name, sem, subject]
     );
 
@@ -96,7 +105,7 @@ async function addOrUpdateResult(req, res) {
     });
   } catch (err) {
     console.error('[ResultsController] addOrUpdateResult error:', err);
-    return res.status(500).json({ success: false, message: 'Failed to record student result.' });
+    return res.status(500).json({ success: false, message: 'Failed to record student result: ' + err.message });
   }
 }
 
@@ -105,9 +114,9 @@ async function getAllResults(req, res) {
   try {
     const { subject, exam_name, semester } = req.query;
     let sql = `
-      SELECT r.*, s.name as student_name, s.roll_number, s.batch
+      SELECT r.*, COALESCE(s.name, r.ug_id) as student_name, s.roll_number, s.batch
       FROM results r
-      JOIN students s ON r.ug_id = s.ug_id
+      LEFT JOIN students s ON UPPER(r.ug_id) = UPPER(s.ug_id)
       WHERE 1=1
     `;
     const params = [];

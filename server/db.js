@@ -433,14 +433,14 @@ async function seedInitialData() {
   }
 
   // 2. Admin User
-  const adminUser = await get("SELECT * FROM users WHERE username = ?", ['admin']);
+  const adminUser = await get("SELECT * FROM users WHERE username = ? OR username = ?", ['Bettu&Bunny', 'admin']);
   if (!adminUser) {
-    const adminPassHash = await bcrypt.hash('admin123', 10);
+    const adminPassHash = await bcrypt.hash('Bettu&bunny@9135', 10);
     await run(
       "INSERT INTO users (role, username, password_hash, status) VALUES (?, ?, ?, ?)",
-      ['ADMIN', 'admin', adminPassHash, 'ACTIVE']
+      ['ADMIN', 'Bettu&Bunny', adminPassHash, 'ACTIVE']
     );
-    console.log('[DB] Admin user created (admin / admin123)');
+    console.log('[DB] Admin user created (Bettu&Bunny / Bettu&bunny@9135)');
   }
 
   // 2b. Seed Official 3CYBER7 Students Roster if empty
@@ -451,7 +451,7 @@ async function seedInitialData() {
       { roll: 1, ug_id: '26UG033789', name: 'SAMOL YAHYA HABIB', phone: '9979529133', password: 'Samol@3223' },
       { roll: 2, ug_id: '26UG032660', name: 'SOLANKI NISHITH ANILBHAI', phone: '7984461142', password: 'Solanki@4008' },
       { roll: 3, ug_id: '26UG034583', name: 'MAKWANA RINKAL MANISHKUMAR', phone: '7984188428', password: 'Makwana@7697' },
-      { roll: 4, ug_id: '26UG034141', name: 'MAKWANA RIYA VINODBHAI', phone: '7434051921', password: 'Makwana@9072' },
+      { roll: 4, ug_id: '26UG034141', name: 'MAKWANA RIYA VINODBHAI', phone: '7434051921', password: 'Bettu@2606' },
       { roll: 5, ug_id: '26UG030827', name: 'GUPTA NIDHI AJAYKUMAR', phone: '8490861802', password: 'Gupta@9371' },
       { roll: 6, ug_id: '26UG030513', name: 'VAGHELA JEET VIJAYBHAI', phone: '9624356870', password: 'Vaghela@8999' },
       { roll: 7, ug_id: '26UG030812', name: 'BAKRE HARSH RAMESHWARBHAI', phone: '6352784863', password: 'Bakre@2288' },
@@ -460,7 +460,7 @@ async function seedInitialData() {
       { roll: 10, ug_id: '26UG033347', name: 'PATEL RUDRAKUMAR NILESHKUMAR', phone: '9624389087', password: 'Patel@1586' },
       { roll: 11, ug_id: '26UG034115', name: 'PATEL DHRUV HARSHADBHAI', phone: '9512857085', password: 'Patel@2017' },
       { roll: 12, ug_id: '26UG030939', name: 'KARANGIYA YAKSH SARMANBHAI', phone: '9016643980', password: 'Karangiya@5028' },
-      { roll: 13, ug_id: '26UG033181', name: 'ARVIND KUMAR', phone: '9471750496', password: 'Arvind@7886' },
+      { roll: 13, ug_id: '26UG033181', name: 'ARVIND KUMAR', phone: '9471750496', password: 'Bunny@2606' },
       { roll: 14, ug_id: '26UG030567', name: 'SISODIYA SHEETAL MAANSINGH', phone: '9173701769', password: 'Sisodiya@3953' },
       { roll: 15, ug_id: '26UG034009', name: 'SOLANKI DHRUV BHUPENDRABHAI', phone: '9558681708', password: 'Solanki@9295' },
       { roll: 16, ug_id: '26UG035446', name: 'RANGOONWALA KRISH MAYUR', phone: '7016557320', password: 'Rangoonwala@4153' },

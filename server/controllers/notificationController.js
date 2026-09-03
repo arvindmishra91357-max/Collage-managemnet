@@ -40,7 +40,15 @@ async function sendNotification(req, res) {
 
     let cleanUgId = null;
     if (tType === 'STUDENT' && target_ug_id) {
-      cleanUgId = target_ug_id.trim().toUpperCase();
+      const rawTarget = target_ug_id.trim().toUpperCase();
+      let student = await db.get("SELECT ug_id FROM students WHERE UPPER(ug_id) = ?", [rawTarget]);
+      if (!student) {
+        const rollNum = parseInt(rawTarget.replace(/[^0-9]/g, ''), 10);
+        if (!isNaN(rollNum)) {
+          student = await db.get("SELECT ug_id FROM students WHERE roll_number = ?", [rollNum]);
+        }
+      }
+      cleanUgId = student ? student.ug_id : rawTarget;
     }
 
     const result = await db.run(`

@@ -9,13 +9,25 @@ const AdminApp = {
   activeQrSessionId: null,
   sectionHistory: ['dashboard'],
 
-  async init(user) {
+  async init(user, forceSection = null) {
     this.currentUser = user;
     this.sectionHistory = ['dashboard'];
 
-    const hash = window.location.hash.replace('#admin-', '').replace('#', '').trim();
-    const validSections = ['dashboard', 'students', 'add-student', 'batch-1', 'batch-2', 'qr-attendance', 'manual-attendance', 'attendance-reports', 'timetable-editor', 'academic-uploads', 'assignments-manage', 'results-manage', 'notifications-manage', 'calendar-manage'];
-    const initialSection = validSections.includes(hash) ? hash : 'dashboard';
+    // On login or refresh, always open in dashboard (prevent getting stuck on attendance)
+    let initialSection = 'dashboard';
+    if (forceSection) {
+      initialSection = forceSection;
+    } else {
+      const hash = window.location.hash.replace('#admin-', '').replace('#', '').trim();
+      const validSubSections = ['students', 'add-student', 'batch-1', 'batch-2', 'timetable-editor', 'academic-uploads', 'assignments-manage', 'results-manage', 'notifications-manage', 'calendar-manage'];
+      // Only keep hash if it is a specific management tool, NEVER default to attendance on refresh or login!
+      if (validSubSections.includes(hash)) {
+        initialSection = hash;
+      } else {
+        initialSection = 'dashboard';
+      }
+    }
+
     this.currentSection = initialSection;
     if (initialSection !== 'dashboard') this.sectionHistory.push(initialSection);
 
@@ -25,6 +37,31 @@ const AdminApp = {
 
     this.renderLayout();
     this.bindSidebarEvents();
+
+    // Ensure active sidebar item matches initialSection
+    document.querySelectorAll('.admin-sidebar .sidebar-item').forEach(b => {
+      b.classList.toggle('active', b.dataset.section === initialSection);
+    });
+
+    const titles = {
+      dashboard: 'Dashboard Overview',
+      students: 'Students Management',
+      'add-student': 'Create New Student Account',
+      'batch-1': 'Batch 1 Students (Roll 1–30)',
+      'batch-2': 'Batch 2 Students (Roll 31+)',
+      'qr-attendance': 'Dynamic QR Attendance Control Center',
+      'manual-attendance': 'Manual Class Attendance',
+      'attendance-reports': 'Attendance Analytics & Export',
+      'timetable-editor': 'Timetable Management (3CYBER7)',
+      'academic-uploads': 'Notes & Study Materials Upload',
+      'assignments-manage': 'Assignments Management',
+      'results-manage': 'Academic Results Entry',
+      'notifications-manage': 'Publish Notifications & Notices',
+      'calendar-manage': 'Academic Calendar & Events'
+    };
+    const titleEl = document.getElementById('admin-page-title');
+    if (titleEl) titleEl.innerText = titles[initialSection] || 'Admin Panel';
+
     await this.loadSectionData(initialSection);
   },
 
@@ -1101,7 +1138,7 @@ const AdminApp = {
 
   filterTimetableByDay(day) {
     this.selectedAdminDay = day;
-    const container = document.getElementById('admin-app-container');
+    const container = document.getElementById('admin-body-content');
     if (container) this.renderTimetableEditor(container);
   },
 
@@ -1183,19 +1220,26 @@ const AdminApp = {
 
   async submitAddTimetable() {
     const day = document.getElementById('tt-day').value;
-    const start_time = document.getElementById('tt-start').value;
-    const end_time = document.getElementById('tt-end').value;
-    const subject = document.getElementById('tt-subject').value;
-    const teacher = document.getElementById('tt-teacher').value;
-    const room = document.getElementById('tt-room').value;
+    const start_time = document.getElementById('tt-start').value.trim();
+    const end_time = document.getElementById('tt-end').value.trim();
+    const subject = document.getElementById('tt-subject').value.trim();
+    const teacher = document.getElementById('tt-teacher').value.trim();
+    const room = document.getElementById('tt-room').value.trim();
     const batch = document.getElementById('tt-batch').value;
     const is_lab = parseInt(document.getElementById('tt-islab').value, 10);
 
+    if (!day || !start_time || !end_time || !subject || !room) {
+      window.App.showToast('Day, Start Time, End Time, Subject, and Room are required.', 'error');
+      return;
+    }
+
     const res = await API.createTimetableEntry({ day, start_time, end_time, subject, teacher, room, batch, is_lab });
     if (res.success) {
-      window.App.showToast('Timetable slot added.', 'success');
+      window.App.showToast(res.message || 'Timetable slot added.', 'success');
       this.closeModal('timetable-modal');
       this.switchSection('timetable-editor');
+    } else {
+      window.App.showToast(res.message || 'Failed to add timetable slot.', 'error');
     }
   },
 
@@ -1252,6 +1296,8 @@ const AdminApp = {
       window.App.showToast(res.message, 'success');
       document.getElementById('edit-tt-modal').remove();
       this.switchSection('timetable-editor');
+    } else {
+      window.App.showToast(res.message || 'Failed to update timetable slot.', 'error');
     }
   },
 
@@ -1534,7 +1580,7 @@ const AdminApp = {
 
   switchAcademicUploadTab(tab) {
     this.academicUploadTab = tab;
-    const container = document.getElementById('admin-app-container');
+    const container = document.getElementById('admin-body-content');
     if (container) this.renderAcademicUploads(container);
   },
 
@@ -1558,8 +1604,10 @@ const AdminApp = {
     const res = await API.uploadClassNote(formData);
 
     if (res.success) {
-      window.App.showToast(res.message, 'success');
+      window.App.showToast(res.message || 'Notes uploaded successfully!', 'success');
       this.switchSection('academic-uploads');
+    } else {
+      window.App.showToast(res.message || 'Failed to upload note.', 'error');
     }
   },
 
@@ -1589,8 +1637,10 @@ const AdminApp = {
     const res = await API.uploadStudyMaterial(formData);
 
     if (res.success) {
-      window.App.showToast(res.message, 'success');
+      window.App.showToast(res.message || 'Study material uploaded successfully!', 'success');
       this.switchSection('academic-uploads');
+    } else {
+      window.App.showToast(res.message || 'Failed to upload study material.', 'error');
     }
   },
 
@@ -1620,8 +1670,10 @@ const AdminApp = {
     const res = await API.uploadQuestionPaper(formData);
 
     if (res.success) {
-      window.App.showToast(res.message, 'success');
+      window.App.showToast(res.message || 'Question paper uploaded successfully!', 'success');
       this.switchSection('academic-uploads');
+    } else {
+      window.App.showToast(res.message || 'Failed to upload question paper.', 'error');
     }
   },
 
@@ -1734,8 +1786,10 @@ const AdminApp = {
     const res = await API.createAssignment(formData);
 
     if (res.success) {
-      window.App.showToast(res.message, 'success');
+      window.App.showToast(res.message || 'Assignment published successfully!', 'success');
       this.switchSection('assignments-manage');
+    } else {
+      window.App.showToast(res.message || 'Failed to create assignment.', 'error');
     }
   },
 
@@ -2029,6 +2083,8 @@ const AdminApp = {
     if (res.success) {
       window.App.showToast('Notification dispatched to students.', 'success');
       this.switchSection('notifications-manage');
+    } else {
+      window.App.showToast(res.message || 'Failed to send notification.', 'error');
     }
   },
 
@@ -2112,6 +2168,8 @@ const AdminApp = {
     if (res.success) {
       window.App.showToast('Event added to calendar.', 'success');
       this.switchSection('calendar-manage');
+    } else {
+      window.App.showToast(res.message || 'Failed to add calendar event.', 'error');
     }
   },
 

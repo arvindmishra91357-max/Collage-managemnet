@@ -201,6 +201,16 @@ app.get('/api/admin/dashboard-stats', authenticateToken, requireAdmin, async (re
   }
 });
 
+// Global error handling middleware (handles multer limits, format errors, etc. cleanly as JSON)
+app.use((err, req, res, next) => {
+  console.error('[Server Error]:', err.message || err);
+  const status = err.status || (err.name === 'MulterError' ? 400 : 500);
+  res.status(status).json({
+    success: false,
+    message: err.message || 'An unexpected error occurred processing your request.'
+  });
+});
+
 // Fallback SPA routing
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
