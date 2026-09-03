@@ -519,6 +519,82 @@ async function seedInitialData() {
     }
   }
 
+  // 5. Seed Class Notes if empty
+  const notesCount = await get("SELECT COUNT(*) as count FROM class_notes");
+  if (notesCount && notesCount.count === 0) {
+    console.log('[DB] Seeding official B.Tech Cyber Security class notes...');
+    const seedNotes = [
+      { subject: 'DBMS', unit: 'Unit 1', chapter: 'Relational Model & ER Diagrams', topic: 'Entity Relationship, Keys & Cardinality', title: 'ER Model & Relational Algebra Complete Notes', file_url: '/uploads/notes/DBMS_Unit1_Relational_Model.pdf', file_name: 'DBMS_Unit1_Relational_Model.pdf', file_size: '1.8 MB', file_type: 'pdf' },
+      { subject: 'DSA', unit: 'Unit 2', chapter: 'Trees & Graph Algorithms', topic: 'Binary Search Trees, AVL & Graph Traversal', title: 'Trees, AVL & Graph Search Algorithms Notes', file_url: '/uploads/notes/DSA_Unit2_Trees_Graphs.pdf', file_name: 'DSA_Unit2_Trees_Graphs.pdf', file_size: '2.4 MB', file_type: 'pdf' },
+      { subject: 'NCS', unit: 'Unit 1', chapter: 'Network Security Fundamentals', topic: 'Symmetric & Asymmetric Encryption', title: 'Cryptography, Ciphers & Public Key Infrastructure', file_url: '/uploads/notes/NCS_Unit1_Cryptography_Basics.pdf', file_name: 'NCS_Unit1_Cryptography_Basics.pdf', file_size: '2.1 MB', file_type: 'pdf' },
+      { subject: 'JAVA', unit: 'Unit 3', chapter: 'Multithreading & Collections', topic: 'Thread Lifecycle, Synchronisation, List & Map', title: 'Java Multithreading & Collections Framework', file_url: '/uploads/notes/JAVA_Unit3_Multithreading_Collections.pdf', file_name: 'JAVA_Unit3_Multithreading_Collections.pdf', file_size: '1.9 MB', file_type: 'pdf' },
+      { subject: 'COMA', unit: 'Unit 2', chapter: 'Processor Architecture & ALU', topic: 'Instruction Pipeline, Addressing Modes & Control Unit', title: 'CPU Architecture & Microprocessor Design', file_url: '/uploads/notes/COMA_Unit2_Instruction_Set.pdf', file_name: 'COMA_Unit2_Instruction_Set.pdf', file_size: '1.6 MB', file_type: 'pdf' },
+      { subject: 'DM', unit: 'Unit 1', chapter: 'Set Theory & Mathematical Logic', topic: 'Relations, Posets, Lattices & Propositions', title: 'Discrete Mathematics Core Concepts & Proofs', file_url: '/uploads/notes/DM_Unit1_Set_Theory_Relations.pdf', file_name: 'DM_Unit1_Set_Theory_Relations.pdf', file_size: '1.5 MB', file_type: 'pdf' },
+      { subject: 'FCS', unit: 'Unit 1', chapter: 'Cyber Security Essentials', topic: 'CIA Triad, Attack Vectors & Security Policies', title: 'Fundamentals of Cyber Security Overview', file_url: '/uploads/notes/FCS_Unit1_Cyber_Threat_Landscape.pdf', file_name: 'FCS_Unit1_Cyber_Threat_Landscape.pdf', file_size: '1.7 MB', file_type: 'pdf' }
+    ];
+
+    for (const n of seedNotes) {
+      await run(`
+        INSERT INTO class_notes (subject, unit, chapter, topic, title, description, file_url, file_name, file_size, file_type, uploaded_by)
+        VALUES (?, ?, ?, ?, ?, 'Official department notes for 3CYBER7', ?, ?, ?, ?, 'Faculty HOD')
+      `, [n.subject, n.unit, n.chapter, n.topic, n.title, n.file_url, n.file_name, n.file_size, n.file_type]);
+    }
+  }
+
+  // 6. Seed Study Materials if empty
+  const matCount = await get("SELECT COUNT(*) as count FROM study_material");
+  if (matCount && matCount.count === 0) {
+    console.log('[DB] Seeding official study materials...');
+    const seedMaterials = [
+      { subject: 'DBMS', title: 'SQL Queries, Joins & Indexing Cheat Sheet', category: 'REFERENCE', file_url: '/uploads/material/DBMS_SQL_CheatSheet.pdf', file_name: 'DBMS_SQL_CheatSheet.pdf', file_size: '1.1 MB', file_type: 'pdf' },
+      { subject: 'DSA', title: 'Data Structures Lab Experiment Manual (C++ / Java)', category: 'MANUAL', file_url: '/uploads/material/DSA_Data_Structures_Lab_Manual.pdf', file_name: 'DSA_Data_Structures_Lab_Manual.pdf', file_size: '3.2 MB', file_type: 'pdf' },
+      { subject: 'NCS', title: 'Network Security Tools & Command Reference Handbook', category: 'BOOK', file_url: '/uploads/material/NCS_Network_Security_Handbook.pdf', file_name: 'NCS_Network_Security_Handbook.pdf', file_size: '2.8 MB', file_type: 'pdf' }
+    ];
+
+    for (const m of seedMaterials) {
+      await run(`
+        INSERT INTO study_material (subject, title, description, category, file_url, file_name, file_size, file_type, uploaded_by)
+        VALUES (?, ?, 'Prescribed university reference study material', ?, ?, ?, ?, ?, 'Faculty HOD')
+      `, [m.subject, m.title, m.category, m.file_url, m.file_name, m.file_size, m.file_type]);
+    }
+  }
+
+  // 7. Seed Assignments if empty
+  const assignCount = await get("SELECT COUNT(*) as count FROM assignments");
+  if (assignCount && assignCount.count === 0) {
+    console.log('[DB] Seeding official assignments...');
+    const seedAssignments = [
+      { subject: 'DBMS', title: 'Assignment 1: ER Model, Relational Schema & SQL Joins', description: 'Design complete ER diagram and SQL queries for hospital management schema. Submit before deadline.', due_date: '2026-09-15', max_marks: 25, attachment_url: '/uploads/notes/DBMS_Unit1_Relational_Model.pdf', attachment_name: 'DBMS_Assignment1_ProblemSet.pdf', attachment_size: '1.2 MB' },
+      { subject: 'DSA', title: 'Assignment 1: Balanced BST & Dijkstra Implementation', description: 'Implement AVL Tree insertion and shortest path algorithm in Java/C++.', due_date: '2026-09-18', max_marks: 30, attachment_url: '/uploads/notes/DSA_Unit2_Trees_Graphs.pdf', attachment_name: 'DSA_Assignment1_Guidelines.pdf', attachment_size: '1.5 MB' },
+      { subject: 'NCS', title: 'Assignment 1: Wireshark Packet Analysis & Cryptanalysis', description: 'Analyze captured pcap trace files and identify insecure transmissions.', due_date: '2026-09-22', max_marks: 25, attachment_url: '/uploads/notes/NCS_Unit1_Cryptography_Basics.pdf', attachment_name: 'NCS_Assignment1_Packet_Analysis.pdf', attachment_size: '1.4 MB' }
+    ];
+
+    for (const a of seedAssignments) {
+      await run(`
+        INSERT INTO assignments (subject, title, description, due_date, max_marks, attachment_url, attachment_name, attachment_size)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `, [a.subject, a.title, a.description, a.due_date, a.max_marks, a.attachment_url, a.attachment_name, a.attachment_size]);
+    }
+  }
+
+  // 8. Seed Question Papers if empty
+  const paperCount = await get("SELECT COUNT(*) as count FROM question_papers");
+  if (paperCount && paperCount.count === 0) {
+    console.log('[DB] Seeding official question papers...');
+    const seedPapers = [
+      { subject: 'DBMS', exam_name: 'End-Semester Final Exam Paper (2025-26)', semester: '3rd Semester', academic_year: '2025-26', file_url: '/uploads/papers/DBMS_EndSem_Paper_2025.pdf', file_name: 'DBMS_EndSem_Paper_2025.pdf', file_size: '1.2 MB' },
+      { subject: 'DSA', exam_name: 'Mid-Semester Exam Paper (2026-27)', semester: '3rd Semester', academic_year: '2026-27', file_url: '/uploads/papers/DSA_MidSem_Paper_2026.pdf', file_name: 'DSA_MidSem_Paper_2026.pdf', file_size: '1.0 MB' },
+      { subject: 'NCS', exam_name: 'End-Semester Examination Paper (2025-26)', semester: '3rd Semester', academic_year: '2025-26', file_url: '/uploads/papers/NCS_EndSem_Paper_2025.pdf', file_name: 'NCS_EndSem_Paper_2025.pdf', file_size: '1.3 MB' }
+    ];
+
+    for (const p of seedPapers) {
+      await run(`
+        INSERT INTO question_papers (subject, exam_name, semester, academic_year, file_url, file_name, file_size)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, [p.subject, p.exam_name, p.semester, p.academic_year, p.file_url, p.file_name, p.file_size]);
+    }
+  }
+
   console.log('[DB] Database initialization and seed completed!');
 }
 

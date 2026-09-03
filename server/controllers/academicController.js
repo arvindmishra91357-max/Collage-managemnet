@@ -1,5 +1,7 @@
+const path = require('path');
+const fs = require('fs');
 const db = require('../db');
-const { formatBytes } = require('../services/storageService');
+const { formatBytes, getMimeType } = require('../services/storageService');
 
 // ==================== CLASS NOTES ====================
 
@@ -55,7 +57,8 @@ async function uploadClassNote(req, res) {
       fileUrl = `/uploads/notes/${req.file.filename}`;
       fileName = req.file.originalname;
       fileSize = formatBytes(req.file.size);
-      fileType = req.file.mimetype.split('/')[1] || 'pdf';
+      const ext = path.extname(req.file.originalname).replace('.', '').toLowerCase();
+      fileType = ext || 'pdf';
     }
 
     const result = await db.run(`
@@ -67,7 +70,7 @@ async function uploadClassNote(req, res) {
     // Create automated notification for students
     await db.run(`
       INSERT INTO notifications (title, message, type, target_type)
-      VALUES (?, ?, 'ACADEMIC', 'ALL')
+      VALUES (?, ?, ?, 'ALL')
     `, [`New Notes Uploaded: ${subject} (${unit})`, `New notes for ${subject} (${title}) have been uploaded by faculty.`, 'ACADEMIC']);
 
     return res.status(201).json({
@@ -144,7 +147,8 @@ async function uploadStudyMaterial(req, res) {
       fileUrl = `/uploads/material/${req.file.filename}`;
       fileName = req.file.originalname;
       fileSize = formatBytes(req.file.size);
-      fileType = req.file.mimetype.split('/')[1] || 'pdf';
+      const ext = path.extname(req.file.originalname).replace('.', '').toLowerCase();
+      fileType = ext || 'pdf';
     }
 
     const result = await db.run(`
@@ -231,7 +235,7 @@ async function createAssignment(req, res) {
     // Create Notification
     await db.run(`
       INSERT INTO notifications (title, message, type, target_type)
-      VALUES (?, ?, 'ALERT', 'ALL')
+      VALUES (?, ?, ?, 'ALL')
     `, [`New Assignment: ${subject}`, `New assignment '${title}' due on ${due_date}. Check Study Hub.`, 'ALERT']);
 
     return res.status(201).json({
@@ -477,6 +481,52 @@ async function getSubjectStudyHub(req, res) {
   }
 }
 
+// 21. Download Academic File Handler (Forces correct attachment name & MIME format)
+async function downloadAcademicFile(req, res) {
+  try {
+    const fileRelPath = req.query.file;
+    if (!fileRelPath) {
+      return res.status(400).json({ success: false, message: 'File path parameter is required.' });
+    }
+
+    // Sanitize path against directory traversal
+    const safePath = path.normalize(fileRelPath).replace(/^(\.\.[\/\\])+/, '').replace(/^[\\\/]+/, '');
+    const fullPath = path.join(__dirname, '..', '..', safePath);
+
+    if (!fs.existsSync(fullPath)) {
+      console.warn('[AcademicDownload] Requested file does not exist on disk:', fullPath);
+      return res.status(404).json({
+        success: false,
+        message: 'The requested academic document was not found on server storage.'
+      });
+    }
+
+    const ext = path.extname(fullPath).toLowerCase();
+    let downloadName = req.query.name ? path.basename(req.query.name) : path.basename(fullPath);
+
+    // If downloadName is missing extension or has wrong extension, append the true extension
+    if (!downloadName.toLowerCase().endsWith(ext) && ext) {
+      downloadName += ext;
+    }
+
+    const mimeType = getMimeType(ext);
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(downloadName)}"`);
+
+    return res.download(fullPath, downloadName, (err) => {
+      if (err && !res.headersSent) {
+        console.error('[AcademicDownload] Transfer error:', err);
+        res.status(500).json({ success: false, message: 'Failed to download academic file.' });
+      }
+    });
+  } catch (err) {
+    console.error('[AcademicDownload] Error:', err);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, message: 'Internal error downloading file.' });
+    }
+  }
+}
+
 module.exports = {
   getClassNotes,
   uploadClassNote,
@@ -497,5 +547,6 @@ module.exports = {
   createAnnouncement,
   deleteAnnouncement,
   getSubjects,
-  getSubjectStudyHub
+  getSubjectStudyHub,
+  downloadAcademicFile
 };

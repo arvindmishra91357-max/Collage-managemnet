@@ -418,7 +418,7 @@ const StudentApp = {
                 <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">Subject: ${a.subject} • Due: <span style="color:#fbbf24; font-weight:600;">${a.due_date}</span></div>
               </div>
               ${a.attachment_url ? `
-                <a href="${a.attachment_url}" target="_blank" download class="icon-btn" style="width:32px; height:32px;" title="Download Assignment PDF">
+                <a href="${API.getDownloadUrl(a.attachment_url, a.attachment_name || a.title)}" target="_blank" download="${a.attachment_name || a.title}" class="icon-btn" style="width:32px; height:32px;" title="Download Assignment">
                   <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 </a>
               ` : ''}
@@ -627,6 +627,29 @@ const StudentApp = {
     }
   },
 
+  getFileFormatInfo(fileUrl, fileName, fileType) {
+    const name = fileName || fileUrl || '';
+    let ext = fileType || '';
+    if (!ext && name.includes('.')) {
+      ext = name.split('.').pop();
+    }
+    ext = (ext || 'pdf').toLowerCase().replace('.', '');
+    const map = {
+      pdf: { icon: '📕', label: 'PDF', class: 'pdf' },
+      xlsx: { icon: '📊', label: 'EXCEL', class: 'xlsx' },
+      xls: { icon: '📊', label: 'EXCEL', class: 'xls' },
+      docx: { icon: '📝', label: 'WORD', class: 'docx' },
+      doc: { icon: '📝', label: 'WORD', class: 'doc' },
+      pptx: { icon: '📽️', label: 'PPT', class: 'pptx' },
+      ppt: { icon: '📽️', label: 'PPT', class: 'ppt' },
+      txt: { icon: '📄', label: 'TXT', class: 'txt' },
+      csv: { icon: '📊', label: 'CSV', class: 'csv' },
+      zip: { icon: '📁', label: 'ZIP', class: 'zip' },
+      rar: { icon: '📁', label: 'RAR', class: 'rar' }
+    };
+    return map[ext] || { icon: '📄', label: ext.toUpperCase(), class: 'txt' };
+  },
+
   renderSubjectTabContent(item, tabName) {
     const sub = item.subject;
 
@@ -634,14 +657,20 @@ const StudentApp = {
       if (item.notes.length === 0) {
         return `<div class="empty-resource-box">No notes uploaded for ${sub.short_name} yet. Faculty will upload soon.</div>`;
       }
-      return item.notes.map(n => `
+      return item.notes.map(n => {
+        const fmt = this.getFileFormatInfo(n.file_url, n.file_name, n.file_type);
+        const downloadUrl = API.getDownloadUrl(n.file_url, n.file_name || `${n.title}.${fmt.label.toLowerCase()}`);
+        return `
         <div class="subject-resource-card">
           <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
             <div>
-              <span class="lab-chip" style="background:rgba(6,182,212,0.2); color:#38bdf8;">${n.unit || 'Unit'}</span>
-              <h4 style="font-size:14px; font-weight:700; margin-top:4px;">${n.title}</h4>
+              <div style="display:flex; gap:6px; align-items:center; margin-bottom:4px;">
+                <span class="lab-chip" style="background:rgba(6,182,212,0.2); color:#38bdf8;">${n.unit || 'Unit'}</span>
+                <span class="format-badge ${fmt.class}">${fmt.icon} ${fmt.label}</span>
+              </div>
+              <h4 style="font-size:14px; font-weight:700; margin-top:2px;">${n.title}</h4>
             </div>
-            <span style="font-size:10px; color:var(--text-muted);">${n.file_size || 'PDF'}</span>
+            <span style="font-size:10px; color:var(--text-muted);">${n.file_size || fmt.label}</span>
           </div>
           ${n.chapter ? `<div style="font-size:12px; color:#93c5fd; margin-bottom:2px;">📖 ${n.chapter}</div>` : ''}
           ${n.topic ? `<div style="font-size:11px; color:var(--text-secondary); margin-bottom:6px;">📌 ${n.topic}</div>` : ''}
@@ -650,37 +679,51 @@ const StudentApp = {
             <a href="${n.file_url}" target="_blank" class="btn-primary" style="flex:1; padding:7px 10px; font-size:11px; margin-top:0; background:rgba(37,99,235,0.2); border:1px solid rgba(59,130,246,0.4); color:#60a5fa;">
               👁️ View
             </a>
-            <a href="${n.file_url}" download target="_blank" class="btn-primary" style="flex:1; padding:7px 10px; font-size:11px; margin-top:0;">
-              📥 Download
+            <a href="${downloadUrl}" download="${n.file_name || n.title}" target="_blank" class="btn-primary" style="flex:1; padding:7px 10px; font-size:11px; margin-top:0;">
+              📥 Download (${fmt.label})
             </a>
           </div>
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
 
     if (tabName === 'material') {
       if (item.materials.length === 0) {
         return `<div class="empty-resource-box">No study materials (manuals, cheat sheets, slides) uploaded for ${sub.short_name} yet.</div>`;
       }
-      return item.materials.map(m => `
+      return item.materials.map(m => {
+        const fmt = this.getFileFormatInfo(m.file_url, m.file_name, m.file_type);
+        const downloadUrl = API.getDownloadUrl(m.file_url, m.file_name || `${m.title}.${fmt.label.toLowerCase()}`);
+        return `
         <div class="subject-resource-card" style="display:flex; justify-content:space-between; align-items:center;">
           <div>
-            <span class="lab-chip" style="background:rgba(16,185,129,0.2); color:#34d399;">${m.category || 'REFERENCE'}</span>
-            <h4 style="font-size:14px; font-weight:700; margin-top:4px;">${m.title}</h4>
+            <div style="display:flex; gap:6px; align-items:center; margin-bottom:4px;">
+              <span class="lab-chip" style="background:rgba(16,185,129,0.2); color:#34d399;">${m.category || 'REFERENCE'}</span>
+              <span class="format-badge ${fmt.class}">${fmt.icon} ${fmt.label}</span>
+            </div>
+            <h4 style="font-size:14px; font-weight:700;">${m.title}</h4>
             <p style="font-size:11px; color:var(--text-muted); margin-top:2px;">${m.description || ''}</p>
           </div>
-          <a href="${m.file_url}" target="_blank" download class="btn-primary" style="width:auto; padding:6px 12px; font-size:11px; margin-top:0;">
-            📥 Open
-          </a>
+          <div style="display:flex; gap:6px;">
+            <a href="${m.file_url}" target="_blank" class="btn-primary" style="width:auto; padding:6px 10px; font-size:11px; margin-top:0; background:rgba(37,99,235,0.2); border:1px solid rgba(59,130,246,0.4); color:#60a5fa;">👁️</a>
+            <a href="${downloadUrl}" target="_blank" download="${m.file_name || m.title}" class="btn-primary" style="width:auto; padding:6px 12px; font-size:11px; margin-top:0;">
+              📥 Download
+            </a>
+          </div>
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
 
     if (tabName === 'assignments') {
       if (item.assignments.length === 0) {
         return `<div class="empty-resource-box">No pending assignments for ${sub.short_name}.</div>`;
       }
-      return item.assignments.map(a => `
+      return item.assignments.map(a => {
+        const fmt = a.attachment_url ? this.getFileFormatInfo(a.attachment_url, a.attachment_name) : null;
+        const downloadUrl = a.attachment_url ? API.getDownloadUrl(a.attachment_url, a.attachment_name || `${a.title}.pdf`) : '#';
+        return `
         <div class="subject-resource-card">
           <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
             <h4 style="font-size:14px; font-weight:700;">${a.title}</h4>
@@ -692,30 +735,44 @@ const StudentApp = {
           <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-color); padding-top:8px;">
             <span style="font-size:11px; color:var(--text-muted);">Max Marks: <strong>${a.max_marks}</strong></span>
             ${a.attachment_url ? `
-              <a href="${a.attachment_url}" target="_blank" download class="btn-primary" style="width:auto; padding:5px 12px; font-size:11px; margin-top:0;">
-                📥 Attachment
-              </a>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span class="format-badge ${fmt ? fmt.class : 'pdf'}">${fmt ? fmt.icon + ' ' + fmt.label : 'PDF'}</span>
+                <a href="${downloadUrl}" target="_blank" download="${a.attachment_name || a.title}" class="btn-primary" style="width:auto; padding:5px 12px; font-size:11px; margin-top:0;">
+                  📥 Attachment
+                </a>
+              </div>
             ` : '<span style="font-size:11px; color:var(--text-muted);">No File</span>'}
           </div>
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
 
     if (tabName === 'papers') {
       if (item.questionPapers.length === 0) {
         return `<div class="empty-resource-box">No previous question papers uploaded for ${sub.short_name} yet.</div>`;
       }
-      return item.questionPapers.map(p => `
+      return item.questionPapers.map(p => {
+        const fmt = this.getFileFormatInfo(p.file_url, p.file_name);
+        const downloadUrl = API.getDownloadUrl(p.file_url, p.file_name || `${p.subject}_${p.exam_name}.pdf`);
+        return `
         <div class="subject-resource-card" style="display:flex; justify-content:space-between; align-items:center;">
           <div>
-            <h4 style="font-size:13px; font-weight:700;">${p.exam_name}</h4>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <h4 style="font-size:13px; font-weight:700;">${p.exam_name}</h4>
+              <span class="format-badge ${fmt.class}">${fmt.icon} ${fmt.label}</span>
+            </div>
             <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Year: ${p.academic_year} • ${p.semester}</div>
           </div>
-          <a href="${p.file_url}" target="_blank" download class="btn-primary" style="width:auto; padding:5px 12px; font-size:11px; margin-top:0;">
-            📥 PDF
-          </a>
+          <div style="display:flex; gap:6px;">
+            <a href="${p.file_url}" target="_blank" class="btn-primary" style="width:auto; padding:5px 10px; font-size:11px; margin-top:0; background:rgba(37,99,235,0.2); border:1px solid rgba(59,130,246,0.4); color:#60a5fa;">👁️</a>
+            <a href="${downloadUrl}" target="_blank" download="${p.file_name || p.exam_name}" class="btn-primary" style="width:auto; padding:5px 12px; font-size:11px; margin-top:0;">
+              📥 Download
+            </a>
+          </div>
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
 
     return '';
@@ -844,12 +901,22 @@ const StudentApp = {
     const slider = document.getElementById('timetable-day-pills');
     if (!slider) return;
 
+    // Support horizontal wheel scrolling on desktop
+    slider.addEventListener('wheel', (e) => {
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        slider.scrollBy({ left: e.deltaY > 0 ? 120 : -120, behavior: 'smooth' });
+      }
+    }, { passive: false });
+
     let isDown = false;
     let startX;
     let scrollLeft;
+    let hasDragged = false;
 
     slider.addEventListener('mousedown', (e) => {
       isDown = true;
+      hasDragged = false;
       slider.style.cursor = 'grabbing';
       startX = e.pageX - slider.offsetLeft;
       scrollLeft = slider.scrollLeft;
@@ -857,20 +924,23 @@ const StudentApp = {
 
     slider.addEventListener('mouseleave', () => {
       isDown = false;
-      slider.style.cursor = 'pointer';
+      slider.style.cursor = 'grab';
     });
 
     slider.addEventListener('mouseup', () => {
       isDown = false;
-      slider.style.cursor = 'pointer';
+      slider.style.cursor = 'grab';
     });
 
     slider.addEventListener('mousemove', (e) => {
       if (!isDown) return;
-      e.preventDefault();
       const x = e.pageX - slider.offsetLeft;
       const walk = (x - startX) * 1.5;
-      slider.scrollLeft = scrollLeft - walk;
+      if (Math.abs(walk) > 4) {
+        hasDragged = true;
+        e.preventDefault();
+        slider.scrollLeft = scrollLeft - walk;
+      }
     });
   },
 
@@ -1483,13 +1553,21 @@ const StudentApp = {
     if (r.notes.length > 0) {
       html += `<div style="font-size:12px; font-weight:700; color:#60a5fa; margin:8px 0 4px;">📚 Class Notes:</div>`;
       r.notes.forEach(n => {
+        const fmt = this.getFileFormatInfo(n.file_url, n.file_name, n.file_type);
+        const downloadUrl = API.getDownloadUrl(n.file_url, n.file_name || n.title);
         html += `
           <div class="glass-card" style="padding:10px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
             <div>
-              <strong>${n.title}</strong> [${n.subject} • ${n.unit}]
-              <div style="font-size:11px; color:var(--text-muted);">${n.chapter || ''}</div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <strong>${n.title}</strong>
+                <span class="format-badge ${fmt.class}">${fmt.icon} ${fmt.label}</span>
+              </div>
+              <div style="font-size:11px; color:var(--text-muted);">${n.subject} • ${n.unit} ${n.chapter ? '• ' + n.chapter : ''}</div>
             </div>
-            <a href="${n.file_url}" target="_blank" class="btn-primary" style="width:auto; padding:4px 10px; font-size:11px; margin-top:0;">Open</a>
+            <div style="display:flex; gap:6px;">
+              <a href="${n.file_url}" target="_blank" class="btn-primary" style="width:auto; padding:4px 8px; font-size:11px; margin-top:0; background:rgba(37,99,235,0.2); color:#60a5fa;">👁️</a>
+              <a href="${downloadUrl}" target="_blank" download="${n.file_name || n.title}" class="btn-primary" style="width:auto; padding:4px 10px; font-size:11px; margin-top:0;">Download</a>
+            </div>
           </div>
         `;
       });
@@ -1498,10 +1576,18 @@ const StudentApp = {
     if (r.assignments.length > 0) {
       html += `<div style="font-size:12px; font-weight:700; color:#fbbf24; margin:12px 0 4px;">📝 Assignments:</div>`;
       r.assignments.forEach(a => {
+        const fmt = a.attachment_url ? this.getFileFormatInfo(a.attachment_url, a.attachment_name) : null;
+        const downloadUrl = a.attachment_url ? API.getDownloadUrl(a.attachment_url, a.attachment_name || a.title) : null;
         html += `
-          <div class="glass-card" style="padding:10px; margin-bottom:6px;">
-            <strong>${a.title}</strong> [${a.subject}]
-            <div style="font-size:11px; color:var(--text-muted);">Due Date: ${a.due_date}</div>
+          <div class="glass-card" style="padding:10px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <strong>${a.title}</strong>
+                ${fmt ? `<span class="format-badge ${fmt.class}">${fmt.icon} ${fmt.label}</span>` : ''}
+              </div>
+              <div style="font-size:11px; color:var(--text-muted);">${a.subject} • Due: ${a.due_date}</div>
+            </div>
+            ${downloadUrl ? `<a href="${downloadUrl}" target="_blank" download="${a.attachment_name || a.title}" class="btn-primary" style="width:auto; padding:4px 10px; font-size:11px; margin-top:0;">Attachment</a>` : ''}
           </div>
         `;
       });
@@ -1510,10 +1596,21 @@ const StudentApp = {
     if (r.questionPapers.length > 0) {
       html += `<div style="font-size:12px; font-weight:700; color:#c084fc; margin:12px 0 4px;">📄 Question Papers:</div>`;
       r.questionPapers.forEach(p => {
+        const fmt = this.getFileFormatInfo(p.file_url, p.file_name);
+        const downloadUrl = API.getDownloadUrl(p.file_url, p.file_name || `${p.subject}_${p.exam_name}.pdf`);
         html += `
           <div class="glass-card" style="padding:10px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
-            <div><strong>${p.exam_name}</strong> [${p.subject} • ${p.academic_year}]</div>
-            <a href="${p.file_url}" target="_blank" class="btn-primary" style="width:auto; padding:4px 10px; font-size:11px; margin-top:0;">Download</a>
+            <div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <strong>${p.exam_name}</strong>
+                <span class="format-badge ${fmt.class}">${fmt.icon} ${fmt.label}</span>
+              </div>
+              <div style="font-size:11px; color:var(--text-muted);">${p.subject} • ${p.academic_year}</div>
+            </div>
+            <div style="display:flex; gap:6px;">
+              <a href="${p.file_url}" target="_blank" class="btn-primary" style="width:auto; padding:4px 8px; font-size:11px; margin-top:0; background:rgba(37,99,235,0.2); color:#60a5fa;">👁️</a>
+              <a href="${downloadUrl}" target="_blank" download="${p.file_name || p.exam_name}" class="btn-primary" style="width:auto; padding:4px 10px; font-size:11px; margin-top:0;">Download</a>
+            </div>
           </div>
         `;
       });

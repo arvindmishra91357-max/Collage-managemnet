@@ -945,13 +945,21 @@ const AdminApp = {
   },
 
   // ==================== 7. TIMETABLE EDITOR (Requirement #20, #21, #22, #23) ====================
+  selectedAdminDay: 'ALL',
+
   async renderTimetableEditor(container) {
     const res = await API.getAllTimetable();
-    const timetable = res.success ? res.data : [];
+    let timetable = res.success ? res.data : [];
+    const days = ['ALL', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const currentDay = this.selectedAdminDay || 'ALL';
+
+    if (currentDay !== 'ALL') {
+      timetable = timetable.filter(t => t.day === currentDay);
+    }
 
     container.innerHTML = `
       <div class="glass-card" style="padding:22px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
           <div>
             <h3 style="font-size:17px; font-weight:800;">📅 Timetable Master Schedule (Division: 3CYBER7)</h3>
             <span style="font-size:12px; color:var(--text-muted);">Effective Date: 09-06-2026 • Live Sync to Student App</span>
@@ -959,6 +967,20 @@ const AdminApp = {
           <button class="btn-primary" onclick="AdminApp.openAddTimetableModal()" style="width:auto; padding:8px 16px; margin-top:0; font-size:13px;">
             + Add Timetable Slot
           </button>
+        </div>
+
+        <!-- Scrollable Day Filter Carousel for Admin -->
+        <div class="day-scroll-wrapper" style="margin-bottom:16px;">
+          <button class="scroll-arrow-btn" onclick="AdminApp.scrollAdminDaysCarousel(-140)" title="Scroll Left">‹</button>
+          <div class="day-scroll-container" id="admin-timetable-day-pills">
+            ${days.map(d => `
+              <button class="day-pill-btn ${d === currentDay ? 'active' : ''}" onclick="AdminApp.filterTimetableByDay('${d}')">
+                <span>${d === 'ALL' ? '🌐' : '📅'}</span>
+                <span>${d}</span>
+              </button>
+            `).join('')}
+          </div>
+          <button class="scroll-arrow-btn" onclick="AdminApp.scrollAdminDaysCarousel(140)" title="Scroll Right">›</button>
         </div>
 
         <div class="table-container">
@@ -976,7 +998,7 @@ const AdminApp = {
               </tr>
             </thead>
             <tbody>
-              ${timetable.map(t => `
+              ${timetable.length > 0 ? timetable.map(t => `
                 <tr>
                   <td><strong>${t.day}</strong></td>
                   <td><span style="color:#38bdf8; font-weight:700;">${this.formatTimeSlot(t.start_time)}</span> <span style="font-size:11px; color:var(--text-muted);">– ${this.formatTimeSlot(t.end_time)}</span></td>
@@ -990,12 +1012,40 @@ const AdminApp = {
                     <button class="icon-btn" onclick="AdminApp.deleteTimetableSlot(${t.id})" title="Delete" style="width:28px; height:28px; display:inline-flex; color:#f87171;">🗑</button>
                   </td>
                 </tr>
-              `).join('')}
+              `).join('') : `
+                <tr>
+                  <td colspan="8" style="text-align:center; padding:24px; color:var(--text-muted);">No timetable entries found for ${currentDay}.</td>
+                </tr>
+              `}
             </tbody>
           </table>
         </div>
       </div>
     `;
+
+    this.bindAdminTimetableScroll();
+  },
+
+  scrollAdminDaysCarousel(offset) {
+    const el = document.getElementById('admin-timetable-day-pills');
+    if (el) el.scrollBy({ left: offset, behavior: 'smooth' });
+  },
+
+  bindAdminTimetableScroll() {
+    const el = document.getElementById('admin-timetable-day-pills');
+    if (!el) return;
+    el.addEventListener('wheel', (e) => {
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        el.scrollBy({ left: e.deltaY > 0 ? 120 : -120, behavior: 'smooth' });
+      }
+    }, { passive: false });
+  },
+
+  filterTimetableByDay(day) {
+    this.selectedAdminDay = day;
+    const container = document.getElementById('admin-app-container');
+    if (container) this.renderTimetableEditor(container);
   },
 
   openAddTimetableModal() {
@@ -1147,73 +1197,279 @@ const AdminApp = {
     }
   },
 
-  // ==================== 8. ACADEMIC UPLOADS (NOTES & STUDY MATERIALS) ====================
+  // ==================== 8. ACADEMIC UPLOADS (NOTES, STUDY MATERIALS & QUESTION PAPERS) ====================
+  academicUploadTab: 'notes',
+
+  getFileFormatInfo(fileUrl, fileName, fileType) {
+    const name = fileName || fileUrl || '';
+    let ext = fileType || '';
+    if (!ext && name.includes('.')) {
+      ext = name.split('.').pop();
+    }
+    ext = (ext || 'pdf').toLowerCase().replace('.', '');
+    const map = {
+      pdf: { icon: '📕', label: 'PDF', class: 'pdf' },
+      xlsx: { icon: '📊', label: 'EXCEL', class: 'xlsx' },
+      xls: { icon: '📊', label: 'EXCEL', class: 'xls' },
+      docx: { icon: '📝', label: 'WORD', class: 'docx' },
+      doc: { icon: '📝', label: 'WORD', class: 'doc' },
+      pptx: { icon: '📽️', label: 'PPT', class: 'pptx' },
+      ppt: { icon: '📽️', label: 'PPT', class: 'ppt' },
+      txt: { icon: '📄', label: 'TXT', class: 'txt' },
+      csv: { icon: '📊', label: 'CSV', class: 'csv' },
+      zip: { icon: '📁', label: 'ZIP', class: 'zip' },
+      rar: { icon: '📁', label: 'RAR', class: 'rar' }
+    };
+    return map[ext] || { icon: '📄', label: ext.toUpperCase(), class: 'txt' };
+  },
+
   async renderAcademicUploads(container) {
-    const notesRes = await API.getClassNotes();
+    const activeTab = this.academicUploadTab || 'notes';
+
+    const [notesRes, matRes, papersRes] = await Promise.all([
+      API.getClassNotes(),
+      API.getStudyMaterial(),
+      API.getQuestionPapers()
+    ]);
+
     const notes = notesRes.success ? notesRes.data : [];
+    const materials = matRes.success ? matRes.data : [];
+    const papers = papersRes.success ? papersRes.data : [];
 
     container.innerHTML = `
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:22px;">
-        <!-- Upload Form -->
-        <div class="glass-card" style="padding:24px;">
-          <h3 style="font-size:17px; font-weight:800; margin-bottom:14px;">📤 Upload Official Class Notes</h3>
-          <form id="upload-notes-form" onsubmit="event.preventDefault(); AdminApp.submitUploadNote();">
-            <div class="form-group">
-              <label class="form-label">Subject *</label>
-              <select id="note-subject" class="form-control" required>
-                <option value="DBMS">DBMS (Database Management System)</option>
-                <option value="NCS">NCS (Network & Cyber Security)</option>
-                <option value="DSA">DSA (Data Structures & Algorithms)</option>
-                <option value="JAVA">JAVA (Object Oriented Programming)</option>
-                <option value="COMA">COMA (Computer Organization)</option>
-                <option value="DM">DM (Discrete Mathematics)</option>
-                <option value="FCS">FCS (Cyber Security Fundamentals)</option>
-              </select>
-            </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-              <div class="form-group">
-                <label class="form-label">Unit *</label>
-                <input type="text" id="note-unit" class="form-control" placeholder="e.g. Unit 1" required />
-              </div>
-              <div class="form-group">
-                <label class="form-label">Chapter Name</label>
-                <input type="text" id="note-chapter" class="form-control" placeholder="e.g. Relational Model" />
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Topic / Key Concepts</label>
-              <input type="text" id="note-topic" class="form-control" placeholder="e.g. ER-to-Relational Mapping" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Note Title *</label>
-              <input type="text" id="note-title" class="form-control" placeholder="e.g. ER Model Complete Notes" required />
-            </div>
-            <div class="form-group">
-              <label class="form-label">PDF / Document File *</label>
-              <input type="file" id="note-file" class="form-control" accept=".pdf,.docx,.pptx" style="padding:8px;" />
-            </div>
-            <button type="submit" class="btn-primary">Upload & Publish to Students</button>
-          </form>
-        </div>
+      <div style="margin-bottom:16px; display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="day-pill-btn ${activeTab === 'notes' ? 'active' : ''}" onclick="AdminApp.switchAcademicUploadTab('notes')">
+          <span>📚</span> Class Notes (${notes.length})
+        </button>
+        <button class="day-pill-btn ${activeTab === 'material' ? 'active' : ''}" onclick="AdminApp.switchAcademicUploadTab('material')">
+          <span>📖</span> Study Material (${materials.length})
+        </button>
+        <button class="day-pill-btn ${activeTab === 'papers' ? 'active' : ''}" onclick="AdminApp.switchAcademicUploadTab('papers')">
+          <span>📄</span> Question Papers (${papers.length})
+        </button>
+      </div>
 
-        <!-- Uploaded Notes List -->
-        <div class="glass-card" style="padding:22px;">
-          <h3 style="font-size:17px; font-weight:800; margin-bottom:14px;">📚 Published Notes Roster</h3>
-          <div style="max-height:550px; overflow-y:auto;">
-            ${notes.map(n => `
-              <div class="glass-card" style="padding:12px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
-                <div>
-                  <span class="lab-chip">${n.subject} • ${n.unit}</span>
-                  <div style="font-weight:700; font-size:14px; margin-top:3px;">${n.title}</div>
-                  <div style="font-size:11px; color:var(--text-muted);">${n.chapter || ''}</div>
-                </div>
-                <button class="icon-btn" onclick="AdminApp.deleteNote(${n.id})" style="color:#f87171; width:28px; height:28px;">🗑</button>
+      ${activeTab === 'notes' ? `
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:22px;">
+          <!-- Upload Form -->
+          <div class="glass-card" style="padding:24px;">
+            <h3 style="font-size:17px; font-weight:800; margin-bottom:14px;">📤 Upload Official Class Notes</h3>
+            <form id="upload-notes-form" onsubmit="event.preventDefault(); AdminApp.submitUploadNote();">
+              <div class="form-group">
+                <label class="form-label">Subject *</label>
+                <select id="note-subject" class="form-control" required>
+                  <option value="DBMS">DBMS (Database Management System)</option>
+                  <option value="NCS">NCS (Network & Cyber Security)</option>
+                  <option value="DSA">DSA (Data Structures & Algorithms)</option>
+                  <option value="JAVA">JAVA (Object Oriented Programming)</option>
+                  <option value="COMA">COMA (Computer Organization)</option>
+                  <option value="DM">DM (Discrete Mathematics)</option>
+                  <option value="FCS">FCS (Cyber Security Fundamentals)</option>
+                </select>
               </div>
-            `).join('')}
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div class="form-group">
+                  <label class="form-label">Unit *</label>
+                  <input type="text" id="note-unit" class="form-control" placeholder="e.g. Unit 1" required />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Chapter Name</label>
+                  <input type="text" id="note-chapter" class="form-control" placeholder="e.g. Relational Model" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Topic / Key Concepts</label>
+                <input type="text" id="note-topic" class="form-control" placeholder="e.g. ER-to-Relational Mapping" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Note Title *</label>
+                <input type="text" id="note-title" class="form-control" placeholder="e.g. ER Model Complete Notes" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Document File (PDF, Word, Excel, PPT, TXT) *</label>
+                <input type="file" id="note-file" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar" style="padding:8px;" />
+              </div>
+              <button type="submit" class="btn-primary">Upload & Publish to Students</button>
+            </form>
+          </div>
+
+          <!-- Uploaded Notes List -->
+          <div class="glass-card" style="padding:22px;">
+            <h3 style="font-size:17px; font-weight:800; margin-bottom:14px;">📚 Published Notes Roster</h3>
+            <div style="max-height:550px; overflow-y:auto;">
+              ${notes.length > 0 ? notes.map(n => {
+                const fmt = AdminApp.getFileFormatInfo(n.file_url, n.file_name, n.file_type);
+                const downloadUrl = API.getDownloadUrl(n.file_url, n.file_name || n.title);
+                return `
+                <div class="glass-card" style="padding:12px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+                  <div>
+                    <div style="display:flex; gap:6px; align-items:center;">
+                      <span class="lab-chip">${n.subject} • ${n.unit}</span>
+                      <span class="format-badge ${fmt.class}">${fmt.icon} ${fmt.label}</span>
+                    </div>
+                    <div style="font-weight:700; font-size:14px; margin-top:3px;">${n.title}</div>
+                    <div style="font-size:11px; color:var(--text-muted);">${n.chapter || ''} • ${n.file_size || ''}</div>
+                  </div>
+                  <div style="display:flex; gap:6px; align-items:center;">
+                    <a href="${downloadUrl}" target="_blank" download="${n.file_name || n.title}" class="icon-btn" title="Download" style="width:28px; height:28px; color:#38bdf8;">📥</a>
+                    <button class="icon-btn" onclick="AdminApp.deleteNote(${n.id})" style="color:#f87171; width:28px; height:28px;" title="Delete">🗑</button>
+                  </div>
+                </div>
+              `;
+              }).join('') : `<p style="text-align:center; color:var(--text-muted); padding:20px;">No notes uploaded yet.</p>`}
+            </div>
           </div>
         </div>
-      </div>
+      ` : ''}
+
+      ${activeTab === 'material' ? `
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:22px;">
+          <!-- Upload Material Form -->
+          <div class="glass-card" style="padding:24px;">
+            <h3 style="font-size:17px; font-weight:800; margin-bottom:14px;">📖 Upload Study Material & Reference</h3>
+            <form id="upload-material-form" onsubmit="event.preventDefault(); AdminApp.submitUploadMaterial();">
+              <div class="form-group">
+                <label class="form-label">Subject *</label>
+                <select id="mat-subject" class="form-control" required>
+                  <option value="DBMS">DBMS</option>
+                  <option value="NCS">NCS</option>
+                  <option value="DSA">DSA</option>
+                  <option value="JAVA">JAVA</option>
+                  <option value="COMA">COMA</option>
+                  <option value="DM">DM</option>
+                  <option value="FCS">FCS</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Category *</label>
+                <select id="mat-category" class="form-control" required>
+                  <option value="REFERENCE">REFERENCE (Cheat Sheet / Summary)</option>
+                  <option value="MANUAL">MANUAL (Lab Experiments)</option>
+                  <option value="BOOK">BOOK / TEXTBOOK</option>
+                  <option value="SLIDES">SLIDES / PRESENTATION</option>
+                  <option value="CODE">CODE / EXAMPLES</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Material Title *</label>
+                <input type="text" id="mat-title" class="form-control" placeholder="e.g. SQL Cheat Sheet / Lab Manual" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea id="mat-desc" class="form-control" rows="2" placeholder="Brief details about this study resource..."></textarea>
+              </div>
+              <div class="form-group">
+                <label class="form-label">File (PDF, Excel, Word, PPT, ZIP) *</label>
+                <input type="file" id="mat-file" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip" style="padding:8px;" />
+              </div>
+              <button type="submit" class="btn-primary">Upload Study Material</button>
+            </form>
+          </div>
+
+          <!-- Uploaded Materials List -->
+          <div class="glass-card" style="padding:22px;">
+            <h3 style="font-size:17px; font-weight:800; margin-bottom:14px;">📖 Published Materials Roster</h3>
+            <div style="max-height:550px; overflow-y:auto;">
+              ${materials.length > 0 ? materials.map(m => {
+                const fmt = AdminApp.getFileFormatInfo(m.file_url, m.file_name, m.file_type);
+                const downloadUrl = API.getDownloadUrl(m.file_url, m.file_name || m.title);
+                return `
+                <div class="glass-card" style="padding:12px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+                  <div>
+                    <div style="display:flex; gap:6px; align-items:center;">
+                      <span class="lab-chip">${m.subject} • ${m.category}</span>
+                      <span class="format-badge ${fmt.class}">${fmt.icon} ${fmt.label}</span>
+                    </div>
+                    <div style="font-weight:700; font-size:14px; margin-top:3px;">${m.title}</div>
+                    <div style="font-size:11px; color:var(--text-muted);">${m.description || ''} • ${m.file_size || ''}</div>
+                  </div>
+                  <div style="display:flex; gap:6px; align-items:center;">
+                    <a href="${downloadUrl}" target="_blank" download="${m.file_name || m.title}" class="icon-btn" title="Download" style="width:28px; height:28px; color:#38bdf8;">📥</a>
+                    <button class="icon-btn" onclick="AdminApp.deleteMaterial(${m.id})" style="color:#f87171; width:28px; height:28px;" title="Delete">🗑</button>
+                  </div>
+                </div>
+              `;
+              }).join('') : `<p style="text-align:center; color:var(--text-muted); padding:20px;">No materials uploaded yet.</p>`}
+            </div>
+          </div>
+        </div>
+      ` : ''}
+
+      ${activeTab === 'papers' ? `
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:22px;">
+          <!-- Upload Papers Form -->
+          <div class="glass-card" style="padding:24px;">
+            <h3 style="font-size:17px; font-weight:800; margin-bottom:14px;">📄 Upload Previous Question Papers</h3>
+            <form id="upload-paper-form" onsubmit="event.preventDefault(); AdminApp.submitUploadPaper();">
+              <div class="form-group">
+                <label class="form-label">Subject *</label>
+                <select id="paper-subject" class="form-control" required>
+                  <option value="DBMS">DBMS</option>
+                  <option value="NCS">NCS</option>
+                  <option value="DSA">DSA</option>
+                  <option value="JAVA">JAVA</option>
+                  <option value="COMA">COMA</option>
+                  <option value="DM">DM</option>
+                  <option value="FCS">FCS</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Exam Name *</label>
+                <input type="text" id="paper-exam" class="form-control" placeholder="e.g. End-Semester Exam / Mid-Sem Paper" required />
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div class="form-group">
+                  <label class="form-label">Semester</label>
+                  <input type="text" id="paper-sem" class="form-control" value="3rd Semester" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Academic Year</label>
+                  <input type="text" id="paper-year" class="form-control" value="2026-27" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Paper File (PDF / Word) *</label>
+                <input type="file" id="paper-file" class="form-control" accept=".pdf,.doc,.docx" style="padding:8px;" />
+              </div>
+              <button type="submit" class="btn-primary">Upload Question Paper</button>
+            </form>
+          </div>
+
+          <!-- Uploaded Papers List -->
+          <div class="glass-card" style="padding:22px;">
+            <h3 style="font-size:17px; font-weight:800; margin-bottom:14px;">📄 Published Question Papers</h3>
+            <div style="max-height:550px; overflow-y:auto;">
+              ${papers.length > 0 ? papers.map(p => {
+                const fmt = AdminApp.getFileFormatInfo(p.file_url, p.file_name);
+                const downloadUrl = API.getDownloadUrl(p.file_url, p.file_name || `${p.subject}_${p.exam_name}.pdf`);
+                return `
+                <div class="glass-card" style="padding:12px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+                  <div>
+                    <div style="display:flex; gap:6px; align-items:center;">
+                      <span class="lab-chip">${p.subject} • ${p.academic_year}</span>
+                      <span class="format-badge ${fmt.class}">${fmt.icon} ${fmt.label}</span>
+                    </div>
+                    <div style="font-weight:700; font-size:14px; margin-top:3px;">${p.exam_name}</div>
+                    <div style="font-size:11px; color:var(--text-muted);">${p.semester} • ${p.file_size || ''}</div>
+                  </div>
+                  <div style="display:flex; gap:6px; align-items:center;">
+                    <a href="${downloadUrl}" target="_blank" download="${p.file_name || p.exam_name}" class="icon-btn" title="Download" style="width:28px; height:28px; color:#38bdf8;">📥</a>
+                    <button class="icon-btn" onclick="AdminApp.deletePaper(${p.id})" style="color:#f87171; width:28px; height:28px;" title="Delete">🗑</button>
+                  </div>
+                </div>
+              `;
+              }).join('') : `<p style="text-align:center; color:var(--text-muted); padding:20px;">No question papers uploaded yet.</p>`}
+            </div>
+          </div>
+        </div>
+      ` : ''}
     `;
+  },
+
+  switchAcademicUploadTab(tab) {
+    this.academicUploadTab = tab;
+    const container = document.getElementById('admin-app-container');
+    if (container) this.renderAcademicUploads(container);
   },
 
   async submitUploadNote() {
@@ -1245,6 +1501,68 @@ const AdminApp = {
     if (confirm('Delete this class note?')) {
       await API.deleteClassNote(id);
       window.App.showToast('Note deleted.', 'info');
+      this.switchSection('academic-uploads');
+    }
+  },
+
+  async submitUploadMaterial() {
+    const subject = document.getElementById('mat-subject').value;
+    const category = document.getElementById('mat-category').value;
+    const title = document.getElementById('mat-title').value;
+    const description = document.getElementById('mat-desc').value;
+    const fileInput = document.getElementById('mat-file');
+
+    const formData = new FormData();
+    formData.append('subject', subject);
+    formData.append('category', category);
+    formData.append('title', title);
+    formData.append('description', description);
+    if (fileInput.files[0]) formData.append('file', fileInput.files[0]);
+
+    window.App.showToast('Uploading study material...', 'info');
+    const res = await API.uploadStudyMaterial(formData);
+
+    if (res.success) {
+      window.App.showToast(res.message, 'success');
+      this.switchSection('academic-uploads');
+    }
+  },
+
+  async deleteMaterial(id) {
+    if (confirm('Delete this study material?')) {
+      await API.deleteStudyMaterial(id);
+      window.App.showToast('Study material deleted.', 'info');
+      this.switchSection('academic-uploads');
+    }
+  },
+
+  async submitUploadPaper() {
+    const subject = document.getElementById('paper-subject').value;
+    const exam_name = document.getElementById('paper-exam').value;
+    const semester = document.getElementById('paper-sem').value;
+    const academic_year = document.getElementById('paper-year').value;
+    const fileInput = document.getElementById('paper-file');
+
+    const formData = new FormData();
+    formData.append('subject', subject);
+    formData.append('exam_name', exam_name);
+    formData.append('semester', semester);
+    formData.append('academic_year', academic_year);
+    if (fileInput.files[0]) formData.append('file', fileInput.files[0]);
+
+    window.App.showToast('Uploading question paper...', 'info');
+    const res = await API.uploadQuestionPaper(formData);
+
+    if (res.success) {
+      window.App.showToast(res.message, 'success');
+      this.switchSection('academic-uploads');
+    }
+  },
+
+  async deletePaper(id) {
+    if (confirm('Delete this question paper?')) {
+      await API.deleteQuestionPaper(id);
+      window.App.showToast('Question paper deleted.', 'info');
       this.switchSection('academic-uploads');
     }
   },
@@ -1291,8 +1609,8 @@ const AdminApp = {
               </div>
             </div>
             <div class="form-group">
-              <label class="form-label">Attachment (PDF / Problem Sheet)</label>
-              <input type="file" id="assign-file" class="form-control" accept=".pdf,.docx" style="padding:8px;" />
+              <label class="form-label">Attachment (PDF, Word, Excel, PPT, Zip)</label>
+              <input type="file" id="assign-file" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip" style="padding:8px;" />
             </div>
             <button type="submit" class="btn-primary">Publish Assignment to Students</button>
           </form>
@@ -1302,18 +1620,28 @@ const AdminApp = {
         <div class="glass-card" style="padding:22px;">
           <h3 style="font-size:17px; font-weight:800; margin-bottom:14px;">Active Assignments Roster</h3>
           <div style="max-height:550px; overflow-y:auto;">
-            ${assignments.map(a => `
+            ${assignments.length > 0 ? assignments.map(a => {
+              const fmt = a.attachment_url ? AdminApp.getFileFormatInfo(a.attachment_url, a.attachment_name) : null;
+              const downloadUrl = a.attachment_url ? API.getDownloadUrl(a.attachment_url, a.attachment_name || a.title) : null;
+              return `
               <div class="glass-card" style="padding:14px; margin-bottom:10px;">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                   <div>
-                    <span class="lab-chip">${a.subject}</span>
+                    <div style="display:flex; gap:6px; align-items:center;">
+                      <span class="lab-chip">${a.subject}</span>
+                      ${fmt ? `<span class="format-badge ${fmt.class}">${fmt.icon} ${fmt.label}</span>` : ''}
+                    </div>
                     <strong style="display:block; font-size:14px; margin-top:4px;">${a.title}</strong>
-                    <span style="font-size:11px; color:#fbbf24;">Due: ${a.due_date}</span>
+                    <span style="font-size:11px; color:#fbbf24;">Due: ${a.due_date} • Max: ${a.max_marks} Marks</span>
                   </div>
-                  <button class="icon-btn" onclick="AdminApp.deleteAssignment(${a.id})" style="color:#f87171; width:28px; height:28px;">🗑</button>
+                  <div style="display:flex; gap:6px; align-items:center;">
+                    ${downloadUrl ? `<a href="${downloadUrl}" target="_blank" download="${a.attachment_name || a.title}" class="icon-btn" title="Download Attachment" style="width:28px; height:28px; color:#38bdf8;">📥</a>` : ''}
+                    <button class="icon-btn" onclick="AdminApp.deleteAssignment(${a.id})" style="color:#f87171; width:28px; height:28px;" title="Delete">🗑</button>
+                  </div>
                 </div>
               </div>
-            `).join('')}
+            `;
+            }).join('') : `<p style="text-align:center; color:var(--text-muted); padding:20px;">No assignments created yet.</p>`}
           </div>
         </div>
       </div>

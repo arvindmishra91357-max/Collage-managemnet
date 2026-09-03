@@ -1180,12 +1180,12 @@ button {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .scroll-arrow-btn {
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   border-radius: var(--radius-full);
   background: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -1193,7 +1193,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 800;
   line-height: 1;
   cursor: pointer;
@@ -1201,41 +1201,66 @@ button {
   transition: all 0.2s ease;
   box-shadow: var(--shadow-sm);
   z-index: 2;
+  user-select: none;
 }
 
 .scroll-arrow-btn:hover {
   background: var(--bg-card-hover);
   border-color: var(--accent-cyan);
   color: #38bdf8;
-  transform: scale(1.05);
+  transform: scale(1.08);
+}
+
+.scroll-arrow-btn:active {
+  transform: scale(0.95);
 }
 
 .day-scroll-container {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   scroll-snap-type: x proximity;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  padding: 4px 2px 8px 2px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(56, 189, 248, 0.35) transparent;
+  padding: 4px 2px 10px 2px;
   white-space: nowrap;
   touch-action: pan-x;
   flex: 1;
   width: 100%;
   min-width: 0;
+  scroll-behavior: smooth;
+  cursor: grab;
+}
+
+.day-scroll-container:active {
+  cursor: grabbing;
 }
 
 .day-scroll-container::-webkit-scrollbar {
-  display: none;
+  height: 4px;
+}
+
+.day-scroll-container::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+}
+
+.day-scroll-container::-webkit-scrollbar-thumb {
+  background: rgba(56, 189, 248, 0.35);
+  border-radius: 4px;
+}
+
+.day-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(56, 189, 248, 0.7);
 }
 
 .day-pill-btn {
   flex: 0 0 auto;
-  scroll-snap-align: start;
-  min-width: 96px;
-  padding: 10px 18px;
+  scroll-snap-align: center;
+  min-width: 105px;
+  padding: 10px 20px;
   border-radius: var(--radius-full);
   background: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -1247,23 +1272,67 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
   cursor: pointer;
   user-select: none;
 }
 
 .day-pill-btn:hover {
   background: var(--bg-card-hover);
-  border-color: var(--border-color-hover);
+  border-color: rgba(56, 189, 248, 0.4);
   color: var(--text-primary);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
 }
 
 .day-pill-btn.active {
   background: var(--primary-gradient);
-  border-color: rgba(56, 189, 248, 0.5);
+  border-color: rgba(56, 189, 248, 0.6);
   color: #ffffff;
-  box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);
+  box-shadow: 0 4px 18px rgba(37, 99, 235, 0.5);
+  transform: scale(1.02);
+}
+
+/* File Format Badges & Icons */
+.format-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.format-badge.pdf {
+  background: rgba(239, 68, 68, 0.18);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+.format-badge.xlsx, .format-badge.xls {
+  background: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+.format-badge.docx, .format-badge.doc {
+  background: rgba(59, 130, 246, 0.18);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+}
+.format-badge.pptx, .format-badge.ppt {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+.format-badge.txt, .format-badge.csv {
+  background: rgba(168, 85, 247, 0.18);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.35);
+}
+.format-badge.zip, .format-badge.rar {
+  background: rgba(236, 72, 153, 0.18);
+  color: #f472b6;
+  border: 1px solid rgba(236, 72, 153, 0.35);
 }
 
 /* ==========================================================================

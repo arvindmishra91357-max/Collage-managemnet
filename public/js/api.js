@@ -393,6 +393,15 @@ const API = {
   // Admin Dashboard Stats
   getDashboardStats() {
     return this.request('/api/admin/dashboard-stats');
+  },
+
+  // Academic File Download Helper
+  getDownloadUrl(fileUrl, fileName) {
+    if (!fileUrl) return '#';
+    const cleanName = fileName || fileUrl.split('/').pop();
+    const token = this.getToken();
+    const tokenParam = token ? `&token=${encodeURIComponent(token)}` : '';
+    return `/api/academic/download?file=${encodeURIComponent(fileUrl)}&name=${encodeURIComponent(cleanName)}${tokenParam}`;
   }
 };
 

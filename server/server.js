@@ -7,7 +7,8 @@ const compression = require('compression');
 
 const db = require('./db');
 const { authenticateToken, requireAdmin, requireStudent } = require('./middleware/auth');
-const { uploadPhoto, uploadDocument } = require('./services/storageService');
+const { uploadPhoto, uploadDocument, getMimeType } = require('./services/storageService');
+const { ensureSampleFiles } = require('./services/seedFiles');
 
 // Controllers
 const authCtrl = require('./controllers/authController');
@@ -33,8 +34,19 @@ app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Static Asset Directories
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+// Static Asset Directories with strict MIME headers
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads'), {
+  setHeaders: (res, filePath) => {
+    const mime = getMimeType(filePath);
+    res.setHeader('Content-Type', mime);
+  }
+}));
+
+// Explicit 404 for missing upload files (Prevents SPA index.html fallback which causes .htm download extension bug)
+app.use('/uploads/*', (req, res) => {
+  res.status(404).json({ success: false, message: 'Requested document file not found on server.' });
+});
+
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // ==================== API ROUTES ====================
@@ -107,6 +119,9 @@ app.delete('/api/academic/assignments/:id', authenticateToken, requireAdmin, aca
 app.get('/api/academic/question-papers', authenticateToken, academicCtrl.getQuestionPapers);
 app.post('/api/academic/question-papers', authenticateToken, requireAdmin, uploadDocument('papers').single('file'), academicCtrl.uploadQuestionPaper);
 app.delete('/api/academic/question-papers/:id', authenticateToken, requireAdmin, academicCtrl.deleteQuestionPaper);
+
+// Academic File Download (Guarantees original file extension and attachment header)
+app.get('/api/academic/download', authenticateToken, academicCtrl.downloadAcademicFile);
 
 // Calendar & Announcements
 app.get('/api/academic/calendar', authenticateToken, academicCtrl.getAcademicCalendar);
@@ -185,6 +200,7 @@ app.get('*', (req, res) => {
 // Start Server & Initialize Database
 async function startServer() {
   try {
+    ensureSampleFiles();
     await db.initDB();
     app.listen(PORT, () => {
       console.log(`====================================================`);
