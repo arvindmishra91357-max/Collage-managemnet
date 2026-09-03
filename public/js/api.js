@@ -80,6 +80,13 @@ const API = {
   },
 
   // Auth Methods
+  unifiedLogin(identifier, password) {
+    return this.request('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ identifier, password })
+    });
+  },
+
   studentLogin(ug_id, password) {
     return this.request('/api/auth/student-login', {
       method: 'POST',

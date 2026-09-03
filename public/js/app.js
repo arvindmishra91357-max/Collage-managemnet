@@ -33,7 +33,7 @@ const App = {
         <div class="auth-card">
           <div class="auth-header">
             <div class="auth-logo">
-              <svg viewBox="0 0 512 512" width="44" height="44">
+              <svg viewBox="0 0 512 512" width="48" height="48">
                 <defs>
                   <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                     <stop offset="0%" stop-color="#ffffff" />
@@ -50,23 +50,13 @@ const App = {
             <span class="auth-badge">B.TECH CYBER SECURITY • 3CYBER7</span>
           </div>
 
-          <!-- Auth Mode Toggle Tabs (Requirement #1) -->
-          <div class="auth-toggle-tabs">
-            <button class="auth-toggle-btn ${this.currentAuthMode === 'student' ? 'active' : ''}" id="btn-tab-student" onclick="App.setAuthMode('student')">
-              👨‍🎓 Student Portal
-            </button>
-            <button class="auth-toggle-btn ${this.currentAuthMode === 'admin' ? 'active' : ''}" id="btn-tab-admin" onclick="App.setAuthMode('admin')">
-              🛡️ Admin Panel
-            </button>
-          </div>
-
-          <!-- Student Login Form -->
-          <form id="student-login-form" style="display:${this.currentAuthMode === 'student' ? 'block' : 'none'};" onsubmit="event.preventDefault(); App.handleStudentLogin();">
+          <!-- Unified Single Login Form for Students and Admins -->
+          <form id="unified-login-form" onsubmit="event.preventDefault(); App.handleUnifiedLogin();" style="margin-top:10px;">
             <div class="form-group">
-              <label class="form-label">Official Student UG ID *</label>
+              <label class="form-label">Official ID / Username *</label>
               <div class="input-container">
                 <span class="input-icon">🆔</span>
-                <input type="text" id="student-ugid" class="form-control" placeholder="e.g. 26UG033181" required />
+                <input type="text" id="login-identifier" class="form-control" placeholder="e.g. 26UG033181 or admin" autocomplete="username" required />
               </div>
             </div>
 
@@ -74,92 +64,72 @@ const App = {
               <label class="form-label">Password *</label>
               <div class="input-container">
                 <span class="input-icon">🔒</span>
-                <input type="password" id="student-password" class="form-control" placeholder="••••••••" required />
+                <input type="password" id="login-password" class="form-control" placeholder="••••••••" autocomplete="current-password" required />
               </div>
             </div>
 
-            <button type="submit" class="btn-primary" style="margin-top:16px;">
-              Log In to Student Portal
+            <button type="submit" class="btn-primary" id="login-submit-btn" style="margin-top:18px; font-weight:800; letter-spacing:0.5px; height:46px;">
+              Sign In to Portal
             </button>
-          </form>
 
-          <!-- Admin Login Form -->
-          <form id="admin-login-form" style="display:${this.currentAuthMode === 'admin' ? 'block' : 'none'};" onsubmit="event.preventDefault(); App.handleAdminLogin();">
-            <div class="form-group">
-              <label class="form-label">Admin ID / Username *</label>
-              <div class="input-container">
-                <span class="input-icon">👤</span>
-                <input type="text" id="admin-username" class="form-control" placeholder="e.g. admin" required />
-              </div>
+            <div style="text-align:center; margin-top:16px; padding-top:12px; border-top:1px solid var(--border-color); font-size:12px; color:var(--text-muted);">
+              🛡️ Unified portal authentication for Division 3CYBER7 Students & Faculty
             </div>
-
-            <div class="form-group">
-              <label class="form-label">Password *</label>
-              <div class="input-container">
-                <span class="input-icon">🔒</span>
-                <input type="password" id="admin-password" class="form-control" placeholder="••••••••" required />
-              </div>
-            </div>
-
-            <button type="submit" class="btn-primary" style="margin-top:16px; background:linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%);">
-              Log In to Admin Panel
-            </button>
           </form>
         </div>
       </div>
     `;
   },
 
+  async handleUnifiedLogin() {
+    const identifier = document.getElementById('login-identifier').value.trim();
+    const password = document.getElementById('login-password').value;
+    const submitBtn = document.getElementById('login-submit-btn');
+
+    if (!identifier || !password) {
+      this.showToast('Please enter both ID/Username and Password.', 'error');
+      return;
+    }
+
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Verifying Credentials...';
+    }
+
+    this.showToast('Authenticating with Cyber Portal...', 'info');
+    const res = await API.unifiedLogin(identifier, password);
+
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerText = 'Sign In to Portal';
+    }
+
+    if (res.success) {
+      API.setToken(res.token);
+      API.setUser(res.user);
+
+      if (res.user.role === 'ADMIN') {
+        this.showToast('Admin login verified. Opening Admin Panel...', 'success');
+        AdminApp.init(res.user);
+      } else {
+        this.showToast(`Welcome back, ${res.user.name}!`, 'success');
+        StudentApp.init(res.user);
+      }
+    } else {
+      this.showToast(res.message || 'Login failed. Invalid ID or Password.', 'error');
+    }
+  },
+
   setAuthMode(mode) {
     this.currentAuthMode = mode;
-    document.getElementById('btn-tab-student').classList.toggle('active', mode === 'student');
-    document.getElementById('btn-tab-admin').classList.toggle('active', mode === 'admin');
-    document.getElementById('student-login-form').style.display = mode === 'student' ? 'block' : 'none';
-    document.getElementById('admin-login-form').style.display = mode === 'admin' ? 'block' : 'none';
   },
 
   async handleStudentLogin() {
-    const ug_id = document.getElementById('student-ugid').value.trim();
-    const password = document.getElementById('student-password').value;
-
-    if (!ug_id || !password) {
-      this.showToast('Please enter UG ID and Password.', 'error');
-      return;
-    }
-
-    this.showToast('Authenticating student credentials...', 'info');
-    const res = await API.studentLogin(ug_id, password);
-
-    if (res.success) {
-      API.setToken(res.token);
-      API.setUser(res.user);
-      this.showToast(`Welcome back, ${res.user.name}!`, 'success');
-      StudentApp.init(res.user);
-    } else {
-      this.showToast(res.message || 'Login failed. Check your UG ID and Password.', 'error');
-    }
+    return this.handleUnifiedLogin();
   },
 
   async handleAdminLogin() {
-    const username = document.getElementById('admin-username').value.trim();
-    const password = document.getElementById('admin-password').value;
-
-    if (!username || !password) {
-      this.showToast('Please enter Admin ID and Password.', 'error');
-      return;
-    }
-
-    this.showToast('Verifying admin privileges...', 'info');
-    const res = await API.adminLogin(username, password);
-
-    if (res.success) {
-      API.setToken(res.token);
-      API.setUser(res.user);
-      this.showToast('Admin login verified.', 'success');
-      AdminApp.init(res.user);
-    } else {
-      this.showToast(res.message || 'Invalid admin credentials.', 'error');
-    }
+    return this.handleUnifiedLogin();
   },
 
   logout() {

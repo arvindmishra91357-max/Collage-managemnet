@@ -1227,7 +1227,7 @@ const StudentApp = {
       );
     }
 
-    // 2. Start Camera
+    // 2. Start Camera & Live QR Scanner
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment' }
@@ -1236,6 +1236,32 @@ const StudentApp = {
       if (video) {
         video.srcObject = stream;
         this.activeVideoTrack = stream.getTracks()[0];
+
+        // Automatic Barcode / QR Code Frame Detection
+        if ('BarcodeDetector' in window) {
+          try {
+            const barcodeDetector = new BarcodeDetector({ formats: ['qr_code'] });
+            if (this.cameraScanInterval) clearInterval(this.cameraScanInterval);
+            this.cameraScanInterval = setInterval(async () => {
+              if (video && video.readyState >= 2 && !this.isProcessingScan) {
+                try {
+                  const barcodes = await barcodeDetector.detect(video);
+                  if (barcodes.length > 0 && barcodes[0].rawValue) {
+                    const detectedToken = barcodes[0].rawValue.trim();
+                    if (detectedToken) {
+                      this.isProcessingScan = true;
+                      if (this.cameraScanInterval) clearInterval(this.cameraScanInterval);
+                      this.cameraScanInterval = null;
+                      window.App.showToast('📷 QR Code Detected! Verifying...', 'info');
+                      await this.processAttendanceVerification(detectedToken);
+                      this.isProcessingScan = false;
+                    }
+                  }
+                } catch (e) {}
+              }
+            }, 300);
+          } catch (e) {}
+        }
       }
     } catch (err) {
       console.warn('Camera access denied or unavailable:', err.message);
@@ -1291,6 +1317,10 @@ const StudentApp = {
   },
 
   stopCamera() {
+    if (this.cameraScanInterval) {
+      clearInterval(this.cameraScanInterval);
+      this.cameraScanInterval = null;
+    }
     if (this.activeVideoTrack) {
       this.activeVideoTrack.stop();
       this.activeVideoTrack = null;

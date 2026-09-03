@@ -65,6 +65,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // 2. Authentication
+app.post('/api/auth/login', authCtrl.unifiedLogin);
 app.post('/api/auth/student-login', authCtrl.studentLogin);
 app.post('/api/auth/admin-login', authCtrl.adminLogin);
 app.get('/api/auth/profile', authenticateToken, authCtrl.getProfile);

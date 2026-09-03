@@ -684,24 +684,28 @@ const AdminApp = {
 
     box.innerHTML = `
       <div style="width:100%;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
           <div>
             <span class="class-status-badge live">● LIVE DYNAMIC QR SESSION</span>
             <h3 style="font-size:18px; font-weight:800; margin-top:4px;">${session.subject}</h3>
-            <span style="font-size:12px; color:var(--text-muted);">Batch: ${session.batch} • Allowed Radius: ${session.allowed_radius_meters}m</span>
+            <span style="font-size:12px; color:var(--text-muted);">Batch: ${session.batch} • Radius: ${session.allowed_radius_meters}m</span>
           </div>
           <button class="btn-primary" onclick="AdminApp.stopActiveSession()" style="width:auto; padding:6px 14px; background:rgba(239,68,68,0.2); border:1px solid rgba(239,68,68,0.4); color:#f87171; margin-top:0; font-size:12px;">
             ⏹ Stop Session
           </button>
         </div>
 
-        <!-- Rotating QR Code Display -->
-        <div style="background:#ffffff; padding:20px; border-radius:var(--radius-xl); display:inline-block; box-shadow:0 0 40px rgba(6,182,212,0.4); margin:14px auto;">
-          <div id="qr-code-canvas" style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-width:220px; min-height:220px; background:#f8fafc; border:4px dashed #0284c7; border-radius:14px; padding:16px;">
-            <div style="font-family:monospace; font-size:24px; font-weight:900; color:#0f172a;" id="dynamic-qr-token-display">
+        <!-- Rotating QR Code Display (Graphic + Token) -->
+        <div style="background:#ffffff; padding:18px; border-radius:var(--radius-xl); display:inline-block; box-shadow:0 0 45px rgba(6,182,212,0.45); margin:12px auto; text-align:center; max-width:100%;">
+          <div id="qr-code-canvas-container" style="display:flex; justify-content:center; align-items:center; width:220px; height:220px; margin:0 auto; background:#ffffff; border-radius:10px; overflow:hidden;">
+            <div style="color:#0f172a; font-weight:700; font-size:13px;">Generating QR Matrix...</div>
+          </div>
+
+          <div style="margin-top:10px; padding:6px 12px; background:#f1f5f9; border-radius:8px; border:1px solid #cbd5e1;">
+            <div style="font-family:monospace; font-size:15px; font-weight:800; color:#0f172a; letter-spacing:0.5px; word-break:break-all;" id="dynamic-qr-token-display">
               ${session.initial_token || 'GENERATING...'}
             </div>
-            <div style="font-size:10px; color:#475569; margin-top:6px; font-weight:700;">
+            <div style="font-size:10px; color:#64748b; font-weight:700; margin-top:2px;">
               ROTATING LIVE SECURE TOKEN
             </div>
           </div>
@@ -721,6 +725,9 @@ const AdminApp = {
       </div>
     `;
 
+    // Render initial QR Code
+    this.renderGraphicQRCode(session.initial_token || 'MGI_CYBER_ATTENDANCE');
+
     if (this.activeQrInterval) clearInterval(this.activeQrInterval);
 
     let timeLeft = parseInt(session.qr_refresh_interval, 10) || 15;
@@ -734,20 +741,47 @@ const AdminApp = {
         timeLeft = parseInt(session.qr_refresh_interval, 10) || 15;
         // Fetch new rotating token
         const tokenRes = await API.getLiveQRToken(session.id);
-        if (tokenRes.success) {
+        if (tokenRes.success && tokenRes.token) {
+          this.updateGraphicQRCode(tokenRes.token);
           const displayEl = document.getElementById('dynamic-qr-token-display');
           const countEl = document.getElementById('qr-scanned-count');
           if (displayEl) displayEl.innerText = tokenRes.token;
-          if (countEl) countEl.innerText = tokenRes.scannedCount;
+          if (countEl) countEl.innerText = tokenRes.scannedCount || 0;
         }
       }
     }, 1000);
+  },
+
+  renderGraphicQRCode(token) {
+    const container = document.getElementById('qr-code-canvas-container');
+    if (!container) return;
+
+    container.innerHTML = '';
+    if (window.QRCode) {
+      this.currentQrCodeInstance = new window.QRCode(container, {
+        text: token,
+        width: 220,
+        height: 220,
+        colorDark: "#090d16",
+        colorLight: "#ffffff",
+        correctLevel: window.QRCode.CorrectLevel.H
+      });
+    }
+  },
+
+  updateGraphicQRCode(token) {
+    if (this.currentQrCodeInstance && typeof this.currentQrCodeInstance.makeCode === 'function') {
+      this.currentQrCodeInstance.makeCode(token);
+    } else {
+      this.renderGraphicQRCode(token);
+    }
   },
 
   async stopActiveSession() {
     if (this.activeQrSessionId) {
       await API.stopQRSession(this.activeQrSessionId);
       if (this.activeQrInterval) clearInterval(this.activeQrInterval);
+      this.currentQrCodeInstance = null;
       window.App.showToast('Attendance session stopped.', 'info');
       this.switchSection('attendance-reports');
     }

@@ -427,12 +427,33 @@ async function seedInitialData() {
   // 2. Admin User
   const adminUser = await get("SELECT * FROM users WHERE username = ?", ['admin']);
   if (!adminUser) {
-    const adminPassHash = await bcrypt.hash('Admin@123', 10);
+    const adminPassHash = await bcrypt.hash('admin123', 10);
     await run(
       "INSERT INTO users (role, username, password_hash, status) VALUES (?, ?, ?, ?)",
       ['ADMIN', 'admin', adminPassHash, 'ACTIVE']
     );
-    console.log('[DB] Admin user created (admin / Admin@123)');
+    console.log('[DB] Admin user created (admin / admin123)');
+  }
+
+  // 2b. Seed Official 3CYBER7 Students Roster if empty
+  const studentCount = await get("SELECT COUNT(*) as count FROM students");
+  if (!studentCount || studentCount.count === 0) {
+    console.log('[DB] Seeding initial 3CYBER7 student roster...');
+    const studentPassHash = await bcrypt.hash('student123', 10);
+    const initialStudents = [
+      { name: 'Arvind Mishra', ug_id: '26UG033181', roll_number: 1, batch: 'Batch 1' },
+      { name: 'Aarav Sharma', ug_id: '26UG033182', roll_number: 2, batch: 'Batch 1' },
+      { name: 'Priya Patel', ug_id: '26UG033183', roll_number: 3, batch: 'Batch 1' },
+      { name: 'Rohan Verma', ug_id: '26UG033211', roll_number: 31, batch: 'Batch 2' },
+      { name: 'Sneha Gupta', ug_id: '26UG033212', roll_number: 32, batch: 'Batch 2' }
+    ];
+
+    for (const s of initialStudents) {
+      await run(`
+        INSERT INTO students (ug_id, name, roll_number, password_hash, program, year, semester, division, academic_year, batch, status)
+        VALUES (?, ?, ?, ?, 'B.Tech Cyber Security', '2nd Year', '3rd Semester', '3CYBER7', '2026-27', ?, 'ACTIVE')
+      `, [s.ug_id, s.name, s.roll_number, studentPassHash, s.batch]);
+    }
   }
 
   // 3. Seed Official Subjects
