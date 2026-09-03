@@ -1885,3 +1885,141 @@ button {
   align-items: center;
 }
 
+/* ==========================================================================
+   RESPONSIVE DATA TABLES & MARKSHEET SYSTEM
+   ========================================================================== */
+.table-container {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius-md);
+  margin-top: 8px;
+}
+
+.data-table {
+  width: 100%;
+  min-width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.data-table th {
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  vertical-align: middle;
+  word-break: break-word;
+}
+
+.data-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Marksheet Result Cards for Mobile & Web */
+.results-score-banner {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.12) 0%, rgba(99, 102, 241, 0.12) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: var(--radius-lg);
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.results-score-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.results-score-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.results-score-val {
+  font-size: 20px;
+  font-weight: 900;
+  color: #ffffff;
+  margin-top: 2px;
+  font-family: var(--font-heading);
+}
+
+.subject-mark-card {
+  padding: 14px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.subject-mark-card:hover {
+  border-color: rgba(56, 189, 248, 0.4);
+  transform: translateY(-1px);
+}
+
+.subject-mark-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.subject-mark-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.subject-mark-exam {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.subject-mark-score {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.subject-mark-points {
+  font-size: 15px;
+  font-weight: 800;
+  color: #38bdf8;
+}
+
+.subject-mark-max {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+

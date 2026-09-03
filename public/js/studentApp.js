@@ -1376,31 +1376,45 @@ const StudentApp = {
       <section style="margin-bottom:20px;">
         <div class="section-heading">
           <h3>🏆 Examination Marksheet</h3>
+          ${results.length > 0 ? `<button class="btn-link" onclick="StudentApp.openResultsModal()" style="color:var(--accent-cyan); font-size:12px; font-weight:700;">Detailed Marksheet →</button>` : ''}
         </div>
-        <div class="glass-card" style="padding:14px;">
-          ${results.length > 0 ? `
-            <table class="data-table" style="font-size:12px;">
-              <thead>
-                <tr>
-                  <th>Subject</th>
-                  <th>Marks</th>
-                  <th>Grade</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${results.map(r => `
-                  <tr>
-                    <td><strong>${r.subject}</strong><br><span style="font-size:10px; color:var(--text-muted);">${r.exam_name}</span></td>
-                    <td>${r.marks}/${r.max_marks}</td>
-                    <td><span class="batch-badge" style="background:rgba(16,185,129,0.2); color:#34d399;">${r.grade}</span></td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          ` : `
-            <div style="text-align:center; padding:16px; color:var(--text-muted);">No published results yet.</div>
-          `}
-        </div>
+        ${results.length > 0 ? `
+          <div class="results-score-banner">
+            <div class="results-score-item">
+              <span class="results-score-label">Total Score</span>
+              <span class="results-score-val" style="color:#38bdf8;">${resRes.summary ? resRes.summary.totalMarksScored : results.reduce((a, b) => a + (parseFloat(b.marks) || 0), 0)}</span>
+            </div>
+            <div class="results-score-item">
+              <span class="results-score-label">Max Marks</span>
+              <span class="results-score-val" style="color:#94a3b8;">${resRes.summary ? resRes.summary.maxPossibleMarks : results.reduce((a, b) => a + (parseFloat(b.max_marks) || 100), 0)}</span>
+            </div>
+            <div class="results-score-item">
+              <span class="results-score-label">Overall %</span>
+              <span class="results-score-val" style="color:#34d399;">${resRes.summary ? resRes.summary.percentage : '0.00'}%</span>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            ${results.map(r => `
+              <div class="subject-mark-card">
+                <div class="subject-mark-info">
+                  <div class="subject-mark-title">${r.subject}</div>
+                  <div class="subject-mark-exam">${r.exam_name} • ${r.semester || '3rd Sem'}</div>
+                </div>
+                <div class="subject-mark-score">
+                  <div class="subject-mark-points">${r.marks} <span class="subject-mark-max">/ ${r.max_marks}</span></div>
+                  <span class="batch-badge" style="background:rgba(16,185,129,0.15); color:#34d399; font-size:10px; padding:2px 8px; margin-top:2px; display:inline-block;">
+                    Grade ${r.grade}
+                  </span>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        ` : `
+          <div class="glass-card" style="padding:20px; text-align:center; color:var(--text-muted);">
+            No published results yet for this semester.
+          </div>
+        `}
       </section>
 
       <!-- Academic Calendar Events -->
@@ -1751,8 +1765,114 @@ const StudentApp = {
     }
   },
 
-  openResultsModal() {
-    this.switchTab('profile');
+  async openResultsModal() {
+    try {
+      history.pushState({ role: 'STUDENT', modal: 'results-modal' }, '', '#' + this.currentTab + '-results');
+    } catch (e) {}
+
+    const resRes = await API.getStudentResults();
+    const results = resRes.success ? resRes.results : [];
+    const summary = resRes.summary || {
+      totalSubjects: results.length,
+      totalMarksScored: results.reduce((acc, r) => acc + (parseFloat(r.marks) || 0), 0),
+      maxPossibleMarks: results.reduce((acc, r) => acc + (parseFloat(r.max_marks) || 100), 0),
+      percentage: '0.00'
+    };
+    if (summary.maxPossibleMarks > 0 && (!summary.percentage || summary.percentage === '0.00')) {
+      summary.percentage = ((summary.totalMarksScored / summary.maxPossibleMarks) * 100).toFixed(2);
+    }
+
+    const u = this.currentUser;
+
+    const modalContainer = document.getElementById('student-modal-container');
+    modalContainer.innerHTML = `
+      <div class="modal-backdrop" id="results-modal">
+        <div class="modal-card" style="max-width:550px;">
+          <div class="modal-header">
+            <h3 style="font-size:16px; font-weight:800; display:flex; align-items:center; gap:8px;">
+              🏆 Official Academic Marksheet
+            </h3>
+            <button class="icon-btn" onclick="StudentApp.closeResultsModal()" style="width:32px; height:32px;">✕</button>
+          </div>
+          <div class="modal-body" style="max-height:75vh; overflow-y:auto;">
+            <!-- Student Header Badge -->
+            <div style="padding:14px; background:rgba(255,255,255,0.03); border:1px solid var(--border-color); border-radius:var(--radius-md); margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+              <div>
+                <h4 style="font-size:15px; font-weight:800; color:#ffffff;">${u.name}</h4>
+                <div style="font-size:12px; color:var(--accent-cyan); font-weight:600; margin-top:2px;">${u.ug_id} • Roll #${u.roll_number}</div>
+              </div>
+              <div style="text-align:right;">
+                <span class="batch-badge ${u.batch === 'Batch 1' ? 'batch-1' : 'batch-2'}">${u.batch}</span>
+                <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">3CYBER7 • 3rd Sem</div>
+              </div>
+            </div>
+
+            <!-- Score Summary KPI -->
+            <div class="results-score-banner">
+              <div class="results-score-item">
+                <span class="results-score-label">Total Score</span>
+                <span class="results-score-val" style="color:#38bdf8;">${summary.totalMarksScored}</span>
+              </div>
+              <div class="results-score-item">
+                <span class="results-score-label">Total Maximum</span>
+                <span class="results-score-val" style="color:#94a3b8;">${summary.maxPossibleMarks}</span>
+              </div>
+              <div class="results-score-item">
+                <span class="results-score-label">Aggregate %</span>
+                <span class="results-score-val" style="color:#34d399;">${summary.percentage}%</span>
+              </div>
+            </div>
+
+            <!-- Subjects Breakdown -->
+            ${results.length > 0 ? `
+              <div style="display:flex; flex-direction:column; gap:10px;">
+                ${results.map(r => {
+                  const pct = r.max_marks ? Math.round((r.marks / r.max_marks) * 100) : 0;
+                  return `
+                    <div class="subject-mark-card" style="margin-bottom:0;">
+                      <div class="subject-mark-info">
+                        <div class="subject-mark-title">${r.subject}</div>
+                        <div class="subject-mark-exam">${r.exam_name} • ${r.semester || '3rd Semester'}</div>
+                        <!-- Performance Progress Bar -->
+                        <div style="width:100%; height:4px; background:rgba(255,255,255,0.08); border-radius:2px; margin-top:8px; overflow:hidden;">
+                          <div style="width:${pct}%; height:100%; background:linear-gradient(90deg, #38bdf8, #34d399); border-radius:2px;"></div>
+                        </div>
+                        ${r.remarks ? `<div style="font-size:11px; color:#94a3b8; font-style:italic; margin-top:4px;">"${r.remarks}"</div>` : ''}
+                      </div>
+                      <div class="subject-mark-score" style="margin-left:12px;">
+                        <div class="subject-mark-points">${r.marks} <span class="subject-mark-max">/ ${r.max_marks}</span></div>
+                        <span class="batch-badge" style="background:rgba(16,185,129,0.18); color:#34d399; font-size:11px; padding:3px 10px; margin-top:4px; display:inline-block;">
+                          Grade ${r.grade}
+                        </span>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            ` : `
+              <div class="glass-card" style="padding:28px; text-align:center; color:var(--text-muted);">
+                <div style="font-size:36px; margin-bottom:8px;">📄</div>
+                <h4 style="color:#ffffff; font-size:15px; margin-bottom:4px;">No Published Results Yet</h4>
+                <p style="font-size:12px; color:var(--text-secondary);">Your examination marks will appear here as soon as they are published by the department.</p>
+              </div>
+            `}
+          </div>
+          <div class="modal-footer">
+            <button class="btn-primary" onclick="StudentApp.closeResultsModal()" style="width:100%;">
+              Close Marksheet
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  closeResultsModal() {
+    const modal = document.getElementById('results-modal');
+    if (modal) modal.remove();
+    if (history.state && history.state.modal === 'results-modal') {
+      history.back();
+    }
   },
 
   getGreetingTime() {

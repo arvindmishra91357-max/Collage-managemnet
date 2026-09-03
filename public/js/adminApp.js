@@ -1804,6 +1804,7 @@ const AdminApp = {
                   <th>Exam</th>
                   <th>Score</th>
                   <th>Grade</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -1816,6 +1817,11 @@ const AdminApp = {
                     <td>${r.exam_name}</td>
                     <td>${r.marks} / ${r.max_marks}</td>
                     <td><span class="batch-badge" style="background:rgba(16,185,129,0.2); color:#34d399;">${r.grade}</span></td>
+                    <td>
+                      <button class="icon-btn" onclick="AdminApp.deleteResult(${r.id})" style="width:28px; height:28px; color:#f87171; background:rgba(239,68,68,0.15);" title="Delete Result">
+                        ✕
+                      </button>
+                    </td>
                   </tr>
                 `).join('')}
               </tbody>
@@ -1840,6 +1846,17 @@ const AdminApp = {
       this.switchSection('results-manage');
     } else {
       window.App.showToast(res.message || 'Failed to save result.', 'error');
+    }
+  },
+
+  async deleteResult(id) {
+    if (!confirm('Are you sure you want to delete this result entry?')) return;
+    const res = await API.deleteResult(id);
+    if (res.success) {
+      window.App.showToast('Result deleted.', 'info');
+      this.switchSection('results-manage');
+    } else {
+      window.App.showToast(res.message || 'Failed to delete result.', 'error');
     }
   },
 
