@@ -1227,45 +1227,92 @@ const StudentApp = {
       );
     }
 
-    // 2. Start Camera & Live QR Scanner
+    // 2. Start Camera & Continuous jsQR Live Scanner
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
       });
       const video = document.getElementById('qr-video-feed');
       if (video) {
         video.srcObject = stream;
         this.activeVideoTrack = stream.getTracks()[0];
+        video.setAttribute('playsinline', 'true');
+        video.play().catch(() => {});
 
-        // Automatic Barcode / QR Code Frame Detection
-        if ('BarcodeDetector' in window) {
-          try {
-            const barcodeDetector = new BarcodeDetector({ formats: ['qr_code'] });
-            if (this.cameraScanInterval) clearInterval(this.cameraScanInterval);
-            this.cameraScanInterval = setInterval(async () => {
-              if (video && video.readyState >= 2 && !this.isProcessingScan) {
-                try {
-                  const barcodes = await barcodeDetector.detect(video);
-                  if (barcodes.length > 0 && barcodes[0].rawValue) {
-                    const detectedToken = barcodes[0].rawValue.trim();
-                    if (detectedToken) {
-                      this.isProcessingScan = true;
-                      if (this.cameraScanInterval) clearInterval(this.cameraScanInterval);
-                      this.cameraScanInterval = null;
-                      window.App.showToast('📷 QR Code Detected! Verifying...', 'info');
-                      await this.processAttendanceVerification(detectedToken);
-                      this.isProcessingScan = false;
-                    }
-                  }
-                } catch (e) {}
-              }
-            }, 300);
-          } catch (e) {}
-        }
+        this.startContinuousFrameScanner(video);
       }
     } catch (err) {
       console.warn('Camera access denied or unavailable:', err.message);
+      window.App.showToast('Camera access unavailable. You can enter token manually below.', 'info');
     }
+  },
+
+  startContinuousFrameScanner(video) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    if (this.cameraScanInterval) clearInterval(this.cameraScanInterval);
+    this.isProcessingScan = false;
+
+    this.cameraScanInterval = setInterval(() => {
+      if (!video || video.readyState < 2 || this.isProcessingScan) return;
+
+      const width = video.videoWidth;
+      const height = video.videoHeight;
+      if (!width || !height) return;
+
+      canvas.width = width;
+      canvas.height = height;
+      ctx.drawImage(video, 0, 0, width, height);
+
+      // 1. Primary: Universal jsQR Decoder (Works on 100% of all mobile & desktop browsers)
+      if (window.jsQR) {
+        try {
+          const imageData = ctx.getImageData(0, 0, width, height);
+          const code = window.jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: "dontInvert",
+          });
+          if (code && code.data && code.data.trim()) {
+            this.handleScannedToken(code.data.trim());
+            return;
+          }
+        } catch (e) {
+          console.warn('jsQR scan error:', e);
+        }
+      }
+
+      // 2. Secondary: Native BarcodeDetector if available
+      if ('BarcodeDetector' in window && !this.isProcessingScan) {
+        try {
+          if (!this.barcodeDetectorInstance) {
+            this.barcodeDetectorInstance = new BarcodeDetector({ formats: ['qr_code'] });
+          }
+          this.barcodeDetectorInstance.detect(video).then(barcodes => {
+            if (barcodes.length > 0 && barcodes[0].rawValue) {
+              this.handleScannedToken(barcodes[0].rawValue.trim());
+            }
+          }).catch(() => {});
+        } catch (e) {}
+      }
+    }, 120);
+  },
+
+  async handleScannedToken(token) {
+    if (this.isProcessingScan || !token) return;
+    this.isProcessingScan = true;
+
+    if (this.cameraScanInterval) {
+      clearInterval(this.cameraScanInterval);
+      this.cameraScanInterval = null;
+    }
+
+    if (navigator.vibrate) {
+      try { navigator.vibrate(150); } catch (e) {}
+    }
+
+    window.App.showToast('📷 QR Code Scanned! Verifying presence...', 'info');
+    await this.processAttendanceVerification(token);
+    this.isProcessingScan = false;
   },
 
   async submitManualToken() {
