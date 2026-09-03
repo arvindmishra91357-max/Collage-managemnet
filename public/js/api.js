@@ -208,6 +208,17 @@ const API = {
     });
   },
 
+  submitFaceAttendance(data) {
+    return this.request('/api/attendance/face-scan', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  getActiveSessions() {
+    return this.request('/api/attendance/active-sessions');
+  },
+
   saveManualAttendance(data) {
     return this.request('/api/attendance/manual', {
       method: 'POST',
@@ -359,6 +370,13 @@ const API = {
   deleteResult(id) {
     return this.request(`/api/results/${id}`, {
       method: 'DELETE'
+    });
+  },
+
+  uploadResultsExcel(formData) {
+    return this.request('/api/results/upload-excel', {
+      method: 'POST',
+      body: formData
     });
   },
 

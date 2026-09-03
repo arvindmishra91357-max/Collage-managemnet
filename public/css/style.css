@@ -2023,3 +2023,149 @@ button {
   color: var(--text-muted);
 }
 
+/* ==========================================================================
+   BIOMETRIC FACE SCAN ATTENDANCE STYLES
+   ========================================================================== */
+.face-scan-viewport {
+  position: relative;
+  width: 100%;
+  max-width: 340px;
+  height: 380px;
+  margin: 0 auto;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  background: #000000;
+  box-shadow: 0 0 35px rgba(6, 182, 212, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.face-scan-viewport video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1); /* Mirror view for natural selfie camera */
+}
+
+.face-scan-overlay-oval {
+  position: absolute;
+  width: 220px;
+  height: 280px;
+  border: 3px dashed #38bdf8;
+  border-radius: 50% 50% 45% 45% / 60% 60% 40% 40%;
+  pointer-events: none;
+  box-shadow: 0 0 0 9999px rgba(10, 14, 23, 0.65);
+  animation: pulse-oval 2s ease-in-out infinite;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0;
+}
+
+@keyframes pulse-oval {
+  0%, 100% { border-color: #38bdf8; box-shadow: 0 0 0 9999px rgba(10, 14, 23, 0.65), 0 0 15px rgba(56, 189, 248, 0.4); }
+  50% { border-color: #34d399; box-shadow: 0 0 0 9999px rgba(10, 14, 23, 0.65), 0 0 25px rgba(52, 211, 153, 0.5); }
+}
+
+.face-scan-laser-line {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #38bdf8, #34d399, transparent);
+  box-shadow: 0 0 12px #38bdf8;
+  animation: scan-face-sweep 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes scan-face-sweep {
+  0% { top: 15%; opacity: 0.8; }
+  100% { top: 85%; opacity: 1; }
+}
+
+.face-landmarks-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(56, 189, 248, 0.3) 1px, transparent 1px);
+  background-size: 24px 24px;
+  opacity: 0.4;
+}
+
+.dual-attendance-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+@media (max-width: 480px) {
+  .dual-attendance-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.attendance-mode-card {
+  padding: 18px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.attendance-mode-card:hover {
+  border-color: #38bdf8;
+  transform: translateY(-2px);
+  background: var(--bg-card-hover);
+  box-shadow: 0 8px 25px rgba(6, 182, 212, 0.2);
+}
+
+.attendance-mode-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  margin-bottom: 4px;
+}
+
+/* ==========================================================================
+   EXCEL BULK UPLOAD DROPZONE STYLES
+   ========================================================================== */
+.excel-dropzone {
+  border: 2px dashed rgba(56, 189, 248, 0.4);
+  border-radius: var(--radius-lg);
+  padding: 32px 20px;
+  text-align: center;
+  background: rgba(15, 23, 42, 0.5);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  position: relative;
+}
+
+.excel-dropzone:hover, .excel-dropzone.dragover {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.08);
+  box-shadow: 0 0 25px rgba(6, 182, 212, 0.25);
+}
+
+.excel-preview-table-box {
+  margin-top: 18px;
+  padding: 14px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  max-height: 380px;
+  overflow-y: auto;
+}
+

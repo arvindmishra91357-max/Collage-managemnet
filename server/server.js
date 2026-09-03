@@ -4,6 +4,7 @@ const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
+const multer = require('multer');
 
 const db = require('./db');
 const { authenticateToken, requireAdmin, requireStudent } = require('./middleware/auth');
@@ -17,6 +18,7 @@ const timetableCtrl = require('./controllers/timetableController');
 const attendanceCtrl = require('./controllers/attendanceController');
 const academicCtrl = require('./controllers/academicController');
 const resultsCtrl = require('./controllers/resultsController');
+const excelCtrl = require('./controllers/excelController');
 const notifCtrl = require('./controllers/notificationController');
 const aiCtrl = require('./controllers/aiController');
 const searchCtrl = require('./controllers/searchController');
@@ -86,12 +88,16 @@ app.post('/api/admin/timetable', authenticateToken, requireAdmin, timetableCtrl.
 app.put('/api/admin/timetable/:id', authenticateToken, requireAdmin, timetableCtrl.updateTimetableEntry);
 app.delete('/api/admin/timetable/:id', authenticateToken, requireAdmin, timetableCtrl.deleteTimetableEntry);
 
-// 5. Dynamic QR Attendance & GPS Geofencing
+const excelUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
+
+// 5. Dual Attendance System (Instant QR + Biometric Face Scan)
 app.post('/api/attendance/session/start', authenticateToken, requireAdmin, attendanceCtrl.startQRSession);
 app.get('/api/attendance/session/:id/live-token', attendanceCtrl.getLiveQRToken);
 app.post('/api/attendance/session/:id/stop', authenticateToken, requireAdmin, attendanceCtrl.stopQRSession);
 app.get('/api/attendance/session/:id/scans', authenticateToken, requireAdmin, attendanceCtrl.getSessionScans);
+app.get('/api/attendance/active-sessions', authenticateToken, attendanceCtrl.getActiveSessions);
 app.post('/api/attendance/scan', authenticateToken, requireStudent, attendanceCtrl.markQRScan);
+app.post('/api/attendance/face-scan', authenticateToken, requireStudent, attendanceCtrl.markFaceScanAttendance);
 app.post('/api/attendance/manual', authenticateToken, requireAdmin, attendanceCtrl.saveManualAttendance);
 app.get('/api/attendance/student-summary', authenticateToken, requireStudent, attendanceCtrl.getStudentAttendance);
 app.get('/api/attendance/admin-report', authenticateToken, requireAdmin, attendanceCtrl.getAdminAttendanceReport);
@@ -133,11 +139,13 @@ app.get('/api/academic/announcements', authenticateToken, academicCtrl.getAnnoun
 app.post('/api/academic/announcements', authenticateToken, requireAdmin, academicCtrl.createAnnouncement);
 app.delete('/api/academic/announcements/:id', authenticateToken, requireAdmin, academicCtrl.deleteAnnouncement);
 
-// 7. Results
+// 7. Results & Excel Bulk Upload
 app.get('/api/results/my', authenticateToken, requireStudent, resultsCtrl.getStudentResults);
 app.post('/api/results', authenticateToken, requireAdmin, resultsCtrl.addOrUpdateResult);
 app.get('/api/results/all', authenticateToken, requireAdmin, resultsCtrl.getAllResults);
 app.delete('/api/results/:id', authenticateToken, requireAdmin, resultsCtrl.deleteResult);
+app.post('/api/results/upload-excel', authenticateToken, requireAdmin, excelUpload.single('file'), excelCtrl.uploadResultsExcel);
+app.get('/api/results/template', excelCtrl.downloadResultsTemplate);
 
 // 8. Notifications
 app.get('/api/notifications/my', authenticateToken, notifCtrl.getStudentNotifications);

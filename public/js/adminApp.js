@@ -694,6 +694,16 @@ const AdminApp = {
       const timerEl = document.getElementById('qr-countdown-text');
       if (timerEl) timerEl.innerText = `${timeLeft}s`;
 
+      // Real-time live sync: refresh scan count and attendance roster every 2 seconds
+      if (timeLeft % 2 === 0) {
+        API.getSessionScans(session.id).then(scanRes => {
+          if (scanRes.success && scanRes.scans) {
+            const countEl = document.getElementById('qr-scanned-count');
+            if (countEl) countEl.innerText = scanRes.scans.length;
+          }
+        }).catch(() => {});
+      }
+
       if (timeLeft <= 0) {
         timeLeft = parseInt(session.qr_refresh_interval, 10) || 15;
         // Fetch new rotating token
@@ -1737,16 +1747,49 @@ const AdminApp = {
     }
   },
 
-  // ==================== 10. RESULTS ENTRY (Requirement #46) ====================
+  // ==================== 10. RESULTS ENTRY & EXCEL BULK IMPORT (Requirement #46) ====================
   async renderResultsManage(container) {
     const res = await API.getAllResults();
     const results = res.success ? res.data : [];
 
     container.innerHTML = `
+      <!-- Bulk Excel Upload Card (Requirement: Auto-fetch by UG Number) -->
+      <div class="glass-card" style="padding:22px; margin-bottom:24px; background:linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(6,182,212,0.08) 100%); border-color:rgba(16,185,129,0.35);">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
+          <div>
+            <h3 style="font-size:18px; font-weight:800; color:#ffffff; display:flex; align-items:center; gap:8px;">
+              📊 Bulk Excel Sheet Import (Auto-Fetch by UG Number)
+            </h3>
+            <p style="font-size:12.5px; color:var(--text-secondary); margin-top:2px;">
+              Upload an Excel/CSV marksheet. System automatically matches each row by <strong>UG Number</strong>, computes grades, and publishes directly to each student's portal!
+            </p>
+          </div>
+          <a href="/api/results/template" download class="btn-secondary" style="width:auto; padding:8px 16px; font-size:12px; display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,0.08);">
+            📥 Download Sample Excel Template
+          </a>
+        </div>
+
+        <!-- Excel Dropzone -->
+        <div class="excel-dropzone" id="excel-dropzone" onclick="document.getElementById('excel-file-input').click()">
+          <input type="file" id="excel-file-input" accept=".xlsx,.xls,.csv" style="display:none;" onchange="AdminApp.handleExcelFileSelected(event)" />
+          <div style="font-size:36px; margin-bottom:8px;">📁</div>
+          <h4 style="font-size:15px; font-weight:700; color:#ffffff;" id="excel-drop-text">Click or Drag & Drop Excel File Here (.xlsx, .xls, .csv)</h4>
+          <p style="font-size:12px; color:var(--text-muted); margin-top:4px;">Supported headers: UG ID, Subject, Exam Name, Semester, Marks, Max Marks, Remarks</p>
+        </div>
+
+        <div id="excel-upload-status" style="margin-top:14px; display:none;"></div>
+
+        <div style="margin-top:14px; display:flex; justify-content:flex-end; gap:10px;">
+          <button class="btn-primary" id="btn-upload-excel" onclick="AdminApp.submitExcelUpload()" style="width:auto; padding:10px 24px; display:none; background:linear-gradient(135deg, #10b981 0%, #06b6d4 100%); font-weight:800;">
+            ⚡ Import & Auto-Distribute Results
+          </button>
+        </div>
+      </div>
+
       <div class="admin-grid-1to2col">
-        <!-- Enter Marks Form -->
+        <!-- Enter Marks Form (Single Entry) -->
         <div class="glass-card" style="padding:22px;">
-          <h3 style="font-size:17px; font-weight:800; margin-bottom:14px;">🏆 Enter Student Marks</h3>
+          <h3 style="font-size:17px; font-weight:800; margin-bottom:14px;">🏆 Single Result Entry</h3>
           <form id="enter-result-form" onsubmit="event.preventDefault(); AdminApp.submitResultEntry();">
             <div class="form-group">
               <label class="form-label">Student UG ID *</label>
@@ -1830,6 +1873,61 @@ const AdminApp = {
         </div>
       </div>
     `;
+  },
+
+  handleExcelFileSelected(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    this.selectedExcelFile = file;
+    const dropText = document.getElementById('excel-drop-text');
+    if (dropText) {
+      dropText.innerHTML = `✓ Ready: <strong>${file.name}</strong> (${(file.size / 1024).toFixed(1)} KB)`;
+      dropText.style.color = '#34d399';
+    }
+    const btn = document.getElementById('btn-upload-excel');
+    if (btn) btn.style.display = 'inline-block';
+  },
+
+  async submitExcelUpload() {
+    if (!this.selectedExcelFile) {
+      window.App.showToast('Please select an Excel file first.', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('btn-upload-excel');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerText = '⚡ Processing & Distributing...';
+    }
+
+    const formData = new FormData();
+    formData.append('file', this.selectedExcelFile);
+
+    const res = await API.uploadResultsExcel(formData);
+
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = '⚡ Import & Auto-Distribute Results';
+    }
+
+    if (res.success) {
+      window.App.showToast(res.message, 'success');
+      const statusBox = document.getElementById('excel-upload-status');
+      if (statusBox) {
+        statusBox.style.display = 'block';
+        statusBox.innerHTML = `
+          <div style="padding:14px; background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.3); border-radius:var(--radius-md); font-size:13px; color:#34d399;">
+            <strong>✓ Success:</strong> Imported ${res.importedCount} student results automatically!
+            ${res.skippedCount > 0 ? `<div style="font-size:11.5px; color:#fbbf24; margin-top:4px;">⚠️ Skipped ${res.skippedCount} rows (unmatched UG IDs or invalid format).</div>` : ''}
+          </div>
+        `;
+      }
+      this.selectedExcelFile = null;
+      setTimeout(() => this.switchSection('results-manage'), 1800);
+    } else {
+      window.App.showToast(res.message || 'Excel upload failed.', 'error');
+    }
   },
 
   async submitResultEntry() {

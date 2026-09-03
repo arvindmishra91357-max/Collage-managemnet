@@ -1,21 +1,21 @@
-const CACHE_NAME = 'mgi-cyber-portal-v4.6';
+const CACHE_NAME = 'mgi-cyber-portal-v4.7';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/css/style.css?v=4.6.0',
-  '/js/qrcode.min.js?v=4.6.0',
-  '/js/jsqr.min.js?v=4.6.0',
-  '/js/api.js?v=4.6.0',
-  '/js/studentApp.js?v=4.6.0',
-  '/js/adminApp.js?v=4.6.0',
-  '/js/app.js?v=4.6.0',
+  '/css/style.css?v=4.7.0',
+  '/js/qrcode.min.js?v=4.7.0',
+  '/js/jsqr.min.js?v=4.7.0',
+  '/js/api.js?v=4.7.0',
+  '/js/studentApp.js?v=4.7.0',
+  '/js/adminApp.js?v=4.7.0',
+  '/js/app.js?v=4.7.0',
   '/manifest.json'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Caching app shell v4.6.0');
+      console.log('[SW] Caching app shell v4.7.0');
       return cache.addAll(STATIC_ASSETS).catch(err => console.warn('[SW] Caching non-fatal err:', err));
     })
   );
