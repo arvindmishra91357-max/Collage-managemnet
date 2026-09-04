@@ -127,7 +127,7 @@ async function addStudent(req, res) {
 async function getAllStudents(req, res) {
   try {
     const { batch, search, page = 1, limit = 100 } = req.query;
-    let sql = "SELECT id, ug_id, name, roll_number, phone_number, batch, program, year, semester, division, academic_year, profile_photo_url, status, created_at FROM students WHERE 1=1";
+    let sql = "SELECT id, ug_id, name, roll_number, phone_number, batch, program, year, semester, division, academic_year, profile_photo_url, is_cr, status, created_at FROM students WHERE 1=1";
     const params = [];
 
     if (batch && (batch === 'Batch 1' || batch === 'Batch 2')) {
@@ -149,6 +149,7 @@ async function getAllStudents(req, res) {
     const total = students.length;
     const batch1Count = students.filter(s => s.batch === 'Batch 1').length;
     const batch2Count = students.filter(s => s.batch === 'Batch 2').length;
+    const crCount = students.filter(s => s.is_cr === 1).length;
 
     return res.json({
       success: true,
@@ -156,7 +157,8 @@ async function getAllStudents(req, res) {
       stats: {
         total,
         batch1: batch1Count,
-        batch2: batch2Count
+        batch2: batch2Count,
+        crCount
       }
     });
   } catch (err) {
@@ -170,7 +172,7 @@ async function getStudentById(req, res) {
   try {
     const { id } = req.params;
     const student = await db.get(
-      "SELECT id, ug_id, name, roll_number, phone_number, batch, program, year, semester, division, academic_year, profile_photo_url, status, created_at FROM students WHERE id = ? OR ug_id = ?",
+      "SELECT id, ug_id, name, roll_number, phone_number, batch, program, year, semester, division, academic_year, profile_photo_url, is_cr, status, created_at FROM students WHERE id = ? OR ug_id = ?",
       [id, id]
     );
 
@@ -189,7 +191,7 @@ async function getStudentById(req, res) {
 async function updateStudent(req, res) {
   try {
     const { id } = req.params;
-    const { name, roll_number, phone_number, password, status } = req.body;
+    const { name, roll_number, phone_number, password, status, is_cr } = req.body;
 
     const student = await db.get("SELECT * FROM students WHERE id = ? OR ug_id = ?", [id, id]);
     if (!student) {
@@ -207,6 +209,7 @@ async function updateStudent(req, res) {
     const updatedName = name ? name.trim() : student.name;
     const updatedPhone = phone_number !== undefined ? (phone_number ? phone_number.trim() : null) : student.phone_number;
     const updatedStatus = status || student.status;
+    const updatedCr = is_cr !== undefined ? (is_cr ? 1 : 0) : (student.is_cr || 0);
 
     let updatedPassHash = student.password_hash;
     if (password && password.trim() !== '') {
@@ -216,9 +219,9 @@ async function updateStudent(req, res) {
 
     await db.run(`
       UPDATE students
-      SET name = ?, roll_number = ?, phone_number = ?, batch = ?, status = ?, password_hash = ?, updated_at = CURRENT_TIMESTAMP
+      SET name = ?, roll_number = ?, phone_number = ?, batch = ?, status = ?, is_cr = ?, password_hash = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `, [updatedName, rollNum, updatedPhone, updatedBatch, updatedStatus, updatedPassHash, student.id]);
+    `, [updatedName, rollNum, updatedPhone, updatedBatch, updatedStatus, updatedCr, updatedPassHash, student.id]);
 
     return res.json({
       success: true,
@@ -230,6 +233,7 @@ async function updateStudent(req, res) {
         roll_number: rollNum,
         phone_number: updatedPhone,
         batch: updatedBatch,
+        is_cr: updatedCr,
         status: updatedStatus
       }
     });
@@ -239,7 +243,33 @@ async function updateStudent(req, res) {
   }
 }
 
-// 5. Delete Student
+// 5. Toggle CR Status
+async function toggleCRStatus(req, res) {
+  try {
+    const { id } = req.params;
+    const { is_cr } = req.body;
+
+    const student = await db.get("SELECT * FROM students WHERE id = ? OR ug_id = ?", [id, id]);
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Student not found.' });
+    }
+
+    const newCrStatus = is_cr !== undefined ? (is_cr ? 1 : 0) : (student.is_cr === 1 ? 0 : 1);
+
+    await db.run("UPDATE students SET is_cr = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [newCrStatus, student.id]);
+
+    return res.json({
+      success: true,
+      message: `Student ${student.name} is now ${newCrStatus === 1 ? 'designated as Class Representative (CR)' : 'removed from Class Representative (CR)'}.`,
+      is_cr: newCrStatus
+    });
+  } catch (err) {
+    console.error('[StudentController] toggleCRStatus error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to toggle CR status.' });
+  }
+}
+
+// 6. Delete Student
 async function deleteStudent(req, res) {
   try {
     const { id } = req.params;
@@ -269,5 +299,6 @@ module.exports = {
   getAllStudents,
   getStudentById,
   updateStudent,
+  toggleCRStatus,
   deleteStudent
 };

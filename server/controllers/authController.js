@@ -52,6 +52,7 @@ async function studentLogin(req, res) {
       semester: student.semester,
       division: student.division,
       academic_year: student.academic_year,
+      is_cr: student.is_cr ? 1 : 0,
       role: 'STUDENT'
     });
 
@@ -72,6 +73,7 @@ async function studentLogin(req, res) {
         semester: student.semester,
         division: student.division,
         academic_year: student.academic_year,
+        is_cr: student.is_cr ? 1 : 0,
         profile_photo_url: student.profile_photo_url || null
       }
     });
@@ -156,6 +158,7 @@ async function getProfile(req, res) {
           semester: student.semester,
           division: student.division,
           academic_year: student.academic_year,
+          is_cr: student.is_cr ? 1 : 0,
           profile_photo_url: student.profile_photo_url || null,
           status: student.status
         }
@@ -263,6 +266,7 @@ async function unifiedLogin(req, res) {
           semester: student.semester,
           division: student.division,
           academic_year: student.academic_year,
+          is_cr: student.is_cr ? 1 : 0,
           role: 'STUDENT'
         });
 
@@ -281,6 +285,7 @@ async function unifiedLogin(req, res) {
             semester: student.semester,
             division: student.division,
             academic_year: student.academic_year,
+            is_cr: student.is_cr ? 1 : 0,
             profile_photo_url: student.profile_photo_url || null
           }
         });

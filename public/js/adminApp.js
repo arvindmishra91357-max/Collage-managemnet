@@ -488,6 +488,7 @@ const AdminApp = {
                 <th>Roll No</th>
                 <th>UG ID</th>
                 <th>Student Name</th>
+                <th>Role</th>
                 <th>Batch</th>
                 <th>Division</th>
                 <th>Status</th>
@@ -499,11 +500,18 @@ const AdminApp = {
                 <tr data-name="${s.name.toLowerCase()}" data-ugid="${s.ug_id.toLowerCase()}">
                   <td><strong>#${s.roll_number}</strong></td>
                   <td><span style="font-family:monospace; color:#38bdf8; font-weight:700;">${s.ug_id}</span></td>
-                  <td>${s.name}</td>
+                  <td>
+                    <div style="font-weight:700; color:#ffffff;">${s.name}</div>
+                    ${s.is_cr === 1 ? '<span style="font-size:11px; color:#fbbf24; font-weight:800; display:inline-flex; align-items:center; gap:4px; margin-top:2px;">👑 Class Representative</span>' : ''}
+                  </td>
+                  <td>
+                    ${s.is_cr === 1 ? '<span class="lab-chip" style="background:rgba(245,158,11,0.2); color:#fbbf24; border:1px solid rgba(245,158,11,0.4);">CR</span>' : '<span style="font-size:12px; color:var(--text-muted);">Student</span>'}
+                  </td>
                   <td><span class="batch-badge ${s.batch === 'Batch 1' ? 'batch-1' : 'batch-2'}">${s.batch}</span></td>
                   <td>3CYBER7</td>
                   <td><span style="color:#34d399; font-weight:700; font-size:11px;">● ${s.status}</span></td>
                   <td>
+                    <button class="icon-btn" onclick="AdminApp.toggleCRStatus(${s.id}, '${s.name}', ${s.is_cr ? 1 : 0})" title="${s.is_cr === 1 ? 'Revoke CR Authorization' : 'Authorize as Class Representative (CR)'}" style="width:28px; height:28px; display:inline-flex; color:${s.is_cr === 1 ? '#fbbf24' : 'var(--text-muted)'}; margin-right:4px;">👑</button>
                     <button class="icon-btn" onclick="AdminApp.openEditStudentModal(${s.id}, '${s.name}', '${s.ug_id}', ${s.roll_number})" title="Edit" style="width:28px; height:28px; display:inline-flex;">✎</button>
                     <button class="icon-btn" onclick="AdminApp.deleteStudentPrompt(${s.id}, '${s.name}')" title="Delete" style="width:28px; height:28px; display:inline-flex; color:#f87171;">🗑</button>
                   </td>
@@ -514,6 +522,21 @@ const AdminApp = {
         </div>
       </div>
     `;
+  },
+
+  async toggleCRStatus(id, name, currentCr) {
+    const newStatus = currentCr === 1 ? 0 : 1;
+    const actionText = newStatus === 1 ? `Promote "${name}" to Class Representative (CR)?` : `Remove CR authorization from "${name}"?`;
+    if (!confirm(actionText)) return;
+
+    const res = await API.toggleCR(id, newStatus);
+    if (res.success) {
+      window.App.showToast(res.message, 'success');
+      const container = document.getElementById('admin-body-content');
+      if (container) this.renderStudentsList(container, this.currentSection === 'batch-1' ? 'Batch 1' : this.currentSection === 'batch-2' ? 'Batch 2' : null);
+    } else {
+      window.App.showToast(res.message || 'Failed to update CR status.', 'error');
+    }
   },
 
   searchStudentTable(query) {
@@ -1034,12 +1057,35 @@ const AdminApp = {
     return `${hStr}:${m} ${ampm}`;
   },
 
-  // ==================== 7. TIMETABLE EDITOR (Requirement #20, #21, #22, #23) ====================
+  // ==================== 7. TIMETABLE EDITOR & DATE-SPECIFIC OVERRIDES ====================
   selectedAdminDay: 'ALL',
+  selectedAdminDate: null,
+
+  getTodayDateString() {
+    try {
+      const now = new Date();
+      const istString = now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
+      const d = new Date(istString);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    } catch (e) {
+      return new Date().toISOString().split('T')[0];
+    }
+  },
 
   async renderTimetableEditor(container) {
-    const res = await API.getAllTimetable();
+    const targetDate = this.selectedAdminDate || this.getTodayDateString();
+    this.selectedAdminDate = targetDate;
+
+    const [res, historyRes] = await Promise.all([
+      API.getAllTimetable(targetDate),
+      API.getOverrideHistory({ limit: 10 })
+    ]);
+
     let timetable = res.success ? res.data : [];
+    const recentHistory = historyRes.success ? historyRes.data : [];
     const days = ['ALL', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const currentDay = this.selectedAdminDay || 'ALL';
 
@@ -1048,15 +1094,32 @@ const AdminApp = {
     }
 
     container.innerHTML = `
-      <div class="glass-card" style="padding:22px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+      <div class="glass-card" style="padding:22px; margin-bottom:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
           <div>
-            <h3 style="font-size:17px; font-weight:800;">📅 Timetable Master Schedule (Division: 3CYBER7)</h3>
-            <span style="font-size:12px; color:var(--text-muted);">Effective Date: 09-06-2026 • Live Sync to Student App</span>
+            <h3 style="font-size:18px; font-weight:800; display:flex; align-items:center; gap:8px;">
+              <span>📅 Timetable & Room Change Management</span>
+            </h3>
+            <span style="font-size:12px; color:var(--text-muted);">Division: 3CYBER7 • Master Schedule + Date-Specific Live Overrides</span>
           </div>
-          <button class="btn-primary" onclick="AdminApp.openAddTimetableModal()" style="width:auto; padding:8px 16px; margin-top:0; font-size:13px;">
-            + Add Timetable Slot
-          </button>
+
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <!-- Target Date Selector for Overrides -->
+            <div style="display:flex; align-items:center; gap:6px; background:var(--bg-input); padding:4px 10px; border-radius:var(--radius-sm); border:1px solid var(--border-color);">
+              <span style="font-size:11px; font-weight:700; color:var(--accent-cyan);">TARGET DATE:</span>
+              <input type="date" id="admin-tt-target-date" class="form-control" value="${targetDate}" onchange="AdminApp.changeAdminTimetableDate(this.value)" style="width:auto; padding:4px 8px; font-size:12px; background:transparent; border:none;" />
+            </div>
+
+            <button class="btn-primary" onclick="AdminApp.openOverrideHistoryModal()" style="width:auto; padding:8px 14px; margin-top:0; font-size:12px; background:rgba(56,189,248,0.15); border:1px solid rgba(56,189,248,0.3); color:#38bdf8;">
+              📜 Room Change History (${recentHistory.length})
+            </button>
+            <button class="btn-primary" onclick="AdminApp.openDeclareHolidayModal()" style="width:auto; padding:8px 14px; margin-top:0; font-size:12px; background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.3); color:#34d399;">
+              🌴 Declare Holiday
+            </button>
+            <button class="btn-primary" onclick="AdminApp.openAddTimetableModal()" style="width:auto; padding:8px 14px; margin-top:0; font-size:12px;">
+              + Add Slot (Master)
+            </button>
+          </div>
         </div>
 
         <!-- Scrollable Day Filter Carousel for Admin -->
@@ -1081,30 +1144,64 @@ const AdminApp = {
                 <th>Time Slot</th>
                 <th>Subject</th>
                 <th>Teacher</th>
-                <th>Room</th>
+                <th>Room (Active)</th>
                 <th>Batch</th>
                 <th>Type</th>
-                <th>Actions</th>
+                <th>Schedule Status</th>
+                <th>Date Overrides & Actions</th>
               </tr>
             </thead>
             <tbody>
               ${timetable.length > 0 ? timetable.map(t => `
-                <tr>
+                <tr style="${t.is_cancelled ? 'background:rgba(239,68,68,0.06);' : t.has_room_change ? 'background:rgba(56,189,248,0.06);' : ''}">
                   <td><strong>${t.day}</strong></td>
                   <td><span style="color:#38bdf8; font-weight:700;">${this.formatTimeSlot(t.start_time)}</span> <span style="font-size:11px; color:var(--text-muted);">– ${this.formatTimeSlot(t.end_time)}</span></td>
                   <td><strong style="color:#ffffff;">${t.subject}</strong></td>
                   <td>${t.teacher || '-'}</td>
-                  <td><span style="background:var(--bg-input); padding:3px 8px; border-radius:4px; font-weight:700;">${t.room}</span></td>
+                  <td>
+                    ${t.is_cancelled ? `
+                      <span style="background:rgba(239,68,68,0.2); color:#f87171; border:1px solid rgba(239,68,68,0.4); padding:3px 8px; border-radius:4px; font-weight:800; font-size:11px;">CANCELLED</span>
+                    ` : t.has_room_change ? `
+                      <div style="display:inline-flex; align-items:center; gap:6px;">
+                        <span style="background:rgba(56,189,248,0.2); color:#38bdf8; border:1px solid rgba(56,189,248,0.4); padding:3px 8px; border-radius:4px; font-weight:800;">${t.room}</span>
+                        <span style="font-size:11px; color:var(--text-muted); text-decoration:line-through;">${t.original_room}</span>
+                      </div>
+                    ` : `
+                      <span style="background:var(--bg-input); padding:3px 8px; border-radius:4px; font-weight:700;">${t.room}</span>
+                    `}
+                  </td>
                   <td><span class="batch-badge ${t.batch === 'Batch 1' ? 'batch-1' : t.batch === 'Batch 2' ? 'batch-2' : ''}">${t.batch}</span></td>
                   <td>${t.is_lab ? '<span class="lab-chip">LAB</span>' : 'Lecture'}</td>
                   <td>
-                    <button class="icon-btn" onclick="AdminApp.openEditTimetableModal(${t.id}, '${t.day}', '${t.start_time}', '${t.end_time}', '${t.subject}', '${t.teacher || ''}', '${t.room}', '${t.batch}', ${t.is_lab})" title="Edit" style="width:28px; height:28px; display:inline-flex;">✎</button>
-                    <button class="icon-btn" onclick="AdminApp.deleteTimetableSlot(${t.id})" title="Delete" style="width:28px; height:28px; display:inline-flex; color:#f87171;">🗑</button>
+                    ${t.has_room_change ? `
+                      <div style="font-size:11px; color:#38bdf8; font-weight:700;">🔄 Room Changed: ${t.room_change_reason}</div>
+                      <div style="font-size:10px; color:var(--text-muted);">By: ${t.override_changed_by || 'Admin'} (${t.override_role || 'ADMIN'})</div>
+                    ` : t.is_cancelled ? `
+                      <div style="font-size:11px; color:#f87171; font-weight:700;">❌ Cancelled: ${t.cancel_reason}</div>
+                      <div style="font-size:10px; color:var(--text-muted);">By: ${t.override_changed_by || 'Admin'}</div>
+                    ` : `
+                      <span style="font-size:11px; color:var(--text-muted);">Regular Master Slot</span>
+                    `}
+                  </td>
+                  <td>
+                    <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+                      <!-- Temporary Room Change Button -->
+                      <button class="icon-btn" onclick="AdminApp.openRoomChangeModal(${t.id}, '${t.subject}', '${t.start_time}', '${t.end_time}', '${t.room}')" title="Temporary Room Change (Date-Specific)" style="width:28px; height:28px; display:inline-flex; color:#38bdf8;">🔄</button>
+                      <!-- Cancel Class Button -->
+                      <button class="icon-btn" onclick="AdminApp.openCancelClassModal(${t.id}, '${t.subject}', '${t.start_time}', '${t.end_time}')" title="Cancel Lecture for ${targetDate}" style="width:28px; height:28px; display:inline-flex; color:#fbbf24;">❌</button>
+                      <!-- Revert Override if active -->
+                      ${(t.has_room_change || t.is_cancelled) ? `
+                        <button class="icon-btn" onclick="AdminApp.revertOverride(${t.override_id}, ${t.id})" title="Revert to Master Timetable" style="width:28px; height:28px; display:inline-flex; color:#34d399;">↺</button>
+                      ` : ''}
+                      <!-- Master Schedule Edit/Delete -->
+                      <button class="icon-btn" onclick="AdminApp.openEditTimetableModal(${t.id}, '${t.day}', '${t.start_time}', '${t.end_time}', '${t.subject}', '${t.teacher || ''}', '${t.room}', '${t.batch}', ${t.is_lab})" title="Edit Master Slot" style="width:28px; height:28px; display:inline-flex;">✎</button>
+                      <button class="icon-btn" onclick="AdminApp.deleteTimetableSlot(${t.id})" title="Delete Slot" style="width:28px; height:28px; display:inline-flex; color:#f87171;">🗑</button>
+                    </div>
                   </td>
                 </tr>
               `).join('') : `
                 <tr>
-                  <td colspan="8" style="text-align:center; padding:24px; color:var(--text-muted);">No timetable entries found for ${currentDay}.</td>
+                  <td colspan="9" style="text-align:center; padding:24px; color:var(--text-muted);">No timetable entries found for ${currentDay}.</td>
                 </tr>
               `}
             </tbody>
@@ -1114,6 +1211,13 @@ const AdminApp = {
     `;
 
     this.bindAdminTimetableScroll();
+  },
+
+  changeAdminTimetableDate(newDate) {
+    if (!newDate) return;
+    this.selectedAdminDate = newDate;
+    const container = document.getElementById('admin-body-content');
+    if (container) this.renderTimetableEditor(container);
   },
 
   scrollAdminDaysCarousel(offset) {
@@ -1136,6 +1240,279 @@ const AdminApp = {
     this.selectedAdminDay = day;
     const container = document.getElementById('admin-body-content');
     if (container) this.renderTimetableEditor(container);
+  },
+
+  // ==================== MANUAL DATE-SPECIFIC ROOM CHANGE MODAL ====================
+  openRoomChangeModal(timetableId, subject, startTime, endTime, currentRoom) {
+    const targetDate = this.selectedAdminDate || this.getTodayDateString();
+
+    const modalContainer = document.getElementById('admin-modal-container');
+    modalContainer.innerHTML = `
+      <div class="modal-backdrop" id="room-change-modal">
+        <div class="modal-card">
+          <div class="modal-header">
+            <h3 style="font-size:16px; font-weight:800;">🔄 Change Room: ${subject}</h3>
+            <button class="icon-btn" onclick="AdminApp.closeModal('room-change-modal')" style="width:30px; height:30px;">✕</button>
+          </div>
+          <div class="modal-body">
+            <div style="background:var(--bg-input); padding:12px; border-radius:var(--radius-sm); margin-bottom:14px; font-size:13px;">
+              <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                <span style="color:var(--text-muted);">Target Date:</span>
+                <strong style="color:var(--accent-cyan);">${targetDate}</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                <span style="color:var(--text-muted);">Lecture Time:</span>
+                <strong>${this.formatTimeSlot(startTime)} – ${this.formatTimeSlot(endTime)}</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between;">
+                <span style="color:var(--text-muted);">Regular Master Room:</span>
+                <strong>${currentRoom}</strong>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">New Room Number * (e.g. NB-204, L-311, Room 102)</label>
+              <input type="text" id="rc-new-room" class="form-control" placeholder="Enter new room number" required autofocus />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Reason for Room Change *</label>
+              <input type="text" id="rc-reason" class="form-control" placeholder="e.g. Projector malfunction, Lab shift, Extra seating required" required />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-primary" style="width:auto; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-secondary); margin-top:0;" onclick="AdminApp.closeModal('room-change-modal')">Cancel</button>
+            <button class="btn-primary" style="width:auto; margin-top:0;" onclick="AdminApp.submitRoomChangeOverride(${timetableId}, '${targetDate}')">Apply Room Change</button>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  async submitRoomChangeOverride(timetableId, targetDate) {
+    const new_room = document.getElementById('rc-new-room').value.trim();
+    const reason = document.getElementById('rc-reason').value.trim();
+
+    if (!new_room) {
+      window.App.showToast('Please enter the new room number.', 'error');
+      return;
+    }
+    if (!reason) {
+      window.App.showToast('Please specify a reason for the room change.', 'error');
+      return;
+    }
+
+    const res = await API.changeClassRoom({
+      timetable_id: timetableId,
+      date: targetDate,
+      new_room,
+      reason
+    });
+
+    if (res.success) {
+      window.App.showToast(res.message || 'Room changed successfully.', 'success');
+      this.closeModal('room-change-modal');
+      const container = document.getElementById('admin-body-content');
+      if (container) this.renderTimetableEditor(container);
+    } else {
+      window.App.showToast(res.message || 'Failed to update room.', 'error');
+    }
+  },
+
+  // ==================== CLASS CANCELLATION MODAL ====================
+  openCancelClassModal(timetableId, subject, startTime, endTime) {
+    const targetDate = this.selectedAdminDate || this.getTodayDateString();
+
+    const modalContainer = document.getElementById('admin-modal-container');
+    modalContainer.innerHTML = `
+      <div class="modal-backdrop" id="cancel-class-modal">
+        <div class="modal-card">
+          <div class="modal-header">
+            <h3 style="font-size:16px; font-weight:800; color:#f87171;">❌ Cancel Lecture: ${subject}</h3>
+            <button class="icon-btn" onclick="AdminApp.closeModal('cancel-class-modal')" style="width:30px; height:30px;">✕</button>
+          </div>
+          <div class="modal-body">
+            <div style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); padding:12px; border-radius:var(--radius-sm); margin-bottom:14px; font-size:13px;">
+              <p style="margin:0; color:#fca5a5;">
+                This will mark <strong>${subject}</strong> as <strong>CANCELLED</strong> for <strong>${targetDate}</strong> (${this.formatTimeSlot(startTime)}–${this.formatTimeSlot(endTime)}). Students will receive an instant cancellation alert.
+              </p>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Cancellation Reason *</label>
+              <input type="text" id="cancel-reason" class="form-control" placeholder="e.g. Faculty on leave, Department Seminar, Special Event" required autofocus />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-primary" style="width:auto; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-secondary); margin-top:0;" onclick="AdminApp.closeModal('cancel-class-modal')">Back</button>
+            <button class="btn-primary" style="width:auto; background:#dc2626; border-color:#ef4444; margin-top:0;" onclick="AdminApp.submitCancelClassOverride(${timetableId}, '${targetDate}')">Confirm Cancellation</button>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  async submitCancelClassOverride(timetableId, targetDate) {
+    const reason = document.getElementById('cancel-reason').value.trim();
+    if (!reason) {
+      window.App.showToast('Please enter a cancellation reason.', 'error');
+      return;
+    }
+
+    const res = await API.cancelClass({
+      timetable_id: timetableId,
+      date: targetDate,
+      reason
+    });
+
+    if (res.success) {
+      window.App.showToast(res.message || 'Lecture marked as cancelled.', 'success');
+      this.closeModal('cancel-class-modal');
+      const container = document.getElementById('admin-body-content');
+      if (container) this.renderTimetableEditor(container);
+    } else {
+      window.App.showToast(res.message || 'Failed to cancel class.', 'error');
+    }
+  },
+
+  // ==================== REVERT OVERRIDE ====================
+  async revertOverride(overrideId, timetableId) {
+    const targetDate = this.selectedAdminDate || this.getTodayDateString();
+    if (!confirm('Revert this class back to the regular master timetable?')) return;
+
+    const res = await API.revertClassOverride(overrideId, { timetable_id: timetableId, date: targetDate });
+    if (res.success) {
+      window.App.showToast(res.message || 'Schedule reverted to regular timetable.', 'success');
+      const container = document.getElementById('admin-body-content');
+      if (container) this.renderTimetableEditor(container);
+    } else {
+      window.App.showToast(res.message || 'Failed to revert override.', 'error');
+    }
+  },
+
+  // ==================== ROOM CHANGE & OVERRIDE HISTORY MODAL ====================
+  async openOverrideHistoryModal() {
+    const res = await API.getOverrideHistory({ limit: 50 });
+    const history = res.success ? res.data : [];
+
+    const modalContainer = document.getElementById('admin-modal-container');
+    modalContainer.innerHTML = `
+      <div class="modal-backdrop" id="override-history-modal">
+        <div class="modal-card" style="max-width:850px; width:95%;">
+          <div class="modal-header">
+            <h3 style="font-size:16px; font-weight:800;">📜 Room Change & Override History Log</h3>
+            <button class="icon-btn" onclick="AdminApp.closeModal('override-history-modal')" style="width:30px; height:30px;">✕</button>
+          </div>
+          <div class="modal-body" style="max-height:70vh; overflow-y:auto;">
+            ${history.length > 0 ? `
+              <table class="data-table" style="font-size:12px;">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Date</th>
+                    <th>Subject & Slot</th>
+                    <th>Action</th>
+                    <th>Room Transition</th>
+                    <th>Reason</th>
+                    <th>Changed By</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${history.map(h => `
+                    <tr>
+                      <td style="color:var(--text-muted); font-size:11px;">${new Date(h.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'short', timeStyle: 'short' })}</td>
+                      <td><strong>${h.date}</strong></td>
+                      <td><strong style="color:#ffffff;">${h.subject}</strong> <span style="font-size:11px; color:var(--text-muted);">(${AdminApp.formatTimeSlot(h.start_time)})</span></td>
+                      <td>
+                        <span class="lab-chip" style="background:${h.action === 'ROOM_CHANGE' ? 'rgba(56,189,248,0.2)' : h.action === 'CANCELLED' ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)'}; color:${h.action === 'ROOM_CHANGE' ? '#38bdf8' : h.action === 'CANCELLED' ? '#f87171' : '#34d399'};">
+                          ${h.action}
+                        </span>
+                      </td>
+                      <td>
+                        ${h.action === 'ROOM_CHANGE' ? `
+                          <span style="color:var(--text-muted); text-decoration:line-through;">${h.old_room}</span> → <strong style="color:#38bdf8;">${h.new_room}</strong>
+                        ` : h.action === 'CANCELLED' ? `
+                          <span style="color:#f87171;">Cancelled</span>
+                        ` : `
+                          <span>Restored ${h.new_room}</span>
+                        `}
+                      </td>
+                      <td style="color:var(--text-secondary);">${h.reason || '-'}</td>
+                      <td>
+                        <span style="font-weight:700; color:#ffffff;">${h.changed_by_name}</span>
+                        <span style="font-size:10px; color:${h.changed_by_role === 'CR' ? '#fbbf24' : '#60a5fa'}; font-weight:800; display:block;">${h.changed_by_role === 'CR' ? '👑 CR' : '🛡️ ADMIN'}</span>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            ` : `
+              <div style="text-align:center; padding:32px; color:var(--text-muted);">
+                <p>No room changes or class overrides recorded yet.</p>
+              </div>
+            `}
+          </div>
+          <div class="modal-footer">
+            <button class="btn-primary" style="width:auto; margin-top:0;" onclick="AdminApp.closeModal('override-history-modal')">Close</button>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  // ==================== DECLARE HOLIDAY MODAL ====================
+  openDeclareHolidayModal() {
+    const targetDate = this.selectedAdminDate || this.getTodayDateString();
+
+    const modalContainer = document.getElementById('admin-modal-container');
+    modalContainer.innerHTML = `
+      <div class="modal-backdrop" id="declare-holiday-modal">
+        <div class="modal-card">
+          <div class="modal-header">
+            <h3 style="font-size:16px; font-weight:800; color:#34d399;">🌴 Declare Holiday / Off Day</h3>
+            <button class="icon-btn" onclick="AdminApp.closeModal('declare-holiday-modal')" style="width:30px; height:30px;">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label class="form-label">Holiday Date *</label>
+              <input type="date" id="hol-date" class="form-control" value="${targetDate}" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Holiday Title * (e.g. Diwali, Janmashtami, College Sports Day)</label>
+              <input type="text" id="hol-title" class="form-control" placeholder="Enter Holiday name" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Description / Remarks</label>
+              <textarea id="hol-desc" class="form-control" rows="2" placeholder="e.g. University closed for National Holiday"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-primary" style="width:auto; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-secondary); margin-top:0;" onclick="AdminApp.closeModal('declare-holiday-modal')">Cancel</button>
+            <button class="btn-primary" style="width:auto; background:#059669; border-color:#10b981; margin-top:0;" onclick="AdminApp.submitDeclareHoliday()">Declare & Broadcast</button>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  async submitDeclareHoliday() {
+    const date = document.getElementById('hol-date').value.trim();
+    const title = document.getElementById('hol-title').value.trim();
+    const description = document.getElementById('hol-desc').value.trim();
+
+    if (!date || !title) {
+      window.App.showToast('Please provide Holiday Date and Title.', 'error');
+      return;
+    }
+
+    const res = await API.addHoliday({ date, title, description });
+    if (res.success) {
+      window.App.showToast(res.message || 'Holiday declared successfully.', 'success');
+      this.closeModal('declare-holiday-modal');
+      const container = document.getElementById('admin-body-content');
+      if (container) this.renderTimetableEditor(container);
+    } else {
+      window.App.showToast(res.message || 'Failed to declare holiday.', 'error');
+    }
   },
 
   openAddTimetableModal() {
@@ -1294,6 +1671,14 @@ const AdminApp = {
       this.switchSection('timetable-editor');
     } else {
       window.App.showToast(res.message || 'Failed to update timetable slot.', 'error');
+    }
+  },
+
+  async deleteTimetableSlot(id) {
+    if (confirm('Delete this timetable slot?')) {
+      await API.deleteTimetableEntry(id);
+      window.App.showToast('Slot deleted.', 'info');
+      this.switchSection('timetable-editor');
     }
   },
 

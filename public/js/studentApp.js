@@ -311,25 +311,55 @@ const StudentApp = {
           <div class="meta-chip"><span>UG ID:</span> <strong>${u.ug_id}</strong></div>
           <div class="meta-chip"><span>Roll No:</span> <strong>${u.roll_number}</strong></div>
           <div class="meta-chip"><span>Div:</span> <strong>${u.division}</strong></div>
-          <div class="meta-chip"><span>Year:</span> <strong>${u.academic_year}</strong></div>
+          <div class="meta-chip"><span>Role:</span> <strong>${u.is_cr === 1 ? '👑 CR' : 'Student'}</strong></div>
         </div>
       </section>
 
-      <!-- Next Class Card (Real-Time Synchronized) -->
+      <!-- Declared Holiday Notice Banner if applicable -->
+      ${todayData.isHoliday ? `
+        <section class="glass-card" style="padding:16px 20px; margin-bottom:18px; background:linear-gradient(135deg, rgba(16,185,129,0.18) 0%, rgba(5,150,105,0.08) 100%); border:1px solid rgba(16,185,129,0.4); border-radius:var(--radius-lg); display:flex; align-items:center; gap:14px;">
+          <div style="font-size:32px;">🌴</div>
+          <div>
+            <div style="font-size:12px; font-weight:800; color:#34d399; text-transform:uppercase;">COLLEGE HOLIDAY TODAY</div>
+            <h3 style="font-size:16px; font-weight:800; color:#ffffff; margin:2px 0;">${todayData.holidayInfo ? todayData.holidayInfo.title : 'Holiday Declared'}</h3>
+            <p style="font-size:12px; color:var(--text-secondary); margin:0;">${todayData.holidayInfo && todayData.holidayInfo.description ? todayData.holidayInfo.description : 'No regular classes scheduled today.'}</p>
+          </div>
+        </section>
+      ` : ''}
+
+      <!-- Next Class Card (Real-Time Synchronized & Live Room Overrides) -->
       <section class="next-class-card">
         <div>
           ${isSunday ? `
             <span class="class-status-badge" style="background:rgba(16,185,129,0.15); color:#34d399;">🌴 SUNDAY HOLIDAY</span>
             <div class="next-class-subject" style="font-size:15px;">No Classes Scheduled Today</div>
             <div class="next-class-details">Next session starts Monday morning at 09:30 AM</div>
+          ` : todayData.isHoliday ? `
+            <span class="class-status-badge" style="background:rgba(16,185,129,0.15); color:#34d399;">🌴 HOLIDAY TODAY</span>
+            <div class="next-class-subject" style="font-size:15px;">${todayData.holidayInfo ? todayData.holidayInfo.title : 'Holiday'}</div>
+            <div class="next-class-details">College is closed today. Enjoy your holiday!</div>
           ` : liveClass ? `
             <span class="class-status-badge live">● LIVE NOW</span>
             <div class="next-class-subject">${liveClass.subject} ${liveClass.is_lab ? '<span class="lab-chip">LAB</span>' : ''}</div>
-            <div class="next-class-details">Room: <strong>${liveClass.room}</strong> • ${this.formatSlotRange(liveClass.start_time, liveClass.end_time)} ${liveClass.teacher && liveClass.teacher !== '-' ? `• Faculty: <strong>${liveClass.teacher}</strong>` : ''}</div>
+            <div class="next-class-details">
+              Room: <strong style="color:${liveClass.has_room_change ? '#38bdf8' : '#ffffff'}; font-size:14px;">${liveClass.room}</strong>
+              ${liveClass.has_room_change ? `<span class="lab-chip" style="background:rgba(56,189,248,0.2); color:#38bdf8; font-size:10px; margin-left:4px;">🔄 Room Changed (was ${liveClass.original_room})</span>` : ''}
+              • ${this.formatSlotRange(liveClass.start_time, liveClass.end_time)} ${liveClass.teacher && liveClass.teacher !== '-' ? `• Faculty: <strong>${liveClass.teacher}</strong>` : ''}
+            </div>
+            ${liveClass.has_room_change && liveClass.room_change_reason ? `
+              <div style="font-size:11px; color:#38bdf8; margin-top:3px;">Note: ${liveClass.room_change_reason}</div>
+            ` : ''}
           ` : nextClass ? `
             <span class="class-status-badge upcoming">⏳ Starts in ${nextClass.startsInMinutes} mins</span>
             <div class="next-class-subject">${nextClass.subject} ${nextClass.is_lab ? '<span class="lab-chip">LAB</span>' : ''}</div>
-            <div class="next-class-details">Room: <strong>${nextClass.room}</strong> • Time: ${this.formatTimeSlot(nextClass.start_time)} ${nextClass.teacher && nextClass.teacher !== '-' ? `• Faculty: <strong>${nextClass.teacher}</strong>` : ''}</div>
+            <div class="next-class-details">
+              Room: <strong style="color:${nextClass.has_room_change ? '#38bdf8' : '#ffffff'}; font-size:14px;">${nextClass.room}</strong>
+              ${nextClass.has_room_change ? `<span class="lab-chip" style="background:rgba(56,189,248,0.2); color:#38bdf8; font-size:10px; margin-left:4px;">🔄 Room Changed (was ${nextClass.original_room})</span>` : ''}
+              • Time: ${this.formatTimeSlot(nextClass.start_time)} ${nextClass.teacher && nextClass.teacher !== '-' ? `• Faculty: <strong>${nextClass.teacher}</strong>` : ''}
+            </div>
+            ${nextClass.has_room_change && nextClass.room_change_reason ? `
+              <div style="font-size:11px; color:#38bdf8; margin-top:3px;">Note: ${nextClass.room_change_reason}</div>
+            ` : ''}
           ` : dayCompleted ? `
             <span class="class-status-badge" style="background:rgba(59,130,246,0.15); color:#60a5fa;">✓ LECTURES COMPLETED</span>
             <div class="next-class-subject" style="font-size:15px;">All classes completed for today!</div>
@@ -346,6 +376,25 @@ const StudentApp = {
           </svg>
         </button>
       </section>
+
+      <!-- CR AUTHORIZED QUICK ACTION CARD (Visible only to authorized Class Representatives) -->
+      ${u.is_cr === 1 ? `
+        <section class="glass-card" style="padding:16px 20px; margin-bottom:20px; background:linear-gradient(135deg, rgba(245,158,11,0.15) 0%, rgba(217,119,6,0.08) 100%); border:1px solid rgba(245,158,11,0.4); border-radius:var(--radius-lg);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:18px;">👑</span>
+              <h3 style="font-size:15px; font-weight:800; color:#fbbf24; margin:0;">Class Representative (CR) Tools</h3>
+            </div>
+            <span class="lab-chip" style="background:rgba(245,158,11,0.25); color:#fbbf24; font-size:10px;">Division 3CYBER7</span>
+          </div>
+          <p style="font-size:12px; color:var(--text-secondary); margin-bottom:12px;">
+            As the authorized CR, you can temporarily update classroom room numbers for today's active & upcoming lectures.
+          </p>
+          <button class="btn-primary" style="width:100%; margin:0; padding:10px 14px; font-size:13px; background:linear-gradient(135deg, #d97706, #b45309); border-color:#f59e0b;" onclick="StudentApp.openCrRoomChangeSelector()">
+            🔄 Change Today's Classroom Room
+          </button>
+        </section>
+      ` : ''}
 
       <!-- Quick Stats Row -->
       <section class="quick-stats-row">
@@ -415,23 +464,43 @@ const StudentApp = {
 
         <div class="schedule-list">
           ${todayData.classes && todayData.classes.length > 0 ? todayData.classes.map(c => `
-            <div class="schedule-item-card ${c.status === 'LIVE NOW' ? 'is-live' : ''}">
+            <div class="schedule-item-card ${c.status === 'LIVE NOW' ? 'is-live' : ''}" style="${c.is_cancelled ? 'opacity:0.75; border-color:rgba(239,68,68,0.3);' : ''}">
               <div class="schedule-time-box" style="min-width:82px;">
-                <div style="font-size:12px; font-weight:800; color:#38bdf8;">${StudentApp.formatTimeSlot(c.start_time)}</div>
+                <div style="font-size:12px; font-weight:800; color:${c.is_cancelled ? '#f87171' : '#38bdf8'};">${StudentApp.formatTimeSlot(c.start_time)}</div>
                 <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">${StudentApp.formatTimeSlot(c.end_time)}</div>
               </div>
-              <div class="schedule-info">
+              <div class="schedule-info" style="flex:1;">
                 <div class="schedule-title">
                   <span>${c.subject}</span>
                   ${c.is_lab ? `<span class="lab-chip">LAB</span>` : ''}
+                  ${c.is_cancelled ? `<span class="lab-chip" style="background:rgba(239,68,68,0.2); color:#f87171; font-weight:800;">CANCELLED</span>` : ''}
+                  ${c.has_room_change ? `<span class="lab-chip" style="background:rgba(56,189,248,0.2); color:#38bdf8; font-size:10px;">🔄 Room Changed</span>` : ''}
                   ${c.status === 'LIVE NOW' ? `<span class="class-status-badge live" style="font-size:9px; padding:1px 6px;">LIVE</span>` : ''}
                 </div>
-                <div class="schedule-meta">Room: <strong>${c.room}</strong> • Faculty: ${c.teacher || 'Dept Faculty'}</div>
+                <div class="schedule-meta" style="margin-top:3px;">
+                  ${c.is_cancelled ? `
+                    <span style="color:#f87171; font-weight:600;">Reason: ${c.cancel_reason || 'Class cancelled for today'}</span>
+                  ` : `
+                    Room: <strong style="color:${c.has_room_change ? '#38bdf8' : '#ffffff'}; font-size:13px;">${c.room}</strong>
+                    ${c.has_room_change ? `<span style="font-size:11px; color:var(--text-muted); text-decoration:line-through;">${c.original_room}</span>` : ''}
+                    • Faculty: <strong>${c.teacher || 'Dept Faculty'}</strong>
+                  `}
+                </div>
+                ${c.has_room_change && c.room_change_reason ? `
+                  <div style="font-size:11px; color:#38bdf8; margin-top:2px;">🔄 Note: ${c.room_change_reason}</div>
+                ` : ''}
               </div>
+
+              <!-- CR In-line Room Change Button for Upcoming Slots -->
+              ${u.is_cr === 1 && !c.is_cancelled && c.status !== 'COMPLETED' ? `
+                <button class="icon-btn" onclick="StudentApp.openCrRoomChangeModal(${c.id}, '${c.subject}', '${c.start_time}', '${c.end_time}', '${c.room}')" title="Change Room for this slot" style="width:32px; height:32px; color:#fbbf24; background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.3); flex-shrink:0;">
+                  🔄
+                </button>
+              ` : ''}
             </div>
           `).join('') : `
             <div class="glass-card" style="padding:20px; text-align:center; color:var(--text-muted);">
-              No classes scheduled for today.
+              ${todayData.isHoliday ? '🌴 College Holiday Today. No classes scheduled.' : 'No classes scheduled for today.'}
             </div>
           `}
         </div>
@@ -1002,6 +1071,8 @@ const StudentApp = {
 
     const res = await API.getStudentTimetable(day);
     const slots = res.success ? res.data : [];
+    const isToday = (day === this.getCurrentDayName());
+    const isCR = this.currentUser && this.currentUser.is_cr === 1;
 
     if (slots.length === 0) {
       content.innerHTML = `
@@ -1017,28 +1088,198 @@ const StudentApp = {
     content.innerHTML = `
       <div style="animation:fadeIn 0.3s ease;">
         ${slots.map(s => `
-          <div class="schedule-item-card" style="margin-bottom:12px; padding:15px;">
+          <div class="schedule-item-card" style="margin-bottom:12px; padding:15px; ${s.is_cancelled ? 'opacity:0.75; border-color:rgba(239,68,68,0.3); background:rgba(239,68,68,0.04);' : s.has_room_change ? 'border-color:rgba(56,189,248,0.3); background:rgba(56,189,248,0.04);' : ''}">
             <div class="schedule-time-box" style="min-width:84px; padding:8px;">
-              <div style="font-size:12px; font-weight:800; color:#38bdf8;">${StudentApp.formatTimeSlot(s.start_time)}</div>
+              <div style="font-size:12px; font-weight:800; color:${s.is_cancelled ? '#f87171' : '#38bdf8'};">${StudentApp.formatTimeSlot(s.start_time)}</div>
               <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">${StudentApp.formatTimeSlot(s.end_time)}</div>
             </div>
-            <div class="schedule-info">
+            <div class="schedule-info" style="flex:1;">
               <div class="schedule-title" style="font-size:15px;">
                 <span>${s.subject}</span>
                 ${s.is_lab ? `<span class="lab-chip">PRACTICAL LAB</span>` : ''}
+                ${s.is_cancelled ? `<span class="lab-chip" style="background:rgba(239,68,68,0.2); color:#f87171; font-weight:800;">CANCELLED TODAY</span>` : ''}
+                ${s.has_room_change ? `<span class="lab-chip" style="background:rgba(56,189,248,0.2); color:#38bdf8;">🔄 Room Changed</span>` : ''}
               </div>
               <div class="schedule-meta" style="margin-top:4px;">
-                Room: <strong style="color:#ffffff;">${s.room}</strong> • Faculty: <strong>${s.teacher || '-'}</strong>
+                ${s.is_cancelled ? `
+                  <span style="color:#f87171; font-weight:600;">Cancelled for today: ${s.cancel_reason || 'Department cancellation'}</span>
+                ` : `
+                  Room: <strong style="color:${s.has_room_change ? '#38bdf8' : '#ffffff'}; font-size:14px;">${s.room}</strong>
+                  ${s.has_room_change ? `<span style="font-size:11px; color:var(--text-muted); text-decoration:line-through; margin-left:4px;">${s.original_room} (Regular)</span>` : ''}
+                  • Faculty: <strong>${s.teacher || '-'}</strong>
+                `}
               </div>
+              ${s.has_room_change && s.room_change_reason ? `
+                <div style="font-size:11px; color:#38bdf8; margin-top:3px;">🔄 Room Change Reason: ${s.room_change_reason}</div>
+              ` : ''}
               <div style="font-size:11px; color:var(--text-muted); margin-top:4px; display:flex; align-items:center; gap:6px;">
                 <span>Batch Scope:</span>
                 <span class="batch-badge ${s.batch === 'Batch 1' ? 'batch-1' : s.batch === 'Batch 2' ? 'batch-2' : ''}">${s.batch}</span>
               </div>
             </div>
+
+            <!-- In-line CR Quick Room Change -->
+            ${isCR && isToday && !s.is_cancelled ? `
+              <button class="icon-btn" onclick="StudentApp.openCrRoomChangeModal(${s.id}, '${s.subject}', '${s.start_time}', '${s.end_time}', '${s.room}')" title="Change Room as CR" style="width:34px; height:34px; color:#fbbf24; background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.3); flex-shrink:0;">
+                🔄
+              </button>
+            ` : ''}
           </div>
         `).join('')}
       </div>
     `;
+  },
+
+  // ==================== CR ROOM CHANGE MODAL & ACTIONS ====================
+  async openCrRoomChangeSelector() {
+    const todayRes = await API.getTodayClasses();
+    const classes = todayRes && todayRes.success ? todayRes.classes : [];
+    const upcoming = classes.filter(c => !c.is_cancelled && c.status !== 'COMPLETED');
+
+    if (upcoming.length === 0) {
+      window.App.showToast('No active or upcoming classes left for today to change room.', 'info');
+      return;
+    }
+
+    const modalContainer = document.getElementById('student-modal-container') || document.body;
+    let existingModal = document.getElementById('cr-selector-modal');
+    if (existingModal) existingModal.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'cr-selector-modal';
+    modal.className = 'modal-backdrop';
+    modal.innerHTML = `
+      <div class="modal-card">
+        <div class="modal-header">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:18px;">👑</span>
+            <h3 style="font-size:16px; font-weight:800; color:#fbbf24;">Select Class to Change Room</h3>
+          </div>
+          <button class="icon-btn" onclick="document.getElementById('cr-selector-modal').remove()" style="width:30px; height:30px;">✕</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size:12px; color:var(--text-secondary); margin-bottom:14px;">
+            Select a lecture from today's schedule to assign a new room number for Division 3CYBER7:
+          </p>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            ${upcoming.map(c => `
+              <div class="glass-card" style="padding:12px 14px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; border:1px solid var(--border-color);" onclick="document.getElementById('cr-selector-modal').remove(); StudentApp.openCrRoomChangeModal(${c.id}, '${c.subject}', '${c.start_time}', '${c.end_time}', '${c.room}')">
+                <div>
+                  <div style="font-weight:700; font-size:14px; color:#ffffff;">${c.subject} ${c.is_lab ? '<span class="lab-chip">LAB</span>' : ''}</div>
+                  <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">
+                    ${StudentApp.formatSlotRange(c.start_time, c.end_time)} • Current Room: <strong>${c.room}</strong>
+                  </div>
+                </div>
+                <button class="btn-primary" style="width:auto; padding:6px 12px; font-size:11px; margin:0;">
+                  Select →
+                </button>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-primary" style="width:auto; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-secondary); margin-top:0;" onclick="document.getElementById('cr-selector-modal').remove()">Cancel</button>
+        </div>
+      </div>
+    `;
+    modalContainer.appendChild(modal);
+  },
+
+  openCrRoomChangeModal(timetableId, subject, startTime, endTime, currentRoom) {
+    let existingModal = document.getElementById('cr-room-change-modal');
+    if (existingModal) existingModal.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'cr-room-change-modal';
+    modal.className = 'modal-backdrop';
+    modal.innerHTML = `
+      <div class="modal-card">
+        <div class="modal-header">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:18px;">👑</span>
+            <h3 style="font-size:16px; font-weight:800;">CR Room Change: ${subject}</h3>
+          </div>
+          <button class="icon-btn" onclick="document.getElementById('cr-room-change-modal').remove()" style="width:30px; height:30px;">✕</button>
+        </div>
+        <div class="modal-body">
+          <div style="background:var(--bg-input); padding:12px; border-radius:var(--radius-sm); margin-bottom:14px; font-size:13px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+              <span style="color:var(--text-muted);">Subject:</span>
+              <strong style="color:#ffffff;">${subject}</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+              <span style="color:var(--text-muted);">Lecture Time:</span>
+              <strong>${this.formatTimeSlot(startTime)} – ${this.formatTimeSlot(endTime)}</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between;">
+              <span style="color:var(--text-muted);">Regular Room:</span>
+              <strong>${currentRoom}</strong>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">New Room Number * (e.g. 204, NB-204, L-311)</label>
+            <input type="text" id="cr-new-room" class="form-control" placeholder="Enter new room number" required autofocus />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Reason for Room Change *</label>
+            <input type="text" id="cr-reason" class="form-control" placeholder="e.g. Lab 313 projector issue, extra chairs required, shifting to NB-204" required />
+          </div>
+          <p style="font-size:11px; color:var(--text-muted); margin:0;">
+            ℹ️ This updates the room for today's lecture only. Next week's class will automatically use the regular timetable room (${currentRoom}).
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-primary" style="width:auto; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-secondary); margin-top:0;" onclick="document.getElementById('cr-room-change-modal').remove()">Cancel</button>
+          <button class="btn-primary" style="width:auto; margin-top:0; background:linear-gradient(135deg, #d97706, #b45309); border-color:#f59e0b;" onclick="StudentApp.submitCrRoomChange(${timetableId})">Apply & Notify Students</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  },
+
+  async submitCrRoomChange(timetableId) {
+    const new_room = document.getElementById('cr-new-room').value.trim();
+    const reason = document.getElementById('cr-reason').value.trim();
+
+    if (!new_room) {
+      window.App.showToast('Please enter the new room number.', 'error');
+      return;
+    }
+    if (!reason) {
+      window.App.showToast('Please enter the reason for the room change.', 'error');
+      return;
+    }
+
+    // Get today's IST date string YYYY-MM-DD
+    const now = new Date();
+    const istString = now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
+    const d = new Date(istString);
+    const todayDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+    const res = await API.changeClassRoom({
+      timetable_id: timetableId,
+      date: todayDate,
+      new_room,
+      reason
+    });
+
+    if (res.success) {
+      window.App.showToast(res.message || 'Room changed successfully.', 'success');
+      const modal = document.getElementById('cr-room-change-modal');
+      if (modal) modal.remove();
+      // Refresh current tab
+      const container = document.getElementById('student-tab-content');
+      if (container) {
+        if (this.currentTab === 'timetable') {
+          await this.loadDayTimetable(this.selectedTimetableDay || this.getCurrentDayName());
+        } else {
+          await this.renderHomeTab(container);
+        }
+      }
+    } else {
+      window.App.showToast(res.message || 'Failed to update room.', 'error');
+    }
   },
 
   // ==================== TAB 4: ATTENDANCE & QR SCANNER ====================

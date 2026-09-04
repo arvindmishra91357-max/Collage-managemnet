@@ -78,15 +78,29 @@ app.post('/api/admin/students', authenticateToken, requireAdmin, studentCtrl.add
 app.get('/api/admin/students', authenticateToken, requireAdmin, studentCtrl.getAllStudents);
 app.get('/api/admin/students/:id', authenticateToken, requireAdmin, studentCtrl.getStudentById);
 app.put('/api/admin/students/:id', authenticateToken, requireAdmin, studentCtrl.updateStudent);
+app.post('/api/admin/students/:id/toggle-cr', authenticateToken, requireAdmin, studentCtrl.toggleCRStatus);
 app.delete('/api/admin/students/:id', authenticateToken, requireAdmin, studentCtrl.deleteStudent);
 
-// 4. Timetable
+// 4. Timetable & Manual Room Change / Class Overrides
 app.get('/api/timetable', authenticateToken, timetableCtrl.getStudentTimetable);
 app.get('/api/timetable/today', authenticateToken, timetableCtrl.getTodayClasses);
+app.get('/api/timetable/overrides/today', authenticateToken, timetableCtrl.getOverridesForDate);
 app.get('/api/admin/timetable', authenticateToken, requireAdmin, timetableCtrl.getAllTimetable);
 app.post('/api/admin/timetable', authenticateToken, requireAdmin, timetableCtrl.createTimetableEntry);
 app.put('/api/admin/timetable/:id', authenticateToken, requireAdmin, timetableCtrl.updateTimetableEntry);
 app.delete('/api/admin/timetable/:id', authenticateToken, requireAdmin, timetableCtrl.deleteTimetableEntry);
+
+// Manual Room Change & Override Controls (Admin & Authorized CR)
+app.post('/api/timetable/room-change', authenticateToken, timetableCtrl.createRoomChangeOverride);
+app.post('/api/timetable/cancel-class', authenticateToken, requireAdmin, timetableCtrl.cancelClassOverride);
+app.delete('/api/timetable/override/:id', authenticateToken, requireAdmin, timetableCtrl.revertClassOverride);
+app.post('/api/timetable/override/revert', authenticateToken, requireAdmin, timetableCtrl.revertClassOverride);
+app.get('/api/timetable/overrides/history', authenticateToken, requireAdmin, timetableCtrl.getOverrideHistory);
+
+// Holidays & Leaves Management
+app.get('/api/holidays', authenticateToken, timetableCtrl.getHolidays);
+app.post('/api/admin/holidays', authenticateToken, requireAdmin, timetableCtrl.addHoliday);
+app.delete('/api/admin/holidays/:id', authenticateToken, requireAdmin, timetableCtrl.deleteHoliday);
 
 const excelUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
 

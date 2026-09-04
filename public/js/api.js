@@ -138,9 +138,19 @@ const API = {
     });
   },
 
+  toggleCR(id, is_cr) {
+    return this.request(`/api/admin/students/${id}/toggle-cr`, {
+      method: 'POST',
+      body: JSON.stringify({ is_cr })
+    });
+  },
+
   // Timetable
-  getStudentTimetable(day) {
-    const query = day ? `?day=${day}` : '';
+  getStudentTimetable(day, date = null) {
+    const params = new URLSearchParams();
+    if (day) params.append('day', day);
+    if (date) params.append('date', date);
+    const query = params.toString() ? `?${params.toString()}` : '';
     return this.request(`/api/timetable${query}`);
   },
 
@@ -155,8 +165,9 @@ const API = {
     return this.request(`/api/timetable/today${query}`);
   },
 
-  getAllTimetable() {
-    return this.request('/api/admin/timetable');
+  getAllTimetable(date = null) {
+    const query = date ? `?date=${encodeURIComponent(date)}` : '';
+    return this.request(`/api/admin/timetable${query}`);
   },
 
   createTimetableEntry(data) {
@@ -175,6 +186,61 @@ const API = {
 
   deleteTimetableEntry(id) {
     return this.request(`/api/admin/timetable/${id}`, {
+      method: 'DELETE'
+    });
+  },
+
+  // Manual Room Change & Class Overrides (Admin & Authorized CR)
+  changeClassRoom(data) {
+    return this.request('/api/timetable/room-change', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  cancelClass(data) {
+    return this.request('/api/timetable/cancel-class', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  revertClassOverride(id, data = {}) {
+    if (id) {
+      return this.request(`/api/timetable/override/${id}`, {
+        method: 'DELETE'
+      });
+    }
+    return this.request('/api/timetable/override/revert', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  getOverrideHistory(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/api/timetable/overrides/history?${query}`);
+  },
+
+  getOverridesForDate(date) {
+    const query = date ? `?date=${encodeURIComponent(date)}` : '';
+    return this.request(`/api/timetable/overrides/today${query}`);
+  },
+
+  // Holidays
+  getHolidays() {
+    return this.request('/api/holidays');
+  },
+
+  addHoliday(data) {
+    return this.request('/api/admin/holidays', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  deleteHoliday(id) {
+    return this.request(`/api/admin/holidays/${id}`, {
       method: 'DELETE'
     });
   },
