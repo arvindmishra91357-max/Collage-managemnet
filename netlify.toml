@@ -1,0 +1,47 @@
+[build]
+  publish = "public"
+  command = "npm run build"
+
+# Direct APK downloads
+[[redirects]]
+  from = "/download/apk"
+  to = "/apk/MGI_Student_Portal.apk"
+  status = 200
+
+[[redirects]]
+  from = "/apk/download"
+  to = "/apk/MGI_Student_Portal.apk"
+  status = 200
+
+[[redirects]]
+  from = "/MGI_Student_Portal.apk"
+  to = "/apk/MGI_Student_Portal.apk"
+  status = 200
+
+# Client-side SPA routing fallback
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Strict Android APK package MIME type & headers
+[[headers]]
+  for = "/apk/*"
+  [headers.values]
+    Content-Type = "application/vnd.android.package-archive"
+    Content-Disposition = "attachment; filename=\"MGI_Student_Portal.apk\""
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.apk"
+  [headers.values]
+    Content-Type = "application/vnd.android.package-archive"
+    Content-Disposition = "attachment; filename=\"MGI_Student_Portal.apk\""
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/download/apk"
+  [headers.values]
+    Content-Type = "application/vnd.android.package-archive"
+    Content-Disposition = "attachment; filename=\"MGI_Student_Portal.apk\""
+    Cache-Control = "public, max-age=31536000, immutable"
