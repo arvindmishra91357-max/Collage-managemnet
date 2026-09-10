@@ -80,9 +80,6 @@ const App = {
               <a href="/apk/MGI_Student_Portal.apk" download="MGI_Student_Portal.apk" onclick="App.handleAPKDownload(event)" style="display:inline-flex; align-items:center; gap:8px; padding:8px 16px; font-size:12px; font-weight:700; text-decoration:none; border-radius:var(--radius-full); background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.35); color:#38bdf8; transition:all 0.2s ease;">
                 <span>🤖</span> <span>Download Android App (.apk)</span>
               </a>
-              <button type="button" onclick="App.openServerConfigModal()" style="background:transparent; border:none; color:var(--text-muted); font-size:11px; cursor:pointer; display:inline-flex; align-items:center; gap:4px; text-decoration:underline;">
-                <span>⚙️</span> <span>Server Connection Settings</span>
-              </button>
             </div>
           </form>
         </div>
@@ -94,95 +91,6 @@ const App = {
     this.showToast('Starting Official Android APK download (158 KB)... Check browser downloads.', 'info');
   },
 
-  openServerConfigModal() {
-    const currentUrl = API.baseUrl || (window.location.origin && !window.location.origin.startsWith('file:') ? window.location.origin : 'http://localhost:3000');
-    const existing = document.getElementById('server-config-modal');
-    if (existing) existing.remove();
-
-    const modal = document.createElement('div');
-    modal.className = 'modal-backdrop';
-    modal.id = 'server-config-modal';
-    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-    modal.innerHTML = `
-      <div class="modal-card" style="max-width:420px; padding:24px;" onclick="event.stopPropagation()">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-          <h3 style="font-size:16px; font-weight:800; display:flex; align-items:center; gap:8px; margin:0;">
-            <span>🌐</span> Backend Server Settings
-          </h3>
-          <button class="icon-btn" onclick="document.getElementById('server-config-modal').remove()" style="width:28px; height:28px;">✕</button>
-        </div>
-        <p style="font-size:12px; color:var(--text-secondary); line-height:1.5; margin-bottom:16px;">
-          Connect this portal to your active Node.js server (e.g. Render, Railway, or local IP).
-        </p>
-        <div class="form-group" style="margin-bottom:16px;">
-          <label class="form-label" style="font-size:12px;">Server API Base URL</label>
-          <input type="url" id="input-server-url" class="form-control" value="${currentUrl}" placeholder="https://your-backend.onrender.com" />
-        </div>
-        <div id="server-status-msg" style="font-size:12px; margin-bottom:14px; display:none;"></div>
-        <div style="display:flex; gap:10px;">
-          <button type="button" class="btn-primary" id="btn-test-server" onclick="App.testAndSaveServerUrl()" style="margin:0; flex:1;">
-            ⚡ Test & Save
-          </button>
-          <button type="button" class="btn-primary" onclick="App.resetServerUrl()" style="margin:0; width:auto; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-secondary);">
-            Reset
-          </button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(modal);
-  },
-
-  async testAndSaveServerUrl() {
-    const input = document.getElementById('input-server-url');
-    const msg = document.getElementById('server-status-msg');
-    const btn = document.getElementById('btn-test-server');
-    let url = input ? input.value.trim().replace(/\/+$/, '') : '';
-    if (!url) {
-      this.showToast('Please enter a valid server URL', 'error');
-      return;
-    }
-    if (btn) btn.innerText = 'Testing Connection...';
-    if (msg) {
-      msg.style.display = 'block';
-      msg.style.color = '#38bdf8';
-      msg.textContent = 'Pinging backend health check...';
-    }
-
-    try {
-      const res = await fetch(`${url}/api/health`, { method: 'GET' });
-      const data = await res.json();
-      if (data && data.status === 'OK') {
-        API.setBaseUrl(url);
-        if (msg) {
-          msg.style.color = '#34d399';
-          msg.textContent = '✓ Connected successfully: ' + (data.app || 'MGI Portal');
-        }
-        this.showToast('Connected to server successfully!', 'success');
-        setTimeout(() => {
-          const m = document.getElementById('server-config-modal');
-          if (m) m.remove();
-        }, 1200);
-      } else {
-        throw new Error('Invalid response from server');
-      }
-    } catch (err) {
-      if (msg) {
-        msg.style.color = '#f87171';
-        msg.textContent = '⚠️ Could not connect. Ensure server is online and CORS is enabled.';
-      }
-      this.showToast('Server ping failed: ' + err.message, 'error');
-    } finally {
-      if (btn) btn.innerText = '⚡ Test & Save';
-    }
-  },
-
-  resetServerUrl() {
-    localStorage.removeItem('mgi_api_server_url');
-    API.baseUrl = (window.location.origin && !window.location.origin.startsWith('file:') && !window.location.origin.startsWith('content:')) ? window.location.origin : 'http://10.0.2.2:3000';
-    this.showToast('Server URL reset to default origin', 'info');
-    const m = document.getElementById('server-config-modal');
-    if (m) m.remove();
-  },
 
   async handleUnifiedLogin() {
     const identifier = document.getElementById('login-identifier').value.trim();
@@ -290,11 +198,16 @@ const App = {
   // Service Worker Registration for PWA (Requirement #56)
   registerServiceWorker() {
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
+      const reg = () => {
         navigator.serviceWorker.register('/sw.js')
-          .then(reg => console.log('[PWA] Service Worker registered:', reg.scope))
+          .then(r => console.log('[PWA] Service Worker registered:', r.scope))
           .catch(err => console.warn('[PWA] SW registration failed:', err));
-      });
+      };
+      if (document.readyState === 'complete') {
+        reg();
+      } else {
+        window.addEventListener('load', reg);
+      }
     }
   },
 
@@ -407,8 +320,20 @@ const App = {
 
 window.App = App;
 
-// Bootstrap on DOM Ready
-document.addEventListener('DOMContentLoaded', () => {
-  App.setupRouter();
-  App.init();
-});
+// Bulletproof Bootstrap on DOM Ready (Guarantees execution even if DOMContentLoaded already fired)
+function bootstrapApp() {
+  try {
+    App.setupRouter();
+    App.init();
+  } catch (err) {
+    console.error('[App Bootstrap Error]:', err);
+    try { App.showAuth(); } catch (e) {}
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootstrapApp);
+} else {
+  bootstrapApp();
+}
+

@@ -1,22 +1,22 @@
-const CACHE_NAME = 'mgi-cyber-portal-v4.8.1';
+const CACHE_NAME = 'mgi-cyber-portal-v5.0.0';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/css/style.css?v=4.8.0',
-  '/js/qrcode.min.js?v=4.8.0',
-  '/js/jsqr.min.js?v=4.8.0',
-  '/js/api.js?v=4.8.0',
-  '/js/studentApp.js?v=4.8.0',
-  '/js/adminApp.js?v=4.8.0',
-  '/js/app.js?v=4.8.0',
+  '/css/style.css',
+  '/js/qrcode.min.js',
+  '/js/jsqr.min.js',
+  '/js/api.js',
+  '/js/studentApp.js',
+  '/js/adminApp.js',
+  '/js/app.js',
   '/manifest.json'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Caching app shell v4.8.0');
-      return cache.addAll(STATIC_ASSETS).catch(err => console.warn('[SW] Caching non-fatal err:', err));
+      console.log('[SW] Pre-caching core app shell v5.0.0');
+      return cache.addAll(STATIC_ASSETS).catch(err => console.warn('[SW] Pre-caching err:', err));
     })
   );
   self.skipWaiting();
@@ -28,30 +28,36 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         keys.map((key) => {
           if (key !== CACHE_NAME) {
-            console.log('[SW] Clearing old cache:', key);
+            console.log('[SW] Purging outdated cache:', key);
             return caches.delete(key);
           }
         })
       );
-    })
+    }).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
-  // Bypass SW completely for APK binary files and download endpoints so browser/Android downloads natively
-  if (url.pathname.endsWith('.apk') || url.pathname.includes('/apk') || url.pathname.includes('/download/apk')) {
+
+  // 1. Bypass Service Worker entirely for backend APIs, uploads, and APK downloads
+  if (
+    url.pathname.startsWith('/api') ||
+    url.pathname.startsWith('/uploads') ||
+    url.pathname.endsWith('.apk') ||
+    url.pathname.includes('/apk') ||
+    url.pathname.includes('/download/apk')
+  ) {
     return;
   }
 
-  // Network first for all requests to ensure mobile devices always get fresh responsive updates
+  // 2. Network-first strategy with cache fallback
   event.respondWith(
     fetch(event.request)
       .then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200) {
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
           const resClone = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, resClone);
@@ -59,20 +65,19 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       })
-      .catch(() => {
-        return caches.match(event.request).then((cachedResponse) => {
-          if (cachedResponse) return cachedResponse;
-          if (event.request.url.includes('/api/')) {
-            return new Response(JSON.stringify({
-              success: false,
-              offline: true,
-              message: 'You are currently offline. Please check your internet connection.'
-            }), {
-              headers: { 'Content-Type': 'application/json' }
-            });
-          }
-          return caches.match('/index.html');
-        });
+      .catch(async () => {
+        // Match in cache, ignoring query strings (?v=...)
+        const cached = await caches.match(event.request, { ignoreSearch: true });
+        if (cached) return cached;
+
+        // Only return index.html for page navigation requests (NEVER for JS/CSS files)
+        if (event.request.mode === 'navigate') {
+          const fallback = await caches.match('/index.html');
+          if (fallback) return fallback;
+        }
+
+        return new Response('Network error occurred.', { status: 408, statusText: 'Request Timeout' });
       })
   );
 });
+

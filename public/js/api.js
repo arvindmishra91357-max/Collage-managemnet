@@ -2,16 +2,21 @@
 // API CLIENT SERVICE
 // ==========================================================================
 
+const CLOUD_BACKEND_URL = 'https://mishra-group-institute-portal.onrender.com';
+
 const API = {
   baseUrl: (function() {
     try {
       const saved = localStorage.getItem('mgi_api_server_url');
       if (saved && saved.trim()) return saved.trim().replace(/\/+$/, '');
-      if (window.location.origin && window.location.origin !== 'null' && !window.location.origin.startsWith('file:') && !window.location.origin.startsWith('content:')) {
-        return window.location.origin;
+      const origin = window.location.origin;
+      // If hosted on Netlify, Render, or a custom web domain, use same origin (Netlify proxy or Render)
+      if (origin && origin !== 'null' && !origin.startsWith('file:') && !origin.startsWith('content:') && !origin.includes('localhost:')) {
+        return origin;
       }
     } catch (e) {}
-    return 'http://10.0.2.2:3000';
+    // Default fallback for Android APK, Android WebView, and local file executions
+    return CLOUD_BACKEND_URL;
   })(),
 
   setBaseUrl(url) {
@@ -72,6 +77,16 @@ const API = {
         headers
       });
 
+      // Handle HTML error pages or proxy fallbacks safely
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        return {
+          success: false,
+          isWakingUp: true,
+          message: 'Cloud server is waking up. Please try again in 10-15 seconds.'
+        };
+      }
+
       const data = await res.json();
 
       if (res.status === 401) {
@@ -90,7 +105,7 @@ const API = {
       console.error(`API Error [${endpoint}]:`, err);
       return {
         success: false,
-        message: 'Network error or server unreachable. Please check your connection.'
+        message: 'Server connection timed out or unreachable. Please try again in a few moments.'
       };
     }
   },

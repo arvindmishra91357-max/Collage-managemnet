@@ -23,13 +23,13 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet">
   
   <!-- Main Stylesheet -->
-  <link rel="stylesheet" href="/css/style.css?v=4.8.1">
+  <link rel="stylesheet" href="/css/style.css?v=5.0.0">
   <script>
     // Force purge legacy service worker caches immediately
     if ('caches' in window) {
       caches.keys().then(function(keys) {
         keys.forEach(function(key) {
-          if (key !== 'mgi-cyber-portal-v4.8.1') {
+          if (key !== 'mgi-cyber-portal-v5.0.0') {
             caches.delete(key);
           }
         });
@@ -52,12 +52,30 @@
     }
   </style>
 
-  <!-- Application Logic Scripts (v4.8.1) -->
-  <script src="/js/qrcode.min.js?v=4.8.1"></script>
-  <script src="/js/jsqr.min.js?v=4.8.1"></script>
-  <script src="/js/api.js?v=4.8.1"></script>
-  <script src="/js/studentApp.js?v=4.8.1"></script>
-  <script src="/js/adminApp.js?v=4.8.1"></script>
-  <script src="/js/app.js?v=4.8.1"></script>
+  <!-- Application Logic Scripts (v5.0.0) -->
+  <script src="/js/qrcode.min.js?v=5.0.0"></script>
+  <script src="/js/jsqr.min.js?v=5.0.0"></script>
+  <script src="/js/api.js?v=5.0.0"></script>
+  <script src="/js/studentApp.js?v=5.0.0"></script>
+  <script src="/js/adminApp.js?v=5.0.0"></script>
+  <script src="/js/app.js?v=5.0.0"></script>
+
+  <!-- Anti-Stuck Failsafe Recovery Timer -->
+  <script>
+    setTimeout(function() {
+      var root = document.getElementById('app-root');
+      if (root) {
+        var loadingText = root.querySelector('p');
+        if (loadingText && loadingText.textContent.indexOf('Loading') !== -1) {
+          console.warn('[Failsafe] Stuck loading page detected, forcing render...');
+          if (window.App && typeof window.App.init === 'function') {
+            window.App.init();
+          } else if (window.App && typeof window.App.showAuth === 'function') {
+            window.App.showAuth();
+          }
+        }
+      }
+    }, 1200);
+  </script>
 </body>
 </html>
