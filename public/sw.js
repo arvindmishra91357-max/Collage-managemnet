@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mgi-cyber-portal-v4.8';
+const CACHE_NAME = 'mgi-cyber-portal-v4.8.1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -40,6 +40,12 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+
+  const url = new URL(event.request.url);
+  // Bypass SW completely for APK binary files and download endpoints so browser/Android downloads natively
+  if (url.pathname.endsWith('.apk') || url.pathname.includes('/apk') || url.pathname.includes('/download/apk')) {
+    return;
+  }
 
   // Network first for all requests to ensure mobile devices always get fresh responsive updates
   event.respondWith(

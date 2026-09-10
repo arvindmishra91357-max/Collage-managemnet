@@ -2,18 +2,28 @@
   Content-Type: application/vnd.android.package-archive
   Content-Disposition: attachment; filename="MGI_Student_Portal.apk"
   Cache-Control: public, max-age=31536000, immutable
+  X-Content-Type-Options: nosniff
 
 /*.apk
   Content-Type: application/vnd.android.package-archive
   Content-Disposition: attachment; filename="MGI_Student_Portal.apk"
   Cache-Control: public, max-age=31536000, immutable
+  X-Content-Type-Options: nosniff
+
+/MGI_Student_Portal.apk
+  Content-Type: application/vnd.android.package-archive
+  Content-Disposition: attachment; filename="MGI_Student_Portal.apk"
+  Cache-Control: public, max-age=31536000, immutable
+  X-Content-Type-Options: nosniff
 
 /download/apk
   Content-Type: application/vnd.android.package-archive
   Content-Disposition: attachment; filename="MGI_Student_Portal.apk"
   Cache-Control: public, max-age=31536000, immutable
+  X-Content-Type-Options: nosniff
 
 /apk/download
   Content-Type: application/vnd.android.package-archive
   Content-Disposition: attachment; filename="MGI_Student_Portal.apk"
   Cache-Control: public, max-age=31536000, immutable
+  X-Content-Type-Options: nosniff

@@ -58,6 +58,7 @@ app.get(['/download/apk', '/apk/download', '/apk/MGI_Student_Portal.apk', '/MGI_
   }
   res.setHeader('Content-Type', 'application/vnd.android.package-archive');
   res.setHeader('Content-Disposition', 'attachment; filename="MGI_Student_Portal.apk"');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
   res.download(apkPath, 'MGI_Student_Portal.apk');
 });
 

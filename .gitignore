@@ -41,4 +41,6 @@ logs/
 android-build/bin/
 android-build/assets/www/
 android-build/release.keystore
+android-build/*.apk
+staging_apk/assets/www/
 *.idsig

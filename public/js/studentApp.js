@@ -2272,7 +2272,7 @@ const StudentApp = {
             <p style="font-size:11px; color:var(--text-secondary); margin:0;">Install full mobile app on your Android phone</p>
           </div>
         </div>
-        <a href="/download/apk" download="MGI_Student_Portal.apk" onclick="window.App && window.App.handleAPKDownload(event)" class="btn-primary" style="width:auto; padding:8px 14px; font-size:11px; margin:0; text-decoration:none; display:inline-flex; align-items:center; gap:6px; flex-shrink:0;">
+        <a href="/apk/MGI_Student_Portal.apk" download="MGI_Student_Portal.apk" onclick="window.App && window.App.handleAPKDownload(event)" class="btn-primary" style="width:auto; padding:8px 14px; font-size:11px; margin:0; text-decoration:none; display:inline-flex; align-items:center; gap:6px; flex-shrink:0;">
           <span>📲</span> Download APK
         </a>
       </div>

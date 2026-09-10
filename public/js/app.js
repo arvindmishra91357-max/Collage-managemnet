@@ -77,7 +77,7 @@ const App = {
             </div>
 
             <div style="margin-top:14px; text-align:center; display:flex; flex-direction:column; gap:8px; align-items:center;">
-              <a href="/download/apk" download="MGI_Student_Portal.apk" onclick="App.handleAPKDownload(event)" style="display:inline-flex; align-items:center; gap:8px; padding:8px 16px; font-size:12px; font-weight:700; text-decoration:none; border-radius:var(--radius-full); background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.35); color:#38bdf8; transition:all 0.2s ease;">
+              <a href="/apk/MGI_Student_Portal.apk" download="MGI_Student_Portal.apk" onclick="App.handleAPKDownload(event)" style="display:inline-flex; align-items:center; gap:8px; padding:8px 16px; font-size:12px; font-weight:700; text-decoration:none; border-radius:var(--radius-full); background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.35); color:#38bdf8; transition:all 0.2s ease;">
                 <span>🤖</span> <span>Download Android App (.apk)</span>
               </a>
               <button type="button" onclick="App.openServerConfigModal()" style="background:transparent; border:none; color:var(--text-muted); font-size:11px; cursor:pointer; display:inline-flex; align-items:center; gap:4px; text-decoration:underline;">
@@ -91,7 +91,7 @@ const App = {
   },
 
   handleAPKDownload(e) {
-    this.showToast('Starting Official Android APK download (464 KB)... Check browser notifications/downloads.', 'info');
+    this.showToast('Starting Official Android APK download (158 KB)... Check browser downloads.', 'info');
   },
 
   openServerConfigModal() {
