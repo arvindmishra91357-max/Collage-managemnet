@@ -403,6 +403,7 @@ const App = {
         history.pushState({ role: 'ADMIN', section: 'dashboard' }, '', '#admin-dashboard');
         return;
       }
+    }
   },
 
   showForgotPasswordModal() {
