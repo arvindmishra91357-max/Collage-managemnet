@@ -66,9 +66,12 @@ const App = {
                 <span class="input-icon">🔒</span>
                 <input type="password" id="login-password" class="form-control" placeholder="••••••••" autocomplete="current-password" required />
               </div>
+              <div style="display:flex; justify-content:flex-end; margin-top:6px;">
+                <a href="javascript:void(0)" onclick="App.showForgotPasswordModal()" style="color:#38bdf8; font-size:12px; font-weight:600; text-decoration:none;">Forgot Password?</a>
+              </div>
             </div>
 
-            <button type="submit" class="btn-primary" id="login-submit-btn" style="margin-top:18px; font-weight:800; letter-spacing:0.5px; height:46px;">
+            <button type="submit" class="btn-primary" id="login-submit-btn" style="margin-top:14px; font-weight:800; letter-spacing:0.5px; height:46px;">
               Sign In to Portal
             </button>
 
@@ -80,6 +83,9 @@ const App = {
               <a href="/apk/MGI_Student_Portal.apk" download="MGI_Student_Portal.apk" onclick="App.handleAPKDownload(event)" style="display:inline-flex; align-items:center; gap:8px; padding:8px 16px; font-size:12px; font-weight:700; text-decoration:none; border-radius:var(--radius-full); background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.35); color:#38bdf8; transition:all 0.2s ease;">
                 <span>🤖</span> <span>Download Android App (.apk)</span>
               </a>
+              <button type="button" onclick="App.openServerConfigModal()" style="background:transparent; border:none; color:var(--text-muted); font-size:11.5px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; text-decoration:underline;">
+                <span>⚙️</span> <span>Server Connection Settings</span>
+              </button>
             </div>
           </form>
         </div>
@@ -88,9 +94,92 @@ const App = {
   },
 
   handleAPKDownload(e) {
-    this.showToast('Starting Official Android APK download (158 KB)... Check browser downloads.', 'info');
+    this.showToast('Starting Official Android APK download (169 KB)... Check browser downloads.', 'info');
   },
 
+  openServerConfigModal() {
+    const existing = document.getElementById('server-config-modal');
+    if (existing) existing.remove();
+
+    const currentUrl = API.baseUrl || 'https://mishra-group-institute-portal.onrender.com';
+
+    const modal = document.createElement('div');
+    modal.className = 'modal-backdrop';
+    modal.id = 'server-config-modal';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+      <div class="modal-card" style="max-width:440px; padding:24px;" onclick="event.stopPropagation()">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+          <h3 style="font-size:16px; font-weight:800; display:flex; align-items:center; gap:8px; margin:0;">
+            <span>🌐</span> Server Connection Settings
+          </h3>
+          <button class="icon-btn" onclick="document.getElementById('server-config-modal').remove()" style="width:28px; height:28px;">✕</button>
+        </div>
+
+        <p style="font-size:12px; color:var(--text-secondary); line-height:1.5; margin-bottom:14px;">
+          The portal automatically connects to your live Cloud Backend. If you have deployed a custom backend (Render, Railway, or Localhost), specify its URL below.
+        </p>
+
+        <div class="form-group" style="margin-bottom:12px;">
+          <label class="form-label" style="font-size:12px;">Server API Base URL</label>
+          <input type="url" id="cfg-server-url" class="form-control" value="${currentUrl}" placeholder="https://your-backend.onrender.com" style="font-family:monospace; font-size:12px; padding:8px 12px;" />
+        </div>
+
+        <div id="cfg-ping-result" style="font-size:12px; margin-bottom:14px; padding:8px 12px; border-radius:6px; background:rgba(255,255,255,0.04); display:flex; align-items:center; justify-content:space-between;">
+          <span id="cfg-ping-status" style="color:var(--text-muted);">Status: Untested</span>
+          <button type="button" class="btn-sec" onclick="App.testServerConnection()" style="padding:4px 10px; font-size:11px; margin:0;">Ping Server</button>
+        </div>
+
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+          <button type="button" class="btn-sec" onclick="App.resetServerConfig()" style="padding:8px 14px; font-size:12px; margin:0;">Reset Default</button>
+          <button type="button" class="btn-primary" onclick="App.saveServerConfig()" style="padding:8px 18px; font-size:12px; margin:0; width:auto;">Save & Connect</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  },
+
+  async testServerConnection() {
+    const statusEl = document.getElementById('cfg-ping-status');
+    const inputEl = document.getElementById('cfg-server-url');
+    if (!statusEl || !inputEl) return;
+
+    statusEl.innerHTML = '⏳ Testing connection...';
+    const target = inputEl.value.trim();
+    const res = await API.pingServer(target);
+
+    if (res.online) {
+      statusEl.innerHTML = `<span style="color:#34d399; font-weight:700;">🟢 Online (${res.latency}ms)</span>`;
+      this.showToast(`Server is online and reachable (${res.latency}ms)!`, 'success');
+    } else {
+      statusEl.innerHTML = `<span style="color:#f87171; font-weight:700;">🔴 Unreachable (${res.status || 'Offline'})</span>`;
+      this.showToast('Could not reach backend server. Netlify offline failsafe is active.', 'warning');
+    }
+  },
+
+  saveServerConfig() {
+    const inputEl = document.getElementById('cfg-server-url');
+    if (!inputEl) return;
+    const url = inputEl.value.trim();
+    if (!url) {
+      this.showToast('Please enter a valid URL.', 'error');
+      return;
+    }
+    API.setBaseUrl(url);
+    this.showToast(`Backend server set to: ${url}`, 'success');
+    const modal = document.getElementById('server-config-modal');
+    if (modal) modal.remove();
+  },
+
+  resetServerConfig() {
+    try {
+      localStorage.removeItem('mgi_api_server_url');
+    } catch (e) {}
+    API.baseUrl = 'https://mishra-group-institute-portal.onrender.com';
+    const inputEl = document.getElementById('cfg-server-url');
+    if (inputEl) inputEl.value = API.baseUrl;
+    this.showToast('Server URL reset to default cloud backend.', 'info');
+  },
 
   async handleUnifiedLogin() {
     const identifier = document.getElementById('login-identifier').value.trim();
@@ -123,13 +212,13 @@ const App = {
         try {
           history.replaceState({ role: 'ADMIN', section: 'dashboard' }, '', '#admin-dashboard');
         } catch (e) {}
-        this.showToast('Admin login verified. Opening Admin Dashboard...', 'success');
+        this.showToast(res.isOffline ? 'Admin login verified (Netlify Standalone Mode).' : 'Admin login verified. Opening Admin Dashboard...', 'success');
         AdminApp.init(res.user, 'dashboard');
       } else {
         try {
           history.replaceState({ role: 'STUDENT', tab: 'home' }, '', '#home');
         } catch (e) {}
-        this.showToast(`Welcome back, ${res.user.name}!`, 'success');
+        this.showToast(`Welcome back, ${res.user.name}!${res.isOffline ? ' (Failsafe Active)' : ''}`, 'success');
         StudentApp.init(res.user, 'home');
       }
     } else {
@@ -314,6 +403,108 @@ const App = {
         history.pushState({ role: 'ADMIN', section: 'dashboard' }, '', '#admin-dashboard');
         return;
       }
+  },
+
+  showForgotPasswordModal() {
+    const existing = document.getElementById('forgot-password-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'forgot-password-modal';
+    modal.className = 'modal-backdrop active';
+    modal.innerHTML = `
+      <div class="modal-card" style="max-width:420px; width:92%; margin:auto; background:var(--bg-card); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:24px; box-shadow:var(--shadow-lg); animation:fadeIn 0.2s ease;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+          <div>
+            <h3 style="margin:0; font-size:18px; font-weight:800; color:var(--text-primary);">Reset Portal Password</h3>
+            <p style="margin:4px 0 0 0; font-size:12px; color:var(--text-muted);">Verify your Student ID & Registered Mobile</p>
+          </div>
+          <button type="button" onclick="document.getElementById('forgot-password-modal').remove()" style="background:none; border:none; color:var(--text-muted); font-size:22px; cursor:pointer;">&times;</button>
+        </div>
+
+        <form id="forgot-password-form" onsubmit="event.preventDefault(); App.handleForgotPasswordSubmit();">
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label" style="font-size:12px;">Official UG ID *</label>
+            <div class="input-container">
+              <span class="input-icon">🆔</span>
+              <input type="text" id="fp-ug-id" class="form-control" placeholder="e.g. 26UG033181" required style="font-size:13px;" />
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label" style="font-size:12px;">Registered Mobile Number *</label>
+            <div class="input-container">
+              <span class="input-icon">📱</span>
+              <input type="tel" id="fp-phone" class="form-control" placeholder="10-digit registered number" required style="font-size:13px;" />
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label" style="font-size:12px;">New Password (min 6 chars) *</label>
+            <div class="input-container">
+              <span class="input-icon">🔒</span>
+              <input type="password" id="fp-new-pass" class="form-control" placeholder="••••••••" required style="font-size:13px;" />
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:18px;">
+            <label class="form-label" style="font-size:12px;">Confirm New Password *</label>
+            <div class="input-container">
+              <span class="input-icon">🔒</span>
+              <input type="password" id="fp-confirm-pass" class="form-control" placeholder="••••••••" required style="font-size:13px;" />
+            </div>
+          </div>
+
+          <div style="display:flex; gap:10px;">
+            <button type="button" onclick="document.getElementById('forgot-password-modal').remove()" class="btn-secondary" style="flex:1; height:42px; font-weight:600;">Cancel</button>
+            <button type="submit" id="fp-submit-btn" class="btn-primary" style="flex:2; height:42px; font-weight:700;">Reset Password</button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+  },
+
+  async handleForgotPasswordSubmit() {
+    const ugId = document.getElementById('fp-ug-id').value.trim();
+    const phone = document.getElementById('fp-phone').value.trim();
+    const newPass = document.getElementById('fp-new-pass').value;
+    const confirmPass = document.getElementById('fp-confirm-pass').value;
+    const btn = document.getElementById('fp-submit-btn');
+
+    if (!ugId || !phone || !newPass) {
+      this.showToast('Please fill in all fields.', 'error');
+      return;
+    }
+
+    if (newPass.length < 6) {
+      this.showToast('Password must be at least 6 characters.', 'error');
+      return;
+    }
+
+    if (newPass !== confirmPass) {
+      this.showToast('Passwords do not match.', 'error');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerText = 'Verifying...';
+
+    const res = await API.forgotPassword(ugId, phone, newPass);
+    btn.disabled = false;
+    btn.innerText = 'Reset Password';
+
+    if (res.success) {
+      this.showToast('Password reset successfully! Please log in.', 'success');
+      const modal = document.getElementById('forgot-password-modal');
+      if (modal) modal.remove();
+      const loginIdInput = document.getElementById('login-identifier');
+      if (loginIdInput) loginIdInput.value = ugId;
+      const loginPassInput = document.getElementById('login-password');
+      if (loginPassInput) loginPassInput.focus();
+    } else {
+      this.showToast(res.message || 'Failed to reset password.', 'error');
     }
   }
 };

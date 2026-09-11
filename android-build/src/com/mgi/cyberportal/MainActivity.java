@@ -41,7 +41,7 @@ public class MainActivity extends Activity {
     private static final int PERMISSION_REQUEST_CODE = 1002;
     private static final String PREFS_NAME = "MGI_Portal_Prefs";
     private static final String KEY_SERVER_URL = "server_url";
-    private static final String DEFAULT_URL = "http://10.0.2.2:3000";
+    private static final String DEFAULT_URL = "https://mishra-group-institute-portal.onrender.com";
 
     @Override
     @SuppressLint("SetJavaScriptEnabled")

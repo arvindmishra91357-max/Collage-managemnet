@@ -82,7 +82,33 @@ const StudentApp = {
       this.setupNotificationBadge();
     });
 
-    // 3. Resilient background interval heartbeat (every 15s)
+    // 3. Online/Offline network state synchronization
+    window.addEventListener('online', () => {
+      const b = document.getElementById('offline-status-banner');
+      if (b) b.style.display = 'none';
+      if (window.App && window.App.showToast) {
+        window.App.showToast('🟢 Connection restored. Live synchronization active.', 'success');
+      }
+      this.refreshCurrentTabSilent();
+      this.setupNotificationBadge();
+      this.initRealtimeSSE();
+    });
+
+    window.addEventListener('offline', () => {
+      const b = document.getElementById('offline-status-banner');
+      if (b) b.style.display = 'block';
+      if (window.App && window.App.showToast) {
+        window.App.showToast('📡 Internet offline. Displaying cached data.', 'warning');
+      }
+    });
+
+    // Initial check
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      const b = document.getElementById('offline-status-banner');
+      if (b) b.style.display = 'block';
+    }
+
+    // 4. Resilient background interval heartbeat (every 15s)
     if (this.backgroundSyncInterval) clearInterval(this.backgroundSyncInterval);
     this.backgroundSyncInterval = setInterval(() => {
       this.setupNotificationBadge();
@@ -121,8 +147,24 @@ const StudentApp = {
     const token = API.getToken();
     if (!token) return;
 
+    const triggerPushNotification = (title, body) => {
+      try {
+        if ('Notification' in window) {
+          if (Notification.permission === 'granted') {
+            new Notification(title, { body, icon: './icons/icon-192.svg' });
+          } else if (Notification.permission !== 'denied') {
+            Notification.requestPermission().then(p => {
+              if (p === 'granted') new Notification(title, { body, icon: './icons/icon-192.svg' });
+            });
+          }
+        }
+        if ('vibrate' in navigator) navigator.vibrate([200, 100, 200]);
+      } catch (e) {}
+    };
+
     try {
-      const es = new EventSource('/api/realtime/events?token=' + encodeURIComponent(token));
+      const baseUrl = (API.baseUrl || '').replace(/\/+$/, '');
+      const es = new EventSource(`${baseUrl}/api/realtime/events?token=${encodeURIComponent(token)}`);
       es.onmessage = (e) => {
         try {
           const payload = JSON.parse(e.data);
@@ -147,7 +189,10 @@ const StudentApp = {
           }
           // 2. Class Notes Updates
           else if (payload.type === 'NOTES_UPDATED') {
-            if (payload.message) window.App.showToast(payload.message, 'info');
+            if (payload.message) {
+              window.App.showToast(payload.message, 'info');
+              triggerPushNotification('📚 New Study Notes', payload.message);
+            }
             if (this.currentTab === 'study') {
               this.loadStudySubTab(this.currentStudySubTab || 'notes');
             } else if (this.currentTab === 'home') {
@@ -157,7 +202,10 @@ const StudentApp = {
           }
           // 3. Study Material Updates
           else if (payload.type === 'MATERIAL_UPDATED') {
-            if (payload.message) window.App.showToast(payload.message, 'info');
+            if (payload.message) {
+              window.App.showToast(payload.message, 'info');
+              triggerPushNotification('📖 New Study Material', payload.message);
+            }
             if (this.currentTab === 'study') {
               this.loadStudySubTab(this.currentStudySubTab || 'material');
             } else if (this.currentTab === 'home') {
@@ -167,7 +215,10 @@ const StudentApp = {
           }
           // 4. Assignments Updates
           else if (payload.type === 'ASSIGNMENT_UPDATED') {
-            if (payload.message) window.App.showToast(payload.message, 'info');
+            if (payload.message) {
+              window.App.showToast(payload.message, 'info');
+              triggerPushNotification('📝 New Assignment', payload.message);
+            }
             if (this.currentTab === 'study') {
               this.loadStudySubTab(this.currentStudySubTab || 'assignments');
             } else if (this.currentTab === 'home') {
@@ -177,7 +228,10 @@ const StudentApp = {
           }
           // 5. PYQs / Question Papers Updates
           else if (payload.type === 'PYQ_UPDATED') {
-            if (payload.message) window.App.showToast(payload.message, 'info');
+            if (payload.message) {
+              window.App.showToast(payload.message, 'info');
+              triggerPushNotification('📄 New Question Paper', payload.message);
+            }
             if (this.currentTab === 'study') {
               this.loadStudySubTab(this.currentStudySubTab || 'pyqs');
             } else if (this.currentTab === 'home') {
@@ -187,7 +241,10 @@ const StudentApp = {
           }
           // 6. Announcements / Notices
           else if (payload.type === 'NOTICES_UPDATED') {
-            if (payload.message) window.App.showToast(payload.message, 'info');
+            if (payload.message) {
+              window.App.showToast(payload.message, 'info');
+              triggerPushNotification('📢 Important Announcement', payload.message);
+            }
             if (this.currentTab === 'home') {
               this.refreshCurrentTabSilent();
             }
@@ -199,7 +256,10 @@ const StudentApp = {
           else if (payload.type === 'RESULTS_UPDATED') {
             const myUgid = (this.currentUser && this.currentUser.ug_id) ? this.currentUser.ug_id.toUpperCase() : '';
             if (!payload.target_ug_id || payload.target_ug_id.toUpperCase() === myUgid) {
-              if (payload.message) window.App.showToast(payload.message, 'success');
+              if (payload.message) {
+                window.App.showToast(payload.message, 'success');
+                triggerPushNotification('🏆 Examination Result Updated', payload.message);
+              }
               if (this.currentTab === 'profile') {
                 this.refreshCurrentTabSilent();
               } else if (this.currentTab === 'home') {
@@ -210,7 +270,9 @@ const StudentApp = {
           // 8. Timetable Updates & Room Changes
           else if (payload.type === 'TIMETABLE_CHANGED') {
             const batchInfo = payload.batch ? ` [${payload.batch}]` : '';
-            window.App.showToast(`🔔 Room Changed: ${payload.subject} moved to Room ${payload.new_room}${batchInfo}`, 'info');
+            const msg = `Room Changed: ${payload.subject} moved to Room ${payload.new_room}${batchInfo}`;
+            window.App.showToast(`🔔 ${msg}`, 'info');
+            triggerPushNotification('🚨 Timetable Notice: Room Changed', msg);
             if (this.currentTab === 'home') {
               this.refreshCurrentTabSilent();
             } else if (this.currentTab === 'timetable') {
@@ -219,6 +281,7 @@ const StudentApp = {
             this.setupNotificationBadge();
           }
           else if (payload.type === 'TIMETABLE_CANCELLED' || payload.type === 'TIMETABLE_REVERTED' || payload.type === 'TIMETABLE_UPDATED') {
+            triggerPushNotification('📅 Timetable Updated', 'Class schedule has been updated.');
             if (this.currentTab === 'home') {
               this.refreshCurrentTabSilent();
             } else if (this.currentTab === 'timetable') {
@@ -227,7 +290,10 @@ const StudentApp = {
           }
           // 9. Attendance Session & Records
           else if (payload.type === 'ATTENDANCE_SESSION_STARTED') {
-            if (payload.message) window.App.showToast(payload.message, 'info');
+            if (payload.message) {
+              window.App.showToast(payload.message, 'info');
+              triggerPushNotification('⚡ Live Attendance Session', payload.message);
+            }
             if (this.currentTab === 'attendance' || this.currentTab === 'home') {
               this.refreshCurrentTabSilent();
             }
@@ -294,24 +360,23 @@ const StudentApp = {
           </div>
         </header>
 
+        <!-- Offline Status Banner -->
+        <div id="offline-status-banner" style="display:none; background:linear-gradient(90deg, #f59e0b, #d97706); color:#000; font-size:12px; font-weight:800; text-align:center; padding:7px 14px; letter-spacing:0.3px;">
+          📡 Offline Mode • Showing Cached Data
+        </div>
+
         <!-- Main Dynamic Tab Container -->
         <main class="student-content" id="student-main-content">
           <!-- Dynamic Views Loaded Here -->
         </main>
 
-        <!-- Bottom Navigation Bar -->
+        <!-- Bottom Navigation Bar (1. Home, 2. Timetable, 3. Attendance, 4. Study, 5. Profile) -->
         <nav class="bottom-nav-bar">
           <button class="bottom-nav-item active" data-tab="home">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
             </svg>
             <span>Home</span>
-          </button>
-          <button class="bottom-nav-item" data-tab="study">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-            </svg>
-            <span>Study</span>
           </button>
           <button class="bottom-nav-item" data-tab="timetable">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -324,6 +389,12 @@ const StudentApp = {
               <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
             </svg>
             <span>Attendance</span>
+          </button>
+          <button class="bottom-nav-item" data-tab="study">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+            <span>Study</span>
           </button>
           <button class="bottom-nav-item" data-tab="profile">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2277,8 +2348,11 @@ const StudentApp = {
         </a>
       </div>
 
-      <!-- App Controls (Theme & Logout) -->
+      <!-- App Controls (Password, Theme & Logout) -->
       <div style="display:flex; flex-direction:column; gap:10px;">
+        <button class="btn-primary" onclick="StudentApp.openChangePasswordModal()" style="background:var(--bg-card); border:1px solid rgba(56,189,248,0.3); color:#38bdf8;">
+          🔐 Change Account Password
+        </button>
         <button class="btn-primary" onclick="window.App.toggleTheme()" style="background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-primary);">
           🌓 Toggle Light / Dark Theme
         </button>
@@ -2287,6 +2361,90 @@ const StudentApp = {
         </button>
       </div>
     `;
+  },
+
+  openChangePasswordModal() {
+    try {
+      history.pushState({ role: 'STUDENT', modal: 'change-pass-modal' }, '', '#' + this.currentTab + '-password');
+    } catch (e) {}
+
+    const modalContainer = document.getElementById('student-modal-container');
+    modalContainer.innerHTML = `
+      <div class="modal-backdrop" id="change-pass-modal" onclick="if(event.target===this)StudentApp.closeModal('change-pass-modal')">
+        <div class="modal-card" onclick="event.stopPropagation()" style="max-width:400px; width:92%; margin:auto; background:var(--bg-card); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:24px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+            <div>
+              <h3 style="margin:0; font-size:16px; font-weight:800; color:var(--text-primary);">Change Password</h3>
+              <p style="margin:4px 0 0 0; font-size:12px; color:var(--text-muted);">Ensure your account remains secure</p>
+            </div>
+            <button type="button" onclick="StudentApp.closeModal('change-pass-modal')" style="background:none; border:none; color:var(--text-muted); font-size:20px; cursor:pointer;">&times;</button>
+          </div>
+          <form onsubmit="event.preventDefault(); StudentApp.handleChangePasswordSubmit();">
+            <div class="form-group" style="margin-bottom:12px;">
+              <label class="form-label" style="font-size:12px;">Current Password *</label>
+              <div class="input-container">
+                <span class="input-icon">🔒</span>
+                <input type="password" id="cp-current-pass" class="form-control" placeholder="••••••••" required style="font-size:13px;" />
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom:12px;">
+              <label class="form-label" style="font-size:12px;">New Password (min 6 chars) *</label>
+              <div class="input-container">
+                <span class="input-icon">🔑</span>
+                <input type="password" id="cp-new-pass" class="form-control" placeholder="••••••••" required style="font-size:13px;" />
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom:18px;">
+              <label class="form-label" style="font-size:12px;">Confirm New Password *</label>
+              <div class="input-container">
+                <span class="input-icon">🔑</span>
+                <input type="password" id="cp-confirm-pass" class="form-control" placeholder="••••••••" required style="font-size:13px;" />
+              </div>
+            </div>
+            <div style="display:flex; gap:10px;">
+              <button type="button" onclick="StudentApp.closeModal('change-pass-modal')" class="btn-secondary" style="flex:1; height:40px; font-weight:600;">Cancel</button>
+              <button type="submit" id="cp-submit-btn" class="btn-primary" style="flex:2; height:40px; font-weight:700;">Update Password</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+  },
+
+  async handleChangePasswordSubmit() {
+    const currentPass = document.getElementById('cp-current-pass').value;
+    const newPass = document.getElementById('cp-new-pass').value;
+    const confirmPass = document.getElementById('cp-confirm-pass').value;
+    const btn = document.getElementById('cp-submit-btn');
+
+    if (!currentPass || !newPass) {
+      window.App.showToast('Please enter both current and new password.', 'error');
+      return;
+    }
+
+    if (newPass.length < 6) {
+      window.App.showToast('New password must be at least 6 characters.', 'error');
+      return;
+    }
+
+    if (newPass !== confirmPass) {
+      window.App.showToast('New passwords do not match.', 'error');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerText = 'Updating...';
+
+    const res = await API.changePassword(currentPass, newPass);
+    btn.disabled = false;
+    btn.innerText = 'Update Password';
+
+    if (res.success) {
+      window.App.showToast('Password updated successfully!', 'success');
+      this.closeModal('change-pass-modal');
+    } else {
+      window.App.showToast(res.message || 'Failed to update password.', 'error');
+    }
   },
 
   // Self-Service Profile Photo Upload Modal (Requirement #11)

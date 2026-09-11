@@ -2,7 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const db = require('../db');
 const realtime = require('../realtime');
-const { formatBytes, getMimeType } = require('../services/storageService');
+const { formatBytes, getMimeType, persistUploadedFile, retrieveFile } = require('../services/storageService');
 
 // ==================== CLASS NOTES ====================
 
@@ -67,6 +67,11 @@ async function uploadClassNote(req, res) {
         subject, unit, chapter, topic, title, description, file_url, file_name, file_size, file_type, uploaded_by
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Admin')
     `, [subject, unit, chapter || '', topic || '', title, description || '', fileUrl, fileName, fileSize, fileType]);
+
+    // Persist file into database / cloud storage
+    if (req.file) {
+      await persistUploadedFile(req.file, fileUrl);
+    }
 
     // Create automated notification for students
     await db.run(`
@@ -168,6 +173,11 @@ async function uploadStudyMaterial(req, res) {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Admin')
     `, [subject, title, description || '', category || 'REFERENCE', fileUrl, fileName, fileSize, fileType]);
 
+    // Persist file into database / cloud storage
+    if (req.file) {
+      await persistUploadedFile(req.file, fileUrl);
+    }
+
     realtime.broadcastEvent({
       type: 'MATERIAL_UPDATED',
       subject,
@@ -252,6 +262,11 @@ async function createAssignment(req, res) {
         subject, title, description, due_date, max_marks, attachment_url, attachment_name, attachment_size
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `, [subject, title, description || '', due_date, max_marks ? parseInt(max_marks, 10) : 100, attachmentUrl, attachmentName, attachmentSize]);
+
+    // Persist file into database / cloud storage
+    if (req.file && attachmentUrl) {
+      await persistUploadedFile(req.file, attachmentUrl);
+    }
 
     // Create Notification
     await db.run(`
@@ -352,6 +367,11 @@ async function uploadQuestionPaper(req, res) {
         subject, exam_name, semester, academic_year, file_url, file_name, file_size
       ) VALUES (?, ?, ?, ?, ?, ?, ?)
     `, [subject, exam_name, semester || '3rd Semester', academic_year || '2026-27', fileUrl, fileName, fileSize]);
+
+    // Persist file into database / cloud storage
+    if (req.file) {
+      await persistUploadedFile(req.file, fileUrl);
+    }
 
     realtime.broadcastEvent({
       type: 'PYQ_UPDATED',
@@ -533,7 +553,7 @@ async function getSubjectStudyHub(req, res) {
   }
 }
 
-// 21. Download Academic File Handler (Forces correct attachment name & MIME format)
+// 21. Download Academic File Handler (Forces correct attachment name & MIME format, with persistent recovery)
 async function downloadAcademicFile(req, res) {
   try {
     const fileRelPath = req.query.file;
@@ -541,18 +561,16 @@ async function downloadAcademicFile(req, res) {
       return res.status(400).json({ success: false, message: 'File path parameter is required.' });
     }
 
-    // Sanitize path against directory traversal
-    const safePath = path.normalize(fileRelPath).replace(/^(\.\.[\/\\])+/, '').replace(/^[\\\/]+/, '');
-    const fullPath = path.join(__dirname, '..', '..', safePath);
-
-    if (!fs.existsSync(fullPath)) {
-      console.warn('[AcademicDownload] Requested file does not exist on disk:', fullPath);
+    const retrieved = await retrieveFile(fileRelPath);
+    if (!retrieved.found) {
+      console.warn('[AcademicDownload] Requested file does not exist on disk or DB:', fileRelPath);
       return res.status(404).json({
         success: false,
         message: 'The requested academic document was not found on server storage.'
       });
     }
 
+    const fullPath = retrieved.path;
     const ext = path.extname(fullPath).toLowerCase();
     let downloadName = req.query.name ? path.basename(req.query.name) : path.basename(fullPath);
 
@@ -561,7 +579,7 @@ async function downloadAcademicFile(req, res) {
       downloadName += ext;
     }
 
-    const mimeType = getMimeType(ext);
+    const mimeType = retrieved.mimeType || getMimeType(ext);
     res.setHeader('Content-Type', mimeType);
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(downloadName)}"`);
 

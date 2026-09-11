@@ -915,32 +915,69 @@ const AdminApp = {
   },
 
   // ==================== 5. MANUAL ATTENDANCE (Requirement #29, #42) ====================
+  // ==================== 5. MANUAL ATTENDANCE (Requirement #29, #42) ====================
   async renderManualAttendance(container) {
     const studentsRes = await API.getStudents();
-    const students = studentsRes.success ? studentsRes.data : [];
+    const students = studentsRes.success && Array.isArray(studentsRes.data) ? studentsRes.data : [];
     const todayStr = new Date().toISOString().split('T')[0];
 
     container.innerHTML = `
       <div class="glass-card" style="padding:22px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
           <div>
-            <h3 style="font-size:17px; font-weight:800;">✍️ Manual Attendance Register</h3>
-            <p style="font-size:12px; color:var(--text-secondary);">Manual fallback with automatic audit logging</p>
+            <h3 style="font-size:18px; font-weight:800; display:flex; align-items:center; gap:8px;">
+              <span>✍️</span> Manual Attendance Register
+            </h3>
+            <p style="font-size:12px; color:var(--text-secondary); margin-top:2px;">
+              Division 3CYBER7 • Full Roster (${students.length} Registered Students)
+            </p>
           </div>
-          <div style="display:flex; gap:8px;">
-            <input type="date" id="manual-date" class="form-control" value="${todayStr}" style="padding:6px 12px; font-size:12px;" />
-            <select id="manual-subject" class="form-control" style="padding:6px 12px; font-size:12px;">
-              <option value="DBMS">DBMS</option>
-              <option value="NCS">NCS</option>
-              <option value="DSA">DSA</option>
-              <option value="JAVA">JAVA</option>
-              <option value="COMA">COMA</option>
-              <option value="DM">DM</option>
-              <option value="FCS">FCS</option>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            <input type="date" id="manual-date" class="form-control" value="${todayStr}" style="padding:7px 12px; font-size:12px; width:auto;" />
+            <select id="manual-subject" class="form-control" style="padding:7px 12px; font-size:12px; width:auto; font-weight:700;">
+              <option value="DBMS">DBMS - Database Management</option>
+              <option value="NCS">NCS - Network & Cyber Security</option>
+              <option value="DSA">DSA - Data Structures & Algorithms</option>
+              <option value="JAVA">JAVA - OOP with Java</option>
+              <option value="COMA">COMA - Comp Org & Microprocessor</option>
+              <option value="DM">DM - Discrete Mathematics</option>
+              <option value="FCS">FCS - Fundamentals of Cyber Sec</option>
+              <option value="DBMS Lab">DBMS Lab (Practical)</option>
+              <option value="NCS Lab">NCS Lab (Practical)</option>
+              <option value="DSA Lab">DSA Lab (Practical)</option>
+              <option value="JAVA Lab">JAVA Lab (Practical)</option>
+              <option value="COMA Lab">COMA Lab (Practical)</option>
             </select>
-            <button class="btn-primary" onclick="AdminApp.saveManualAttendanceRoster()" style="width:auto; padding:8px 18px; margin-top:0; font-size:13px;">
+            <select id="manual-batch-filter" class="form-control" onchange="AdminApp.filterManualRoster(this.value)" style="padding:7px 12px; font-size:12px; width:auto; border-color:#38bdf8;">
+              <option value="ALL">All Batches (Roll 1–66)</option>
+              <option value="Batch 1">Batch 1 Only (Roll 1–30)</option>
+              <option value="Batch 2">Batch 2 Only (Roll 31–66)</option>
+            </select>
+            <button class="btn-primary" onclick="AdminApp.saveManualAttendanceRoster()" style="width:auto; padding:8px 20px; margin-top:0; font-size:13px; font-weight:800; background:linear-gradient(135deg, #10b981, #059669);">
               💾 SAVE ATTENDANCE
             </button>
+          </div>
+        </div>
+
+        <!-- Controls Toolbar: Search & Quick Actions & Counter Badges -->
+        <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.03); border:1px solid var(--border-color); border-radius:10px; padding:10px 14px; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+          <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:220px;">
+            <span style="font-size:14px; color:var(--text-muted);">🔍</span>
+            <input type="text" id="manual-search-box" class="form-control" placeholder="Search student name, roll number, or UG ID..." oninput="AdminApp.searchManualRoster(this.value)" style="padding:6px 12px; font-size:12px; flex:1; max-width:320px;" />
+          </div>
+
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <span style="font-size:11px; color:var(--text-muted); font-weight:700;">QUICK ACTIONS:</span>
+            <button type="button" class="btn-sec" onclick="AdminApp.markAllManualStatus('PRESENT')" style="padding:5px 12px; font-size:11px; font-weight:700; color:#34d399; border-color:rgba(52,211,153,0.3);">✓ All Present</button>
+            <button type="button" class="btn-sec" onclick="AdminApp.markAllManualStatus('ABSENT')" style="padding:5px 12px; font-size:11px; font-weight:700; color:#f87171; border-color:rgba(248,113,113,0.3);">✕ All Absent</button>
+            <button type="button" class="btn-sec" onclick="AdminApp.markAllManualStatus('LEAVE')" style="padding:5px 12px; font-size:11px; font-weight:700; color:#fbbf24; border-color:rgba(251,191,36,0.3);">🏖️ All Leave</button>
+          </div>
+
+          <div style="display:flex; gap:10px; align-items:center; font-size:12px; font-weight:700;">
+            <span style="background:rgba(255,255,255,0.06); padding:4px 10px; border-radius:6px;">Visible: <strong id="manual-stat-total">${students.length}</strong></span>
+            <span style="background:rgba(52,211,153,0.12); color:#34d399; padding:4px 10px; border-radius:6px;">Present: <strong id="manual-stat-present">${students.length}</strong></span>
+            <span style="background:rgba(248,113,113,0.12); color:#f87171; padding:4px 10px; border-radius:6px;">Absent: <strong id="manual-stat-absent">0</strong></span>
+            <span style="background:rgba(251,191,36,0.12); color:#fbbf24; padding:4px 10px; border-radius:6px;">Leave: <strong id="manual-stat-leave">0</strong></span>
           </div>
         </div>
 
@@ -948,30 +985,33 @@ const AdminApp = {
           <table class="data-table" id="manual-roster-table">
             <thead>
               <tr>
-                <th>Roll</th>
-                <th>UG ID</th>
+                <th style="width:70px;">Roll No</th>
+                <th style="width:120px;">UG ID</th>
                 <th>Student Name</th>
-                <th>Batch</th>
-                <th>Mark Status</th>
-                <th>Remarks</th>
+                <th style="width:90px;">Batch</th>
+                <th style="width:230px;">Attendance Status</th>
+                <th style="min-width:140px;">Remarks</th>
               </tr>
             </thead>
             <tbody>
               ${students.map(s => `
-                <tr data-ugid="${s.ug_id}" data-name="${s.name}">
-                  <td>#${s.roll_number}</td>
+                <tr data-ugid="${s.ug_id}" data-name="${s.name.toLowerCase()}" data-roll="${s.roll_number}" data-batch="${s.batch}">
+                  <td><strong>#${s.roll_number}</strong></td>
                   <td><span style="font-family:monospace; color:#38bdf8; font-weight:700;">${s.ug_id}</span></td>
-                  <td>${s.name}</td>
+                  <td>
+                    <div style="font-weight:700; color:#ffffff;">${s.name}</div>
+                    ${s.is_cr === 1 ? `<span style="font-size:10px; color:#fbbf24; font-weight:800;">👑 Class Representative (${s.cr_batches || 'Both'})</span>` : ''}
+                  </td>
                   <td><span class="batch-badge ${s.batch === 'Batch 1' ? 'batch-1' : 'batch-2'}">${s.batch}</span></td>
                   <td>
                     <div style="display:flex; gap:6px;">
-                      <button class="status-toggle-btn active-present" data-ugid="${s.ug_id}" data-status="PRESENT" onclick="AdminApp.toggleStudentStatus('${s.ug_id}', 'PRESENT')">Present</button>
-                      <button class="status-toggle-btn" data-ugid="${s.ug_id}" data-status="ABSENT" onclick="AdminApp.toggleStudentStatus('${s.ug_id}', 'ABSENT')">Absent</button>
-                      <button class="status-toggle-btn" data-ugid="${s.ug_id}" data-status="LEAVE" onclick="AdminApp.toggleStudentStatus('${s.ug_id}', 'LEAVE')">Leave</button>
+                      <button type="button" class="status-toggle-btn active-present" data-ugid="${s.ug_id}" data-status="PRESENT" onclick="AdminApp.toggleStudentStatus('${s.ug_id}', 'PRESENT')">Present</button>
+                      <button type="button" class="status-toggle-btn" data-ugid="${s.ug_id}" data-status="ABSENT" onclick="AdminApp.toggleStudentStatus('${s.ug_id}', 'ABSENT')">Absent</button>
+                      <button type="button" class="status-toggle-btn" data-ugid="${s.ug_id}" data-status="LEAVE" onclick="AdminApp.toggleStudentStatus('${s.ug_id}', 'LEAVE')">Leave</button>
                     </div>
                   </td>
                   <td>
-                    <input type="text" class="form-control manual-remark-input" data-ugid="${s.ug_id}" placeholder="Remarks..." style="padding:4px 8px; font-size:11px;" />
+                    <input type="text" class="form-control manual-remark-input" data-ugid="${s.ug_id}" placeholder="Optional remarks..." style="padding:4px 8px; font-size:11px;" />
                   </td>
                 </tr>
               `).join('')}
@@ -980,6 +1020,54 @@ const AdminApp = {
         </div>
       </div>
     `;
+    this.updateManualCounters();
+  },
+
+  filterManualRoster(selectedBatch) {
+    const searchVal = (document.getElementById('manual-search-box')?.value || '').trim().toLowerCase();
+    const rows = document.querySelectorAll('#manual-roster-table tbody tr');
+    rows.forEach(row => {
+      const matchBatch = (selectedBatch === 'ALL' || row.dataset.batch === selectedBatch);
+      const matchSearch = !searchVal || 
+        row.dataset.name.includes(searchVal) || 
+        row.dataset.ugid.toLowerCase().includes(searchVal) || 
+        row.dataset.roll.includes(searchVal);
+      row.style.display = (matchBatch && matchSearch) ? '' : 'none';
+    });
+    this.updateManualCounters();
+  },
+
+  searchManualRoster(term) {
+    const searchVal = (term || '').trim().toLowerCase();
+    const batchFilter = document.getElementById('manual-batch-filter')?.value || 'ALL';
+    const rows = document.querySelectorAll('#manual-roster-table tbody tr');
+    rows.forEach(row => {
+      const matchBatch = (batchFilter === 'ALL' || row.dataset.batch === batchFilter);
+      const matchSearch = !searchVal || 
+        row.dataset.name.includes(searchVal) || 
+        row.dataset.ugid.toLowerCase().includes(searchVal) || 
+        row.dataset.roll.includes(searchVal);
+      row.style.display = (matchBatch && matchSearch) ? '' : 'none';
+    });
+    this.updateManualCounters();
+  },
+
+  markAllManualStatus(targetStatus) {
+    const rows = document.querySelectorAll('#manual-roster-table tbody tr');
+    rows.forEach(row => {
+      if (row.style.display !== 'none') {
+        const ugid = row.dataset.ugid;
+        row.querySelectorAll('.status-toggle-btn').forEach(btn => {
+          btn.className = 'status-toggle-btn';
+          if (btn.dataset.status === targetStatus) {
+            if (targetStatus === 'PRESENT') btn.classList.add('active-present');
+            if (targetStatus === 'ABSENT') btn.classList.add('active-absent');
+            if (targetStatus === 'LEAVE') btn.classList.add('active-leave');
+          }
+        });
+      }
+    });
+    this.updateManualCounters();
   },
 
   toggleStudentStatus(ugid, status) {
@@ -991,31 +1079,68 @@ const AdminApp = {
         if (status === 'LEAVE') btn.classList.add('active-leave');
       }
     });
+    this.updateManualCounters();
+  },
+
+  updateManualCounters() {
+    let total = 0;
+    let present = 0;
+    let absent = 0;
+    let leave = 0;
+
+    document.querySelectorAll('#manual-roster-table tbody tr').forEach(row => {
+      if (row.style.display !== 'none') {
+        total++;
+        const activeBtn = row.querySelector('.status-toggle-btn.active-present, .status-toggle-btn.active-absent, .status-toggle-btn.active-leave');
+        const status = activeBtn ? activeBtn.dataset.status : 'PRESENT';
+        if (status === 'PRESENT') present++;
+        else if (status === 'ABSENT') absent++;
+        else if (status === 'LEAVE') leave++;
+      }
+    });
+
+    const elTotal = document.getElementById('manual-stat-total');
+    const elPresent = document.getElementById('manual-stat-present');
+    const elAbsent = document.getElementById('manual-stat-absent');
+    const elLeave = document.getElementById('manual-stat-leave');
+
+    if (elTotal) elTotal.textContent = total;
+    if (elPresent) elPresent.textContent = present;
+    if (elAbsent) elAbsent.textContent = absent;
+    if (elLeave) elLeave.textContent = leave;
   },
 
   async saveManualAttendanceRoster() {
     const date = document.getElementById('manual-date').value;
     const subject = document.getElementById('manual-subject').value;
+    const batchFilter = document.getElementById('manual-batch-filter')?.value || 'ALL';
 
     const records = [];
     document.querySelectorAll('#manual-roster-table tbody tr').forEach(row => {
-      const ugid = row.dataset.ugid;
-      const name = row.dataset.name;
-      const activeBtn = row.querySelector('.status-toggle-btn.active-present, .status-toggle-btn.active-absent, .status-toggle-btn.active-leave');
-      const status = activeBtn ? activeBtn.dataset.status : 'PRESENT';
-      const remarkInput = row.querySelector('.manual-remark-input');
-      const remarks = remarkInput ? remarkInput.value : '';
+      if (row.style.display !== 'none') {
+        const ugid = row.dataset.ugid;
+        const name = row.querySelector('td:nth-child(3) div')?.textContent || row.dataset.name;
+        const activeBtn = row.querySelector('.status-toggle-btn.active-present, .status-toggle-btn.active-absent, .status-toggle-btn.active-leave');
+        const status = activeBtn ? activeBtn.dataset.status : 'PRESENT';
+        const remarkInput = row.querySelector('.manual-remark-input');
+        const remarks = remarkInput ? remarkInput.value : '';
 
-      records.push({
-        ug_id: ugid,
-        student_name: name,
-        status,
-        remarks
-      });
+        records.push({
+          ug_id: ugid,
+          student_name: name,
+          status,
+          remarks
+        });
+      }
     });
 
-    window.App.showToast('Saving manual attendance...', 'info');
-    const res = await API.saveManualAttendance({ date, subject, records });
+    if (records.length === 0) {
+      window.App.showToast('No students visible in the roster to save.', 'error');
+      return;
+    }
+
+    window.App.showToast(`Saving manual attendance for ${records.length} students...`, 'info');
+    const res = await API.saveManualAttendance({ date, subject, batch: batchFilter, records });
 
     if (res.success) {
       window.App.showToast(res.message, 'success');

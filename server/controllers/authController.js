@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const db = require('../db');
 const { generateToken } = require('../middleware/auth');
+const { persistUploadedFile } = require('../services/storageService');
 
 // 1. Student Login (Strictly UG ID + Password)
 async function studentLogin(req, res) {
@@ -198,6 +199,9 @@ async function uploadProfilePhoto(req, res) {
 
     await db.run("UPDATE students SET profile_photo_url = ?, updated_at = CURRENT_TIMESTAMP WHERE ug_id = ?", [photoUrl, ugId]);
 
+    // Persist photo to database / cloud storage
+    await persistUploadedFile(req.file, photoUrl);
+
     return res.json({
       success: true,
       message: 'Profile photo updated successfully.',
@@ -311,11 +315,113 @@ async function unifiedLogin(req, res) {
   }
 }
 
+// 6. Secure Password Change (Authenticated)
+async function changePassword(req, res) {
+  try {
+    const { current_password, new_password } = req.body;
+    if (!current_password || !new_password) {
+      return res.status(400).json({ success: false, message: 'Both current password and new password are required.' });
+    }
+
+    if (new_password.length < 6) {
+      return res.status(400).json({ success: false, message: 'New password must be at least 6 characters long.' });
+    }
+
+    if (req.user.role === 'STUDENT') {
+      const student = await db.get("SELECT * FROM students WHERE ug_id = ?", [req.user.ug_id]);
+      if (!student) {
+        return res.status(404).json({ success: false, message: 'Student account not found.' });
+      }
+
+      const isMatch = await bcrypt.compare(current_password, student.password_hash);
+      if (!isMatch) {
+        return res.status(400).json({ success: false, message: 'Current password is incorrect.' });
+      }
+
+      const newHash = await bcrypt.hash(new_password, 10);
+      await db.run("UPDATE students SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE ug_id = ?", [newHash, req.user.ug_id]);
+      await db.run("UPDATE users SET password_hash = ? WHERE ug_id = ?", [newHash, req.user.ug_id]);
+
+      return res.json({ success: true, message: 'Password changed successfully.' });
+    } else if (req.user.role === 'ADMIN') {
+      const admin = await db.get("SELECT * FROM users WHERE id = ? AND role = 'ADMIN'", [req.user.id]);
+      if (!admin) {
+        return res.status(404).json({ success: false, message: 'Admin account not found.' });
+      }
+
+      const isMatch = await bcrypt.compare(current_password, admin.password_hash);
+      if (!isMatch) {
+        return res.status(400).json({ success: false, message: 'Current admin password is incorrect.' });
+      }
+
+      const newHash = await bcrypt.hash(new_password, 10);
+      await db.run("UPDATE users SET password_hash = ? WHERE id = ?", [newHash, req.user.id]);
+
+      return res.json({ success: true, message: 'Admin password changed successfully.' });
+    }
+  } catch (err) {
+    console.error('[Auth] changePassword error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to update password.' });
+  }
+}
+
+// 7. Forgot Password / Identity Verification Reset
+async function forgotPassword(req, res) {
+  try {
+    const { ug_id, phone_number, new_password } = req.body;
+    const cleanUgId = (ug_id || '').toString().trim().toUpperCase();
+    const cleanPhone = (phone_number || '').toString().replace(/\D/g, '');
+
+    if (!cleanUgId || !cleanPhone || !new_password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide UG ID, registered Mobile Number, and your New Password.'
+      });
+    }
+
+    if (new_password.length < 6) {
+      return res.status(400).json({ success: false, message: 'New password must be at least 6 characters long.' });
+    }
+
+    const student = await db.get("SELECT * FROM students WHERE UPPER(ug_id) = ?", [cleanUgId]);
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: 'No student record found with the provided UG ID.'
+      });
+    }
+
+    const dbPhone = (student.phone_number || '').toString().replace(/\D/g, '');
+    const phoneMatches = dbPhone && (cleanPhone.endsWith(dbPhone.slice(-10)) || dbPhone.endsWith(cleanPhone.slice(-10)));
+
+    if (!phoneMatches) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mobile number does not match official college registration records for this UG ID.'
+      });
+    }
+
+    const newHash = await bcrypt.hash(new_password, 10);
+    await db.run("UPDATE students SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE ug_id = ?", [newHash, student.ug_id]);
+    await db.run("UPDATE users SET password_hash = ? WHERE ug_id = ?", [newHash, student.ug_id]);
+
+    return res.json({
+      success: true,
+      message: 'Password has been securely reset. You can now login with your new password.'
+    });
+  } catch (err) {
+    console.error('[Auth] forgotPassword error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to reset password.' });
+  }
+}
+
 module.exports = {
   unifiedLogin,
   studentLogin,
   adminLogin,
   getProfile,
-  uploadProfilePhoto
+  uploadProfilePhoto,
+  changePassword,
+  forgotPassword
 };
 

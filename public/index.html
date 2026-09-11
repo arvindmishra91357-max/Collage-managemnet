@@ -13,9 +13,9 @@
   <meta name="description" content="Official Student Web App & PWA for Mishra Group Institute B.Tech Cyber Security (Division 3CYBER7, Academic Year 2026-27)">
   
   <!-- Favicon and Manifest -->
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <link rel="apple-touch-icon" href="/icons/icon-192.svg">
-  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <link rel="apple-touch-icon" href="./icons/icon-192.svg">
+  <link rel="manifest" href="./manifest.json">
   
   <!-- Google Fonts: Outfit & Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -23,13 +23,13 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet">
   
   <!-- Main Stylesheet -->
-  <link rel="stylesheet" href="/css/style.css?v=5.0.0">
+  <link rel="stylesheet" href="./css/style.css?v=5.1.0">
   <script>
     // Force purge legacy service worker caches immediately
     if ('caches' in window) {
       caches.keys().then(function(keys) {
         keys.forEach(function(key) {
-          if (key !== 'mgi-cyber-portal-v5.0.0') {
+          if (key !== 'mgi-cyber-portal-v5.1.0') {
             caches.delete(key);
           }
         });
@@ -52,13 +52,13 @@
     }
   </style>
 
-  <!-- Application Logic Scripts (v5.0.0) -->
-  <script src="/js/qrcode.min.js?v=5.0.0"></script>
-  <script src="/js/jsqr.min.js?v=5.0.0"></script>
-  <script src="/js/api.js?v=5.0.0"></script>
-  <script src="/js/studentApp.js?v=5.0.0"></script>
-  <script src="/js/adminApp.js?v=5.0.0"></script>
-  <script src="/js/app.js?v=5.0.0"></script>
+  <!-- Application Logic Scripts (v5.1.0) -->
+  <script src="./js/qrcode.min.js?v=5.1.0"></script>
+  <script src="./js/jsqr.min.js?v=5.1.0"></script>
+  <script src="./js/api.js?v=5.1.0"></script>
+  <script src="./js/studentApp.js?v=5.1.0"></script>
+  <script src="./js/adminApp.js?v=5.1.0"></script>
+  <script src="./js/app.js?v=5.1.0"></script>
 
   <!-- Anti-Stuck Failsafe Recovery Timer -->
   <script>

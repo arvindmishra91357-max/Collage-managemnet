@@ -7,9 +7,11 @@ const helmet = require('helmet');
 const compression = require('compression');
 const multer = require('multer');
 
+const rateLimit = require('express-rate-limit');
+
 const db = require('./db');
 const { authenticateToken, requireAdmin, requireStudent } = require('./middleware/auth');
-const { uploadPhoto, uploadDocument, getMimeType } = require('./services/storageService');
+const { uploadPhoto, uploadDocument, getMimeType, retrieveFile } = require('./services/storageService');
 const { ensureSampleFiles } = require('./services/seedFiles');
 const realtime = require('./realtime');
 
@@ -46,8 +48,17 @@ app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads'), {
   }
 }));
 
-// Explicit 404 for missing upload files (Prevents SPA index.html fallback which causes .htm download extension bug)
-app.use('/uploads/*', (req, res) => {
+// Explicit 404 with persistent database recovery for missing upload files (Prevents SPA index.html fallback)
+app.use('/uploads/*', async (req, res) => {
+  try {
+    const rel = req.originalUrl.split('?')[0];
+    const retrieved = await retrieveFile(rel);
+    if (retrieved.found && retrieved.path && fs.existsSync(retrieved.path)) {
+      const mime = getMimeType(retrieved.path);
+      res.setHeader('Content-Type', mime);
+      return res.sendFile(retrieved.path);
+    }
+  } catch (e) {}
   res.status(404).json({ success: false, message: 'Requested document file not found on server.' });
 });
 
@@ -65,25 +76,47 @@ app.get(['/download/apk', '/apk/download', '/apk/MGI_Student_Portal.apk', '/MGI_
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
+// Rate Limiter for Authentication routes
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 30, // 30 requests per window
+  message: { success: false, message: 'Too many login attempts. Please try again after 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
 // ==================== API ROUTES ====================
 
-// 1. Health & Status
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'OK',
+// 1. Health & Status (Active DB Ping)
+app.get('/api/health', async (req, res) => {
+  let dbStatus = { alive: false, latencyMs: 0, engine: 'Unknown' };
+  try {
+    dbStatus = await db.ping();
+  } catch (err) {
+    dbStatus.error = err.message;
+  }
+
+  const isHealthy = dbStatus.alive;
+  res.status(isHealthy ? 200 : 503).json({
+    status: isHealthy ? 'OK' : 'DEGRADED',
+    healthy: isHealthy,
     app: 'Mishra Group Institute B.Tech Cyber Security Student Portal & Admin Panel',
     division: '3CYBER7',
     semester: '3rd Semester',
     academicYear: '2026-27',
-    databaseEngine: db.isPostgres ? 'PostgreSQL' : 'SQLite (Active Fallback)',
+    database: dbStatus,
+    uptimeSeconds: Math.floor(process.uptime()),
+    activeRealtimeClients: realtime.getActiveClientCount(),
     time: new Date().toISOString()
   });
 });
 
 // 2. Authentication
-app.post('/api/auth/login', authCtrl.unifiedLogin);
-app.post('/api/auth/student-login', authCtrl.studentLogin);
-app.post('/api/auth/admin-login', authCtrl.adminLogin);
+app.post('/api/auth/login', authLimiter, authCtrl.unifiedLogin);
+app.post('/api/auth/student-login', authLimiter, authCtrl.studentLogin);
+app.post('/api/auth/admin-login', authLimiter, authCtrl.adminLogin);
+app.post('/api/auth/forgot-password', authLimiter, authCtrl.forgotPassword);
+app.post('/api/auth/change-password', authenticateToken, authCtrl.changePassword);
 app.get('/api/auth/profile', authenticateToken, authCtrl.getProfile);
 app.post('/api/auth/upload-photo', authenticateToken, requireStudent, uploadPhoto.single('photo'), authCtrl.uploadProfilePhoto);
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mgi-cyber-portal-v5.0.0';
+const CACHE_NAME = 'mgi-cyber-portal-v5.1.0';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
