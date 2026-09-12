@@ -758,7 +758,12 @@ const API = {
   },
 
   getAdminAttendanceReport(params = {}) {
-    return this.request(`/api/attendance/admin-report`);
+    const query = new URLSearchParams();
+    if (params.date) query.append('date', params.date);
+    if (params.subject && params.subject !== 'ALL') query.append('subject', params.subject);
+    if (params.batch && params.batch !== 'ALL') query.append('batch', params.batch);
+    const qs = query.toString();
+    return this.request(`/api/attendance/admin-report${qs ? '?' + qs : ''}`);
   },
 
   // ==================== RESULTS ====================

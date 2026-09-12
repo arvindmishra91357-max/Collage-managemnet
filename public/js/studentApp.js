@@ -346,6 +346,7 @@ const StudentApp = {
             </div>
           </div>
           <div class="topbar-actions">
+            <button class="icon-btn" onclick="window.App.toggleTheme()" title="Toggle Theme" style="font-size:14px;">🌓</button>
             <button class="icon-btn" id="btn-global-search" title="Search Portal">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2">
                 <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -611,7 +612,7 @@ const StudentApp = {
               <span class="class-status-badge live">● LIVE NOW</span>
               <div class="next-class-subject">${liveClass.subject} ${liveClass.is_lab ? '<span class="lab-chip">LAB</span>' : ''}</div>
               <div class="next-class-details">
-                Room: <strong style="color:${liveClass.has_room_change ? '#38bdf8' : '#ffffff'}; font-size:14px;">${liveClass.room}</strong>
+                Room: <strong style="color:${liveClass.has_room_change ? '#38bdf8' : 'var(--text-primary)'}; font-size:14px;">${liveClass.room}</strong>
                 ${liveClass.has_room_change ? `<span class="lab-chip" style="background:rgba(56,189,248,0.2); color:#38bdf8; font-size:10px; margin-left:4px;">🔄 Room Changed (was ${liveClass.original_room})</span>` : ''}
                 • ${this.formatSlotRange(liveClass.start_time, liveClass.end_time)} ${liveClass.teacher && liveClass.teacher !== '-' ? `• Faculty: <strong>${liveClass.teacher}</strong>` : ''}
               </div>
@@ -622,7 +623,7 @@ const StudentApp = {
               <span class="class-status-badge upcoming">⏳ Starts in ${nextClass.startsInMinutes} mins</span>
               <div class="next-class-subject">${nextClass.subject} ${nextClass.is_lab ? '<span class="lab-chip">LAB</span>' : ''}</div>
               <div class="next-class-details">
-                Room: <strong style="color:${nextClass.has_room_change ? '#38bdf8' : '#ffffff'}; font-size:14px;">${nextClass.room}</strong>
+                Room: <strong style="color:${nextClass.has_room_change ? '#38bdf8' : 'var(--text-primary)'}; font-size:14px;">${nextClass.room}</strong>
                 ${nextClass.has_room_change ? `<span class="lab-chip" style="background:rgba(56,189,248,0.2); color:#38bdf8; font-size:10px; margin-left:4px;">🔄 Room Changed (was ${nextClass.original_room})</span>` : ''}
                 • Time: ${this.formatTimeSlot(nextClass.start_time)} ${nextClass.teacher && nextClass.teacher !== '-' ? `• Faculty: <strong>${nextClass.teacher}</strong>` : ''}
               </div>
@@ -728,7 +729,7 @@ const StudentApp = {
                 🌴 SUNDAY HOLIDAY
               </div>
               <div style="font-size:42px; margin-bottom:8px;">🏖️</div>
-              <h4 style="font-size:17px; font-weight:800; color:#ffffff; margin-bottom:6px;">No Classes Scheduled Today</h4>
+              <h4 style="font-size:17px; font-weight:800; color:var(--text-primary); margin-bottom:6px;">No Classes Scheduled Today</h4>
               <p style="font-size:13px; color:var(--text-secondary); max-width:420px; margin:0 auto 16px; line-height:1.5;">
                 It's Sunday! No lectures or practical sessions scheduled today. Next regular session starts Monday at 09:30 AM.
               </p>
@@ -748,7 +749,7 @@ const StudentApp = {
                 🌴 COLLEGE HOLIDAY
               </div>
               <div style="font-size:42px; margin-bottom:8px;">🎉</div>
-              <h4 style="font-size:17px; font-weight:800; color:#ffffff; margin-bottom:6px;">${todayData.holidayInfo ? todayData.holidayInfo.title : 'Official Holiday'}</h4>
+              <h4 style="font-size:17px; font-weight:800; color:var(--text-primary); margin-bottom:6px;">${todayData.holidayInfo ? todayData.holidayInfo.title : 'Official Holiday'}</h4>
               <p style="font-size:13px; color:var(--text-secondary); max-width:420px; margin:0 auto 16px; line-height:1.5;">
                 ${todayData.holidayInfo && todayData.holidayInfo.description ? todayData.holidayInfo.description : 'College is closed today for declared holiday. No regular lectures scheduled.'}
               </p>
@@ -776,7 +777,7 @@ const StudentApp = {
                   ${c.is_cancelled ? `
                     <span style="color:#f87171; font-weight:600;">Reason: ${c.cancel_reason || 'Class cancelled for today'}</span>
                   ` : `
-                    Room: <strong style="color:${c.has_room_change ? '#38bdf8' : '#ffffff'}; font-size:13px;">${c.room}</strong>
+                    Room: <strong style="color:${c.has_room_change ? '#38bdf8' : 'var(--text-primary)'}; font-size:13px;">${c.room}</strong>
                     ${c.has_room_change ? `<span style="font-size:11px; color:var(--text-muted); text-decoration:line-through;">${c.original_room}</span>` : ''}
                     • Faculty: <strong>${c.teacher || 'Dept Faculty'}</strong>
                   `}
@@ -1380,7 +1381,7 @@ const StudentApp = {
             🌴 SUNDAY HOLIDAY
           </div>
           <div style="font-size:48px; margin-bottom:10px;">🏖️</div>
-          <h3 style="font-size:18px; font-weight:800; color:#ffffff; margin-bottom:6px;">No Classes Scheduled Today</h3>
+          <h3 style="font-size:18px; font-weight:800; color:var(--text-primary); margin-bottom:6px;">No Classes Scheduled Today</h3>
           <p style="font-size:13px; color:var(--text-secondary); max-width:420px; margin:0 auto 18px; line-height:1.5;">
             All lecture halls and practical labs are closed for Sunday. Next academic session starts Monday morning at 09:30 AM.
           </p>
@@ -1409,7 +1410,7 @@ const StudentApp = {
             🌴 COLLEGE HOLIDAY
           </div>
           <div style="font-size:48px; margin-bottom:10px;">🎉</div>
-          <h3 style="font-size:18px; font-weight:800; color:#ffffff; margin-bottom:6px;">${res.holidayInfo ? res.holidayInfo.title : 'Official Holiday'}</h3>
+          <h3 style="font-size:18px; font-weight:800; color:var(--text-primary); margin-bottom:6px;">${res.holidayInfo ? res.holidayInfo.title : 'Official Holiday'}</h3>
           <p style="font-size:13px; color:var(--text-secondary); max-width:420px; margin:0 auto 18px; line-height:1.5;">
             ${res.holidayInfo && res.holidayInfo.description ? res.holidayInfo.description : 'College is closed for declared holiday. No regular lectures scheduled.'}
           </p>
@@ -1456,7 +1457,7 @@ const StudentApp = {
                   ${s.has_room_change ? `
                     Room: <span style="font-size:12px; color:var(--text-muted); text-decoration:line-through; margin-right:4px;">Room ${s.original_room}</span> → <strong style="color:#fbbf24; font-size:14px;">Room ${s.room}</strong>
                   ` : `
-                    Room: <strong style="color:#ffffff; font-size:14px;">${s.room}</strong>
+                    Room: <strong style="color:var(--text-primary); font-size:14px;">${s.room}</strong>
                   `}
                   • Faculty: <strong>${s.teacher || '-'}</strong>
                 `}
@@ -1522,7 +1523,7 @@ const StudentApp = {
             ${upcoming.length > 0 ? upcoming.map(c => `
               <div class="glass-card" style="padding:12px 14px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; border:1px solid var(--border-color);" onclick="document.getElementById('cr-selector-modal').remove(); StudentApp.openCrRoomChangeModal(${c.id}, '${c.subject.replace(/'/g, "\\'")}', '${c.start_time}', '${c.end_time}', '${c.room}', '${c.batch}', '${c.day || day}', '${(c.teacher || '').replace(/'/g, "\\'")}')">
                 <div>
-                  <div style="font-weight:700; font-size:14px; color:#ffffff;">${c.subject} ${c.is_lab ? '<span class="lab-chip">LAB</span>' : ''}</div>
+                  <div style="font-weight:700; font-size:14px; color:var(--text-primary);">${c.subject} ${c.is_lab ? '<span class="lab-chip">LAB</span>' : ''}</div>
                   <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">
                     ${StudentApp.formatSlotRange(c.start_time, c.end_time)} • Current Room: <strong>${c.room}</strong> • <span class="batch-badge ${c.batch === 'Batch 1' ? 'batch-1' : c.batch === 'Batch 2' ? 'batch-2' : ''}">${c.batch}</span>
                   </div>
@@ -1585,7 +1586,7 @@ const StudentApp = {
           <div style="background:var(--bg-input); padding:12px 14px; border-radius:var(--radius-sm); margin-bottom:14px; font-size:13px; border:1px solid var(--border-color);">
             <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
               <span style="color:var(--text-muted);">Subject:</span>
-              <strong style="color:#ffffff;">${subject}</strong>
+              <strong style="color:var(--text-primary);">${subject}</strong>
             </div>
             <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
               <span style="color:var(--text-muted);">Day & Time:</span>
@@ -1773,7 +1774,7 @@ const StudentApp = {
               ${history.map(h => `
                 <div class="glass-card" style="padding:12px 14px; border:1px solid var(--border-color); font-size:12px;">
                   <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px; flex-wrap:wrap; gap:6px;">
-                    <div style="font-weight:700; font-size:13px; color:#ffffff;">
+                    <div style="font-weight:700; font-size:13px; color:var(--text-primary);">
                       ${h.subject} <span class="batch-badge ${h.batch === 'Batch 1' ? 'batch-1' : h.batch === 'Batch 2' ? 'batch-2' : ''}">${h.batch || 'Both'}</span>
                     </div>
                     <span class="lab-chip" style="background:${h.action === 'ROOM_CHANGE' ? 'rgba(245,158,11,0.2)' : h.action === 'PERMANENT_CHANGE' ? 'rgba(56,189,248,0.2)' : 'rgba(16,185,129,0.2)'}; color:${h.action === 'ROOM_CHANGE' ? '#fbbf24' : h.action === 'PERMANENT_CHANGE' ? '#38bdf8' : '#34d399'}; font-size:10px;">
@@ -1826,7 +1827,7 @@ const StudentApp = {
             📷
           </div>
           <div>
-            <h3 style="font-size:16px; font-weight:800; color:#ffffff; margin-bottom:2px;">Scan Classroom QR</h3>
+            <h3 style="font-size:16px; font-weight:800; color:var(--text-primary); margin-bottom:2px;">Scan Classroom QR</h3>
             <p style="font-size:12px; color:var(--text-secondary); margin:0;">Point camera at rotating live QR code to mark attendance</p>
           </div>
         </div>
@@ -2259,11 +2260,11 @@ const StudentApp = {
 
         <!-- Academic Metadata (STRICT: NO email, phone, dob, parent info) -->
         <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--border-color); text-align:left; display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:12px;">
-          <div><span style="color:var(--text-muted);">Roll Number:</span> <strong style="color:#ffffff;">${profile.roll_number}</strong></div>
-          <div><span style="color:var(--text-muted);">Division:</span> <strong style="color:#ffffff;">${profile.division}</strong></div>
-          <div><span style="color:var(--text-muted);">Program:</span> <strong style="color:#ffffff;">${profile.program}</strong></div>
-          <div><span style="color:var(--text-muted);">Year / Sem:</span> <strong style="color:#ffffff;">${profile.year} • ${profile.semester}</strong></div>
-          <div style="grid-column: span 2;"><span style="color:var(--text-muted);">Academic Year:</span> <strong style="color:#ffffff;">${profile.academic_year}</strong></div>
+          <div><span style="color:var(--text-muted);">Roll Number:</span> <strong style="color:var(--text-primary);">${profile.roll_number}</strong></div>
+          <div><span style="color:var(--text-muted);">Division:</span> <strong style="color:var(--text-primary);">${profile.division}</strong></div>
+          <div><span style="color:var(--text-muted);">Program:</span> <strong style="color:var(--text-primary);">${profile.program}</strong></div>
+          <div><span style="color:var(--text-muted);">Year / Sem:</span> <strong style="color:var(--text-primary);">${profile.year} • ${profile.semester}</strong></div>
+          <div style="grid-column: span 2;"><span style="color:var(--text-muted);">Academic Year:</span> <strong style="color:var(--text-primary);">${profile.academic_year}</strong></div>
         </div>
       </div>
 
@@ -2339,7 +2340,7 @@ const StudentApp = {
             🤖
           </div>
           <div>
-            <h4 style="font-size:14px; font-weight:800; color:#ffffff; margin:0 0 2px;">Official Android APK App</h4>
+            <h4 style="font-size:14px; font-weight:800; color:var(--text-primary); margin:0 0 2px;">Official Android APK App</h4>
             <p style="font-size:11px; color:var(--text-secondary); margin:0;">Install full mobile app on your Android phone</p>
           </div>
         </div>
@@ -2698,9 +2699,9 @@ const StudentApp = {
           </div>
           <div class="modal-body" style="max-height:75vh; overflow-y:auto;">
             <!-- Student Header Badge -->
-            <div style="padding:14px; background:rgba(255,255,255,0.03); border:1px solid var(--border-color); border-radius:var(--radius-md); margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <div style="padding:14px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:var(--radius-md); margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
               <div>
-                <h4 style="font-size:15px; font-weight:800; color:#ffffff;">${u.name}</h4>
+                <h4 style="font-size:15px; font-weight:800; color:var(--text-primary);">${u.name}</h4>
                 <div style="font-size:12px; color:var(--accent-cyan); font-weight:600; margin-top:2px;">${u.ug_id} • Roll #${u.roll_number}</div>
               </div>
               <div style="text-align:right;">
@@ -2733,7 +2734,7 @@ const StudentApp = {
                   return `
                     <div class="subject-mark-card" style="margin-bottom:0;">
                       <div class="subject-mark-info">
-                        <div class="subject-mark-title">${r.subject}</div>
+                        <div class="subject-mark-title" style="color:var(--text-primary);">${r.subject}</div>
                         <div class="subject-mark-exam">${r.exam_name} • ${r.semester || '3rd Semester'}</div>
                         <!-- Performance Progress Bar -->
                         <div style="width:100%; height:4px; background:rgba(255,255,255,0.08); border-radius:2px; margin-top:8px; overflow:hidden;">
@@ -2754,7 +2755,7 @@ const StudentApp = {
             ` : `
               <div class="glass-card" style="padding:28px; text-align:center; color:var(--text-muted);">
                 <div style="font-size:36px; margin-bottom:8px;">📄</div>
-                <h4 style="color:#ffffff; font-size:15px; margin-bottom:4px;">No Published Results Yet</h4>
+                <h4 style="color:var(--text-primary); font-size:15px; margin-bottom:4px;">No Published Results Yet</h4>
                 <p style="font-size:12px; color:var(--text-secondary);">Your examination marks will appear here as soon as they are published by the department.</p>
               </div>
             `}

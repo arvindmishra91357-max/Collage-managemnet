@@ -338,8 +338,16 @@ async function saveManualAttendance(req, res) {
     const assignedBatch = batch || 'Both';
 
     for (const rec of records) {
+      // Lookup master student to guarantee accurate name, roll_number and batch
+      const student = await db.get(
+        "SELECT name, roll_number, batch FROM students WHERE TRIM(UPPER(ug_id)) = TRIM(UPPER(?))",
+        [rec.ug_id]
+      );
+      const studentName = (student && student.name) || (rec.student_name && rec.student_name !== 'UNRECORDED' ? rec.student_name : 'Student');
+      const studentBatch = (student && student.batch) || ((student && student.roll_number <= 30) || (rec.roll_number && Number(rec.roll_number) <= 30) ? 'Batch 1' : 'Batch 2');
+
       const existing = await db.get(
-        "SELECT * FROM attendance_manual WHERE ug_id = ? AND date = ? AND subject = ?",
+        "SELECT * FROM attendance_manual WHERE TRIM(UPPER(ug_id)) = TRIM(UPPER(?)) AND date = ? AND subject = ?",
         [rec.ug_id, date, subject]
       );
 
@@ -349,14 +357,16 @@ async function saveManualAttendance(req, res) {
       if (existing) {
         await db.run(`
           UPDATE attendance_manual
-          SET status = ?, remarks = ?, marked_by = 'Admin'
+          SET status = ?, remarks = ?, marked_by = 'Admin',
+              student_name = ?,
+              batch = ?
           WHERE id = ?
-        `, [newStatus, rec.remarks || 'Manual Admin Entry', existing.id]);
+        `, [newStatus, rec.remarks || 'Manual Admin Entry', studentName, studentBatch, existing.id]);
       } else {
         await db.run(`
           INSERT INTO attendance_manual (ug_id, student_name, date, subject, batch, status, remarks, marked_by)
           VALUES (?, ?, ?, ?, ?, ?, ?, 'Admin')
-        `, [rec.ug_id, rec.student_name, date, subject, assignedBatch, newStatus, rec.remarks || 'Manual Admin Entry']);
+        `, [rec.ug_id, studentName, date, subject, studentBatch, newStatus, rec.remarks || 'Manual Admin Entry']);
       }
 
       // Log to Audit Log if status changed or created manually
@@ -364,7 +374,7 @@ async function saveManualAttendance(req, res) {
         await db.run(`
           INSERT INTO attendance_audit_logs (action, ug_id, old_status, new_status, changed_by, reason)
           VALUES ('MANUAL_OVERRIDE', ?, ?, ?, 'Admin', ?)
-        `, [rec.ug_id, oldStatus || 'UNRECORDED', newStatus, rec.remarks || 'Admin manual update']);
+        `, [rec.ug_id, oldStatus || 'NOT_MARKED', newStatus, rec.remarks || 'Admin manual update']);
       }
     }
 
@@ -395,11 +405,11 @@ async function getStudentAttendance(req, res) {
     const records = await db.query(`
       SELECT date, subject, status, 'QR Scan Verified' as remarks, 'QR_GPS' as method, marked_at as timestamp
       FROM attendance_records
-      WHERE ug_id = ?
+      WHERE TRIM(UPPER(ug_id)) = TRIM(UPPER(?))
       UNION ALL
       SELECT date, subject, status, remarks, 'MANUAL' as method, created_at as timestamp
       FROM attendance_manual
-      WHERE ug_id = ? AND ug_id NOT IN (
+      WHERE TRIM(UPPER(ug_id)) = TRIM(UPPER(?)) AND ug_id NOT IN (
         SELECT ug_id FROM attendance_records WHERE date = attendance_manual.date AND subject = attendance_manual.subject
       )
       ORDER BY date DESC
@@ -454,30 +464,90 @@ async function getAdminAttendanceReport(req, res) {
   try {
     const { date, subject, batch } = req.query;
 
-    let sql = `
-      SELECT am.id, am.ug_id, s.name as student_name, s.roll_number, s.batch, am.date, am.subject, am.status, am.remarks, am.marked_by, am.created_at
-      FROM attendance_manual am
-      JOIN students s ON am.ug_id = s.ug_id
-      WHERE 1=1
-    `;
-    const params = [];
+    // Self-healing migration: fix any legacy rows where student_name or batch is unrecorded/missing
+    try {
+      await db.run(`
+        UPDATE attendance_manual
+        SET student_name = (SELECT name FROM students WHERE TRIM(UPPER(students.ug_id)) = TRIM(UPPER(attendance_manual.ug_id))),
+            batch = (SELECT batch FROM students WHERE TRIM(UPPER(students.ug_id)) = TRIM(UPPER(attendance_manual.ug_id)))
+        WHERE (student_name IS NULL OR student_name = 'UNRECORDED' OR student_name = '' OR batch IS NULL OR batch = 'Both' OR batch = 'ALL' OR batch = '')
+          AND EXISTS (SELECT 1 FROM students WHERE TRIM(UPPER(students.ug_id)) = TRIM(UPPER(attendance_manual.ug_id)))
+      `);
+      await db.run(`
+        UPDATE attendance_records
+        SET student_name = (SELECT name FROM students WHERE TRIM(UPPER(students.ug_id)) = TRIM(UPPER(attendance_records.ug_id))),
+            batch = (SELECT batch FROM students WHERE TRIM(UPPER(students.ug_id)) = TRIM(UPPER(attendance_records.ug_id)))
+        WHERE (student_name IS NULL OR student_name = 'UNRECORDED' OR student_name = '' OR batch IS NULL OR batch = 'Both' OR batch = 'ALL' OR batch = '')
+          AND EXISTS (SELECT 1 FROM students WHERE TRIM(UPPER(students.ug_id)) = TRIM(UPPER(attendance_records.ug_id)))
+      `);
+    } catch (cleanErr) {
+      // Non-fatal if table not initialized
+    }
+
+    let manualFilter = "";
+    let recordFilter = "";
+    const params1 = [];
+    const params2 = [];
 
     if (date) {
-      sql += " AND am.date = ?";
-      params.push(date);
+      manualFilter += " AND am.date = ?";
+      recordFilter += " AND ar.date = ?";
+      params1.push(date);
+      params2.push(date);
     }
     if (subject && subject !== 'ALL') {
-      sql += " AND am.subject = ?";
-      params.push(subject);
+      manualFilter += " AND am.subject = ?";
+      recordFilter += " AND ar.subject = ?";
+      params1.push(subject);
+      params2.push(subject);
     }
     if (batch && (batch === 'Batch 1' || batch === 'Batch 2')) {
-      sql += " AND s.batch = ?";
-      params.push(batch);
+      manualFilter += " AND (s.batch = ? OR am.batch = ?)";
+      recordFilter += " AND (s.batch = ? OR ar.batch = ?)";
+      params1.push(batch, batch);
+      params2.push(batch, batch);
     }
 
-    sql += " ORDER BY am.date DESC, s.roll_number ASC";
+    const sql = `
+      SELECT 
+        am.id, 
+        am.ug_id, 
+        COALESCE(NULLIF(s.name, 'UNRECORDED'), NULLIF(am.student_name, 'UNRECORDED'), 'Student') as student_name, 
+        COALESCE(s.roll_number, 0) as roll_number, 
+        COALESCE(s.batch, NULLIF(am.batch, 'Both'), CASE WHEN s.roll_number <= 30 THEN 'Batch 1' ELSE 'Batch 2' END) as batch, 
+        am.date, 
+        am.subject, 
+        am.status, 
+        am.remarks, 
+        am.marked_by, 
+        am.created_at
+      FROM attendance_manual am
+      LEFT JOIN students s ON TRIM(UPPER(am.ug_id)) = TRIM(UPPER(s.ug_id))
+      WHERE 1=1 ${manualFilter}
+      UNION ALL
+      SELECT 
+        ar.id, 
+        ar.ug_id, 
+        COALESCE(NULLIF(s.name, 'UNRECORDED'), NULLIF(ar.student_name, 'UNRECORDED'), 'Student') as student_name, 
+        COALESCE(s.roll_number, ar.roll_number, 0) as roll_number, 
+        COALESCE(s.batch, NULLIF(ar.batch, 'Both'), CASE WHEN s.roll_number <= 30 THEN 'Batch 1' ELSE 'Batch 2' END) as batch, 
+        ar.date, 
+        ar.subject, 
+        ar.status, 
+        'Dynamic QR Verified' as remarks, 
+        'Student' as marked_by, 
+        ar.marked_at as created_at
+      FROM attendance_records ar
+      LEFT JOIN students s ON TRIM(UPPER(ar.ug_id)) = TRIM(UPPER(s.ug_id))
+      WHERE NOT EXISTS (
+        SELECT 1 FROM attendance_manual am2 
+        WHERE TRIM(UPPER(am2.ug_id)) = TRIM(UPPER(ar.ug_id)) AND am2.date = ar.date AND am2.subject = ar.subject
+      ) ${recordFilter}
+      ORDER BY date DESC, roll_number ASC
+    `;
 
-    const rows = await db.query(sql, params);
+    const allParams = [...params1, ...params2];
+    const rows = await db.query(sql, allParams);
 
     // Also get active sessions list
     const sessions = await db.query("SELECT * FROM attendance_sessions ORDER BY start_time DESC LIMIT 20");
