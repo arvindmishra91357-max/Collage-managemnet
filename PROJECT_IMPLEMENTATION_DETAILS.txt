@@ -1,0 +1,330 @@
+================================================================================
+MISHRA GROUP INSTITUTE (MGI) - COLLEGE MANAGEMENT PORTAL
+DIVISION: 3CYBER7 (B.TECH CYBER SECURITY)
+COMPLETE SYSTEM IMPLEMENTATION SPECIFICATION & ARCHITECTURE DOCUMENTATION
+================================================================================
+
+1. PROJECT OVERVIEW
+--------------------------------------------------------------------------------
+The Mishra Group Institute (MGI) College Management Portal is a comprehensive,
+multi-platform enterprise educational software suite designed specifically for
+Division 3CYBER7 (B.Tech Cyber Security, 66 Enrolled Students across Batch 1 & 2).
+
+Key Highlights:
+- Multi-Platform: Responsive Progressive Web App (PWA) + Standalone Native Android APK.
+- Single Source of Truth: Centralized Node.js/Express API + Dual PostgreSQL/SQLite DB.
+- Real-Time Synchronization: Server-Sent Events (SSE) for instant lecture room
+  shifts, cancellation notices, and attendance broadcast.
+- Zero-Proxy Attendance: Cryptographic time-windowed QR codes with GPS campus geofencing.
+- Official PDF & CSV Engine: Print-ready institutional letterhead report generator.
+- Multi-Tier File Persistence: Academic notes and PDFs backed by database BLOB storage.
+- High-Contrast Dual Theme: Modern Glassmorphism Dark Mode & Crisp Daylight Light Mode.
+
+
+2. SYSTEM ARCHITECTURE & TOPOLOGY
+--------------------------------------------------------------------------------
+                               ┌─────────────────────────────┐
+                               │  Progressive Web App (PWA)  │
+                               │  - Student Dashboard        │
+                               │  - Admin Management Console │
+                               │  - Service Worker Cache     │
+                               └──────────────┬──────────────┘
+                                              │
+               ┌──────────────────────────────┼──────────────────────────────┐
+               │ HTTPS REST API + SSE Stream  │                              │
+               ▼                              ▼                              ▼
+┌─────────────────────────────┐  ┌─────────────────────────────┐  ┌─────────────────────────────┐
+│   Native Android App (APK)  │  │   Netlify Edge CDN (Prod)   │  │   Render Cloud Node.js      │
+│   - Camera QR Scanner Feed  │  │   - High-Speed Static Cache │  │   - Core Express API Server │
+│   - Geofence GPS Sensor     │  │   - Seamless API Proxy      │  │   - Real-Time SSE Bus       │
+│   - Native DownloadManager  │  │   - Security Headers        │  │   - Anti-Cold-Start Daemon  │
+└─────────────────────────────┘  └──────────────┬──────────────┘  └──────────────┬──────────────┘
+                                                │                                │
+                                                └────────────────┬───────────────┘
+                                                                 │
+                                                                 ▼
+                                                ┌─────────────────────────────┐
+                                                │    Managed PostgreSQL DB    │
+                                                │    - All Student Records    │
+                                                │    - Attendance & Overrides │
+                                                │    - File BLOB Storage      │
+                                                │    (SQLite Local Fallback)  │
+                                                └─────────────────────────────┘
+
+
+3. TECHNOLOGY STACK
+--------------------------------------------------------------------------------
+Frontend:
+- Pure Vanilla HTML5 & ES6 JavaScript (No heavyweight framework bloat).
+- Custom Vanilla CSS with CSS Variables & Glassmorphism design system.
+- QR Engine: `jsQR.min.js` (Client-side camera scanning) + `qrcode.min.js` (Admin QR generator).
+- PWA Engine: Web App Manifest + Custom Service Worker Cache (`sw.js`).
+
+Backend:
+- Runtime: Node.js (v18+ / v20+ LTS).
+- Framework: Express.js 4.19+.
+- Real-Time Engine: Server-Sent Events (SSE) Pub-Sub Bus (`server/realtime.js`).
+- Cryptography & Auth: `jsonwebtoken` (JWT), `bcryptjs`, UUIDv4.
+- Security: `helmet`, `cors`, `express-rate-limit`, `compression`.
+- Excel Parser: `xlsx` (SheetJS) for bulk student import/export.
+
+Database & Persistence:
+- Production: Cloud-hosted PostgreSQL with Connection Pooling (`pg`).
+- Development: Zero-config embedded SQLite (`sqlite3`).
+- File Storage: Multi-tier (`file_blobs` DB table + disk cache + S3/Supabase ready).
+
+Mobile (Android):
+- Native APK Wrapper with hardware-accelerated WebView.
+- Manifest permissions for Camera (`CAMERA`), Geolocation (`ACCESS_FINE_LOCATION`),
+  and Storage (`WRITE_EXTERNAL_STORAGE`).
+- Signed with 2048-bit RSA key using APK Signature Schemes v1, v2, and v3 (`apksigner`).
+
+
+4. SERVER & BACKEND IMPLEMENTATIONS
+--------------------------------------------------------------------------------
+
+A. Entry Point & Keep-Alive Daemon (`server/server.js`)
+- Boots HTTP server on port 3000 (or `PORT` environment variable).
+- Configures middleware pipeline: Helmet security headers, CORS origin filtering,
+  Rate Limiter on auth/attendance endpoints, body parsers (JSON & URL-encoded),
+  and Gzip compression.
+- Anti-Cold Start Daemon: Runs every 5 minutes (`KEEP_ALIVE_INTERVAL_MS`), pinging
+  `KEEP_ALIVE_URL` to ensure the Render free-tier container stays active and warm.
+
+B. Dual Database Engine (`server/db.js`)
+- Automatic DB Engine Selection:
+  - If `DATABASE_URL` is set: Connects to PostgreSQL with SSL (`rejectUnauthorized: false`),
+    configuring connection pooling (min 2, max 20).
+  - If `DATABASE_URL` is empty: Initializes SQLite database (`college_portal.sqlite`).
+- Automated Self-Healing Migrations: Executes `CREATE TABLE IF NOT EXISTS` on startup.
+- Performance Indexing: Auto-creates indexes:
+  - `idx_students_ug_id`, `idx_students_batch`
+  - `idx_timetable_day_batch`
+  - `idx_attendance_records_session_ug`
+  - `idx_class_notes_subject`, `idx_file_blobs_path`
+- Universal DB abstraction method (`query`, `get`, `run`, `all`) normalizing SQL
+  syntax differences between PostgreSQL and SQLite.
+
+C. Multi-Tier File Storage Engine (`server/services/storageService.js`)
+- Solves ephemeral cloud container data loss (files deleted on container restart).
+- Tier 1: Stores uploaded notes, assignments, and profile pictures as binary BLOBs
+  in PostgreSQL (`file_blobs` table).
+- Tier 2: Local disk caching for instant subsequent reads.
+- When any file is requested, if missing on disk, it is dynamically resurrected
+  from PostgreSQL into the cache.
+
+D. Real-Time SSE Bus (`server/realtime.js`)
+- Maintains active client array for `/api/realtime/events`.
+- Heartbeat keep-alive ping every 25 seconds (`:keepalive\n\n`).
+- Broadcast channels:
+  - `ROOM_CHANGE`: Emergency lecture room updates.
+  - `ATTENDANCE_UPDATE`: Live session activation/deactivation.
+  - `NEW_NOTIFICATION`: Urgent college broadcasts.
+  - `TIMETABLE_MODIFIED`: Class cancellation or rescheduled slots.
+
+
+5. CONTROLLER MODULES & REST APIS
+--------------------------------------------------------------------------------
+
+1. Attendance Controller (`server/controllers/attendanceController.js`)
+- Dynamic QR Generation: Creates dynamic session with 15-second rotating security tokens.
+- Campus Geofencing: Validates client latitude and longitude against college coordinates
+  using the Haversine distance formula. Rejects scans outside campus bounds.
+- Dual-Batch Manual Attendance (66 Students):
+  - Batch 1: Roll numbers 01 to 30.
+  - Batch 2: Roll numbers 31 to 66.
+  - Self-Healing Query: Performs `LEFT JOIN` with `students` table via `TRIM(UPPER(ug_id))`
+    ensuring all 66 enrolled students appear with exact names (no `UNRECORDED` items).
+- Clean CSV Exporter: Exports tabular attendance data with cleanly separated
+  audit summaries at the bottom.
+- CR Delegation: Allows assigned Class Representatives to manage proxy roll calls.
+
+2. Timetable Controller (`server/controllers/timetableController.js`)
+- Division 3CYBER7 full weekly master schedule (Monday through Saturday + Sunday options).
+- Real-Time Room Override System: Admin can change lecture venue (e.g. `Room 114 -> Room 208`),
+  triggering an instant broadcast to all active student portals.
+- Batch Filtering: Seamless separation between common lectures and Batch 1 / Batch 2 labs.
+
+3. Authentication Controller (`server/controllers/authController.js`)
+- User roles: `student`, `admin`, `cr`.
+- Password security: `bcryptjs` salted hashing.
+- Token security: `jsonwebtoken` (JWT) with configurable expiration.
+- Self-Service Password Reset: Students verify `UG ID` + registered mobile number to
+  reset passwords instantly without administrative intervention.
+- Profile Photo Upload: Profile image processing with database BLOB persistence.
+
+4. Academic Controller (`server/controllers/academicController.js`)
+- Study materials upload and classification (Notes, Syllabus, Lab Manuals, Question Banks).
+- Assignment posting with due dates, description, and attached resource links.
+- Student submission tracking with submission timestamps.
+
+5. AI Study Assistant (`server/controllers/aiController.js`)
+- Embedded study assistant endpoint to help students with Cyber Security concepts,
+  networking, cryptography, and course queries.
+
+6. Excel Management Controller (`server/controllers/excelController.js`)
+- Bulk roster upload via `.xlsx` spreadsheets using SheetJS.
+- Automatically creates user accounts and student profiles.
+
+7. Notification Controller (`server/controllers/notificationController.js`)
+- Sends targeted announcements: All Students, Batch 1 Only, Batch 2 Only, or CRs.
+- Real-time SSE alert dispatching and read/unread receipt tracking.
+
+
+6. FRONTEND IMPLEMENTATIONS (PUBLIC ASSETS)
+--------------------------------------------------------------------------------
+
+A. Single-Page Application Architecture (`public/index.html`, `public/js/app.js`)
+- Pure Vanilla JS state machine managing views:
+  - `#login-view`: Secure credentials card, role selection, APK download modal.
+  - `#student-view`: Schedule cards, circular attendance rings, QR scanner, study hub.
+  - `#admin-view`: Live lecture control, manual attendance, room override, roster editor.
+- Failsafe Standalone Login: Client-side demo fallback in case cloud backend is waking up.
+
+B. Dual Theme & High-Contrast Light Mode Engine (`public/css/style.css`)
+- Dark Mode: Sleek cyber-theme, deep indigo/charcoal glassmorphism surfaces (`#0b0f19`),
+  neon turquoise/purple accents.
+- High-Contrast Light Mode (Recent Overhaul):
+  - Solved washed-out text and faded cards.
+  - Deep charcoal text (`#0f172a`), solid white cards (`#ffffff`), slate borders (`#e2e8f0`).
+  - Stat cards, attendance percentage badges, and table headers are completely sharp.
+- Micro-animations: Hover scaling, status pulsing, and smooth page tab transitions.
+
+C. Official College PDF Generator Engine (`public/js/adminApp.js`)
+- Integrated "Print / Save Official PDF" engine.
+- Institutional Header: "MISHRA GROUP INSTITUTE OF TECHNOLOGY" formal crest banner.
+- Metadata Table: Subject, Date, Division 3CYBER7, Batch, Faculty Incharge.
+- Real-Time Summary Cards: Total Enrolled (66), Present Count, Absent Count, Percentage.
+- Formal Two/Three-Column Attendance Grid: Roll No, Student Name, Status (`PRESENT`/`ABSENT`).
+- Official Signatures Block: Space for Subject Teacher Signature and HOD Endorsement.
+- Optimized `@media print` CSS rules for perfect A4 page output.
+
+D. Student Portal Features (`public/js/studentApp.js`)
+- Live Timetable: Dynamic lecture cards highlighting the current ongoing class with a countdown.
+- Camera QR Scanner: Direct HTML5 camera streaming (`jsQR`), automatic focus, manual token entry.
+- Attendance Analytics: Subject-wise breakdown with circular SVG percentage meters.
+  Color-coded status: Green (>=75%), Amber (65-74%), Red (<65% Attendance Defaulter).
+- Study Material Downloader: Instant access and offline viewing of academic documents.
+
+E. Unified API Client (`public/js/api.js`)
+- Automatic host environment resolution (Localhost vs Netlify CDN vs Render Cloud).
+- Centralized JWT token handling, Bearer header injection, and offline request caching.
+
+
+7. NATIVE ANDROID APPLICATION ENGINE
+--------------------------------------------------------------------------------
+
+The project features a dedicated standalone Android APK packaging pipeline:
+- Automated Packaging Script: `package_apk.ps1`
+- Process:
+  1. Synchronizes updated `public/` web assets into `staging_apk/assets/www/`.
+  2. Compiles Android bytecode (`classes.dex`) containing native camera, location,
+     and download hooks.
+  3. Builds binary resource package (`resources.arsc`) and packages APK archive.
+  4. 4-byte page alignment using `zipalign.exe -p 4`.
+  5. Cryptographic release signing using 2048-bit RSA key (`release.keystore`)
+     via `apksigner.jar` supporting APK Signature Schemes v1, v2, and v3.
+- Output Locations:
+  - Root: `MGI_Student_Portal.apk`
+  - Web Route: `public/apk/MGI_Student_Portal.apk` (directly downloadable via portal UI).
+
+
+8. PROGRESSIVE WEB APP (PWA) & CACHING
+--------------------------------------------------------------------------------
+
+- Service Worker: `public/sw.js` (Current Cache Version: `v=5.1.4`).
+- Strategies:
+  - Cache-First for static assets (HTML, CSS, JS, SVG, Fonts).
+  - Network-First with offline cache fallback for REST API endpoints.
+  - Automatic cache cleanup on version increment.
+- Manifest: `public/manifest.json` enabling "Add to Home Screen" on iOS and Android.
+
+
+9. CLOUD DEPLOYMENT & DEVOPS PIPELINE
+--------------------------------------------------------------------------------
+
+A. Render Cloud Infrastructure (`render.yaml`)
+- Blueprint specs:
+  - Web Service: `mishra-group-institute-portal` (Node.js runtime, build: `npm install`, start: `npm start`).
+  - Managed PostgreSQL Database: `mgi-postgres-db` with SSL connection.
+  - Auto-injected environment variables (`DATABASE_URL`, `JWT_SECRET`, `NODE_ENV=production`).
+
+B. Netlify Frontend Edge Deployment (`netlify.toml`, `public/_redirects`)
+- Fast global CDN delivery.
+- API Reverse Proxy:
+  `/api/*  https://mishra-group-institute-portal.onrender.com/api/:splat  200!`
+  Eliminates CORS preflight overhead and cross-domain cookie/token restrictions.
+
+C. GitHub Sync Tooling (`push_to_github.bat`)
+- Automated batch script for one-click staging, committing, and pushing changes to GitHub.
+
+
+10. COMPLETE FILE DIRECTORY SUMMARY
+--------------------------------------------------------------------------------
+Collage-managemnet-main/
+│
+├── android-build/             # Android packaging workspace & keystore
+├── public/                    # Production Client Web Assets (PWA)
+│   ├── apk/                   # Downloadable Android release APK
+│   ├── css/style.css          # Glassmorphism & High-Contrast Light Mode styles
+│   ├── icons/                 # PWA icons (192x192, 512x512)
+│   ├── js/
+│   │   ├── adminApp.js        # Admin portal, 66-student roster, PDF engine
+│   │   ├── api.js             # Unified API client & proxy router
+│   │   ├── app.js             # State machine, auth controller, theme switcher
+│   │   ├── jsqr.min.js        # Camera QR scanner library
+│   │   ├── qrcode.min.js      # Dynamic QR code generator
+│   │   └── studentApp.js      # Student dashboard, timetable, attendance rings
+│   ├── _headers               # Netlify HTTP security headers
+│   ├── _redirects             # Netlify API reverse-proxy rules
+│   ├── favicon.svg            # Browser tab icon
+│   ├── index.html             # Main single-page application shell
+│   ├── manifest.json          # PWA metadata & mobile install manifest
+│   └── sw.js                  # Service worker caching engine (v=5.1.4)
+│
+├── server/                    # Node.js Express Backend
+│   ├── controllers/
+│   │   ├── academicController.js    # Notes, syllabus & assignments
+│   │   ├── aiController.js          # AI Study Assistant
+│   │   ├── attendanceController.js  # QR, Geofence, 66-student manual roll call
+│   │   ├── authController.js        # JWT auth, passwords & profile images
+│   │   ├── excelController.js       # Excel batch student import/export
+│   │   ├── notificationController.js# Real-time alert broadcasts
+│   │   ├── resultsController.js     # Semester results & SGPA
+│   │   ├── searchController.js      # Universal portal search
+│   │   ├── studentController.js     # Student profile & CR management
+│   │   └── timetableController.js   # Weekly timetable & emergency room changes
+│   ├── middleware/
+│   │   └── auth.js                  # JWT token authentication middleware
+│   ├── services/
+│   │   ├── seedFiles.js             # Default seed assets generator
+│   │   └── storageService.js        # Multi-tier DB BLOB file persistence
+│   ├── db.js                        # Dual PostgreSQL / SQLite adapter
+│   ├── realtime.js                  # SSE Real-Time event broadcaster
+│   └── server.js                    # Server entrypoint & keep-alive daemon
+│
+├── staging_apk/               # Android APK staging assets & manifest
+├── MGI_Student_Portal.apk     # Standalone Signed Android APK
+├── netlify.toml               # Netlify configuration & build commands
+├── package.json               # Node.js dependencies & scripts
+├── package_apk.ps1            # Automated Android packaging script
+├── push_to_github.bat         # Automated GitHub push script
+├── README.md                  # Comprehensive markdown documentation
+└── render.yaml                # Render Blueprint infrastructure spec
+
+
+11. DEFAULT CREDENTIALS
+--------------------------------------------------------------------------------
+Admin Portal:
+- Username: admin
+- Password: admin123
+- Role: admin
+
+Student Portal:
+- Username: Student UG ID (e.g., UG2023001) or Roll Number
+- Password: password123 (or set during onboarding)
+- Password Reset: Self-service via "Forgot Password?" using UG ID + Mobile Number.
+
+================================================================================
+END OF IMPLEMENTATION SPECIFICATION
+================================================================================

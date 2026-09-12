@@ -45,6 +45,26 @@ function requireStudent(req, res, next) {
   next();
 }
 
+function requireTeacher(req, res, next) {
+  if (!req.user || req.user.role !== 'TEACHER') {
+    return res.status(403).json({
+      success: false,
+      message: 'Forbidden: Faculty/Teacher access privileges required.'
+    });
+  }
+  next();
+}
+
+function requireTeacherOrAdmin(req, res, next) {
+  if (!req.user || (req.user.role !== 'TEACHER' && req.user.role !== 'ADMIN')) {
+    return res.status(403).json({
+      success: false,
+      message: 'Forbidden: Faculty or Admin access privileges required.'
+    });
+  }
+  next();
+}
+
 function generateToken(payload, expiresIn = '7d') {
   return jwt.sign(payload, JWT_SECRET, { expiresIn });
 }
@@ -53,6 +73,8 @@ module.exports = {
   authenticateToken,
   requireAdmin,
   requireStudent,
+  requireTeacher,
+  requireTeacherOrAdmin,
   generateToken,
   JWT_SECRET
 };

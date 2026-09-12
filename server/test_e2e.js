@@ -42,6 +42,7 @@ async function runTests() {
 
   let passed = 0;
   let failed = 0;
+  let serverInstance = null;
 
   function assert(condition, testName) {
     if (condition) {
@@ -54,6 +55,12 @@ async function runTests() {
   }
 
   try {
+    try {
+      const { startServer } = require('./server');
+      serverInstance = await startServer(PORT);
+      await new Promise(r => setTimeout(r, 600));
+    } catch (e) {}
+
     // 1. Health check
     const health = await makeRequest('/api/health');
     assert(health.status === 200 && health.data.division === '3CYBER7', 'System Health & Division 3CYBER7');
@@ -184,6 +191,8 @@ async function runTests() {
   } catch (err) {
     console.error('Test execution exception:', err);
     failed++;
+  } finally {
+    if (serverInstance) serverInstance.close();
   }
 
   console.log('\n====================================================');

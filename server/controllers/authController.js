@@ -171,6 +171,32 @@ async function getProfile(req, res) {
           status: student.status
         }
       });
+    } else if (req.user.role === 'TEACHER') {
+      const teacher = await db.get(
+        "SELECT * FROM teachers WHERE UPPER(teacher_id) = UPPER(?) OR id = ?",
+        [req.user.teacher_id || req.user.username || '', req.user.id || 0]
+      );
+      if (!teacher) {
+        return res.status(404).json({ success: false, message: 'Faculty profile not found.' });
+      }
+      return res.json({
+        success: true,
+        user: {
+          id: teacher.id,
+          role: 'TEACHER',
+          teacher_id: teacher.teacher_id,
+          name: teacher.name,
+          phone: teacher.phone || null,
+          email: teacher.email || null,
+          department: teacher.department,
+          designation: teacher.designation,
+          subjects: teacher.subjects,
+          division: teacher.division,
+          batch: teacher.batch,
+          profile_photo_url: teacher.profile_photo_url || null,
+          status: teacher.status
+        }
+      });
     } else if (req.user.role === 'ADMIN') {
       return res.json({
         success: true,
@@ -253,7 +279,57 @@ async function unifiedLogin(req, res) {
       }
     }
 
-    // B. Check Students table strictly by UG ID (Roll number login disabled as requested)
+    // B. Check Teachers table (teacher_id or email)
+    const cleanTeacherId = loginId.toUpperCase();
+    const teacher = await db.get(
+      "SELECT * FROM teachers WHERE UPPER(teacher_id) = ? OR UPPER(email) = ?",
+      [cleanTeacherId, loginId.toUpperCase()]
+    );
+
+    if (teacher) {
+      if (teacher.status !== 'ACTIVE') {
+        return res.status(403).json({
+          success: false,
+          message: 'Your faculty account is inactive. Please contact the Department Administrator.'
+        });
+      }
+
+      const isMatch = await bcrypt.compare(password, teacher.password_hash);
+      if (isMatch) {
+        const token = generateToken({
+          id: teacher.id,
+          teacher_id: teacher.teacher_id,
+          name: teacher.name,
+          department: teacher.department,
+          designation: teacher.designation,
+          subjects: teacher.subjects,
+          division: teacher.division,
+          batch: teacher.batch,
+          role: 'TEACHER'
+        });
+
+        return res.json({
+          success: true,
+          message: 'Teacher login successful.',
+          token,
+          user: {
+            role: 'TEACHER',
+            teacher_id: teacher.teacher_id,
+            name: teacher.name,
+            phone: teacher.phone || null,
+            email: teacher.email || null,
+            department: teacher.department,
+            designation: teacher.designation,
+            subjects: teacher.subjects,
+            division: teacher.division,
+            batch: teacher.batch,
+            profile_photo_url: teacher.profile_photo_url || null
+          }
+        });
+      }
+    }
+
+    // C. Check Students table strictly by UG ID (Roll number login disabled as requested)
     const cleanUgId = loginId.toUpperCase();
     const student = await db.get("SELECT * FROM students WHERE UPPER(ug_id) = ?", [cleanUgId]);
 
@@ -343,6 +419,25 @@ async function changePassword(req, res) {
       await db.run("UPDATE users SET password_hash = ? WHERE ug_id = ?", [newHash, req.user.ug_id]);
 
       return res.json({ success: true, message: 'Password changed successfully.' });
+    } else if (req.user.role === 'TEACHER') {
+      const teacher = await db.get(
+        "SELECT * FROM teachers WHERE UPPER(teacher_id) = UPPER(?) OR id = ?",
+        [req.user.teacher_id || '', req.user.id || 0]
+      );
+      if (!teacher) {
+        return res.status(404).json({ success: false, message: 'Faculty account not found.' });
+      }
+
+      const isMatch = await bcrypt.compare(current_password, teacher.password_hash);
+      if (!isMatch) {
+        return res.status(400).json({ success: false, message: 'Current faculty password is incorrect.' });
+      }
+
+      const newHash = await bcrypt.hash(new_password, 10);
+      await db.run("UPDATE teachers SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [newHash, teacher.id]);
+      await db.run("UPDATE users SET password_hash = ? WHERE UPPER(username) = UPPER(?)", [newHash, teacher.teacher_id]);
+
+      return res.json({ success: true, message: 'Faculty password changed successfully.' });
     } else if (req.user.role === 'ADMIN') {
       const admin = await db.get("SELECT * FROM users WHERE id = ? AND role = 'ADMIN'", [req.user.id]);
       if (!admin) {

@@ -18,6 +18,8 @@ const App = {
     if (token && user) {
       if (user.role === 'ADMIN') {
         AdminApp.init(user);
+      } else if (user.role === 'TEACHER') {
+        TeacherApp.init(user);
       } else {
         StudentApp.init(user);
       }
@@ -50,13 +52,13 @@ const App = {
             <span class="auth-badge">B.TECH CYBER SECURITY • 3CYBER7</span>
           </div>
 
-          <!-- Unified Single Login Form for Students and Admins -->
+          <!-- Unified Single Login Form for Students, Teachers, and Admins -->
           <form id="unified-login-form" onsubmit="event.preventDefault(); App.handleUnifiedLogin();" style="margin-top:10px;">
             <div class="form-group">
-              <label class="form-label">Enter UG ID *</label>
+              <label class="form-label">User / Account ID *</label>
               <div class="input-container">
                 <span class="input-icon">🆔</span>
-                <input type="text" id="login-identifier" class="form-control" placeholder="Enter UG ID (e.g. 26UG033181) or Admin ID" autocomplete="username" required />
+                <input type="text" id="login-identifier" class="form-control" placeholder="Enter UG ID, Teacher ID, or Admin ID" autocomplete="username" required />
               </div>
             </div>
 
@@ -214,6 +216,12 @@ const App = {
         } catch (e) {}
         this.showToast(res.isOffline ? 'Admin login verified (Netlify Standalone Mode).' : 'Admin login verified. Opening Admin Dashboard...', 'success');
         AdminApp.init(res.user, 'dashboard');
+      } else if (res.user.role === 'TEACHER') {
+        try {
+          history.replaceState({ role: 'TEACHER', section: 'dashboard' }, '', '#teacher-dashboard');
+        } catch (e) {}
+        this.showToast(`Welcome back, Prof. ${res.user.name}!${res.isOffline ? ' (Failsafe Active)' : ''}`, 'success');
+        TeacherApp.init(res.user, 'dashboard');
       } else {
         try {
           history.replaceState({ role: 'STUDENT', tab: 'home' }, '', '#home');
@@ -337,10 +345,15 @@ const App = {
       return;
     }
 
-    // 2. Check if mobile sidebar is open in Admin Panel
+    // 2. Check if mobile sidebar is open in Admin or Teacher Panel
     const adminSidebar = document.getElementById('admin-sidebar');
     if (adminSidebar && adminSidebar.classList.contains('open')) {
       if (window.AdminApp) window.AdminApp.toggleSidebar(false);
+      return;
+    }
+    const teacherSidebar = document.getElementById('teacher-sidebar');
+    if (teacherSidebar && teacherSidebar.classList.contains('open')) {
+      if (window.TeacherApp) window.TeacherApp.toggleSidebar(false);
       return;
     }
 
@@ -401,6 +414,34 @@ const App = {
         this.lastBackPressTime = now;
         this.showToast('Press back again to exit', 'info');
         history.pushState({ role: 'ADMIN', section: 'dashboard' }, '', '#admin-dashboard');
+        return;
+      }
+    }
+
+    // 5. Teacher App Back Navigation
+    if (user.role === 'TEACHER' && window.TeacherApp) {
+      if (e.state && e.state.section) {
+        if (window.TeacherApp.currentSection !== e.state.section) {
+          window.TeacherApp.switchSection(e.state.section, false);
+        }
+        return;
+      }
+      if (window.TeacherApp.sectionHistory && window.TeacherApp.sectionHistory.length > 1) {
+        window.TeacherApp.sectionHistory.pop();
+        const prevSection = window.TeacherApp.sectionHistory[window.TeacherApp.sectionHistory.length - 1] || 'dashboard';
+        window.TeacherApp.switchSection(prevSection, false);
+        return;
+      } else if (window.TeacherApp.currentSection !== 'dashboard') {
+        window.TeacherApp.switchSection('dashboard', false);
+        return;
+      } else {
+        const now = Date.now();
+        if (now - this.lastBackPressTime < 2500) {
+          return;
+        }
+        this.lastBackPressTime = now;
+        this.showToast('Press back again to exit', 'info');
+        history.pushState({ role: 'TEACHER', section: 'dashboard' }, '', '#teacher-dashboard');
         return;
       }
     }

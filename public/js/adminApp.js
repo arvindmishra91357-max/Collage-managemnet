@@ -19,7 +19,7 @@ const AdminApp = {
       initialSection = forceSection;
     } else {
       const hash = window.location.hash.replace('#admin-', '').replace('#', '').trim();
-      const validSubSections = ['students', 'add-student', 'batch-1', 'batch-2', 'timetable-editor', 'academic-uploads', 'assignments-manage', 'results-manage', 'notifications-manage', 'calendar-manage'];
+      const validSubSections = ['students', 'add-student', 'batch-1', 'batch-2', 'teachers', 'timetable-editor', 'academic-uploads', 'assignments-manage', 'results-manage', 'notifications-manage', 'calendar-manage'];
       // Only keep hash if it is a specific management tool, NEVER default to attendance on refresh or login!
       if (validSubSections.includes(hash)) {
         initialSection = hash;
@@ -49,6 +49,7 @@ const AdminApp = {
       'add-student': 'Create New Student Account',
       'batch-1': 'Batch 1 Students (Roll 1–30)',
       'batch-2': 'Batch 2 Students (Roll 31+)',
+      teachers: 'Faculty / Teachers Management (3CYBER7)',
       'qr-attendance': 'Dynamic QR Attendance Control Center',
       'manual-attendance': 'Manual Class Attendance',
       'attendance-reports': 'Attendance Analytics & Export',
@@ -107,6 +108,10 @@ const AdminApp = {
             <button class="sidebar-item" data-section="batch-2">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
               Batch 2 (Roll 31+)
+            </button>
+            <button class="sidebar-item" data-section="teachers">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              Faculty / Teachers
             </button>
 
             <div class="sidebar-group-title">Attendance</div>
@@ -228,6 +233,7 @@ const AdminApp = {
       'add-student': 'Create New Student Account',
       'batch-1': 'Batch 1 Students (Roll 1–30)',
       'batch-2': 'Batch 2 Students (Roll 31+)',
+      teachers: 'Faculty / Teachers Management (3CYBER7)',
       'qr-attendance': 'Dynamic QR Attendance Control Center',
       'manual-attendance': 'Manual Class Attendance',
       'attendance-reports': 'Attendance Analytics & Export',
@@ -263,6 +269,7 @@ const AdminApp = {
     else if (section === 'add-student') this.renderAddStudentForm(container);
     else if (section === 'batch-1') await this.renderStudentsList(container, 'Batch 1');
     else if (section === 'batch-2') await this.renderStudentsList(container, 'Batch 2');
+    else if (section === 'teachers') await this.renderTeachersList(container);
     else if (section === 'qr-attendance') await this.renderQRAttendanceCenter(container);
     else if (section === 'manual-attendance') await this.renderManualAttendance(container);
     else if (section === 'attendance-reports') await this.renderAttendanceReports(container);
@@ -313,6 +320,13 @@ const AdminApp = {
             <p>Today's Attendance Rate</p>
           </div>
         </div>
+        <div class="metric-card">
+          <div class="metric-icon" style="background:rgba(236,72,153,0.15); color:#f472b6;">👨‍🏫</div>
+          <div class="metric-info">
+            <h3>${stats.totalTeachers || 0}</h3>
+            <p>Faculty (${stats.activeTeachers || 0} Active)</p>
+          </div>
+        </div>
       </div>
 
       <!-- Quick Action Bar -->
@@ -321,6 +335,9 @@ const AdminApp = {
         <div style="display:flex; flex-wrap:wrap; gap:10px;">
           <button class="btn-primary" style="width:auto; padding:10px 18px; font-size:13px; margin-top:0;" onclick="AdminApp.switchSection('add-student')">
             + Add New Student (4 Fields)
+          </button>
+          <button class="btn-primary" style="width:auto; padding:10px 18px; font-size:13px; margin-top:0; background:rgba(168,85,247,0.2); border:1px solid rgba(168,85,247,0.4); color:#c084fc;" onclick="AdminApp.switchSection('teachers')">
+            👨‍🏫 Faculty / Teachers
           </button>
           <button class="btn-primary" style="width:auto; padding:10px 18px; font-size:13px; margin-top:0; background:linear-gradient(135deg, #0ea5e9, #6366f1);" onclick="AdminApp.switchSection('qr-attendance')">
             📷 Start Dynamic QR Attendance
@@ -3587,6 +3604,540 @@ const AdminApp = {
       await API.deleteCalendarEvent(id);
       window.App.showToast('Deleted.', 'info');
       this.switchSection('calendar-manage');
+    }
+  },
+
+  // ==================== 15. FACULTY / TEACHER MANAGEMENT ====================
+  async renderTeachersList(container) {
+    const res = await API.getAdminTeachers();
+    const teachers = res.success && res.teachers ? res.teachers : [];
+
+    const activeCount = teachers.filter(t => t.status === 'ACTIVE').length;
+    const inactiveCount = teachers.length - activeCount;
+
+    container.innerHTML = `
+      <div class="glass-card" style="padding:24px; margin-bottom:20px;">
+        <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:14px; margin-bottom:18px;">
+          <div>
+            <h3 style="font-size:18px; font-weight:800;">👨‍🏫 Faculty & Teacher Roster (3CYBER7)</h3>
+            <p style="font-size:12.5px; color:var(--text-secondary); margin-top:3px;">
+              Manage faculty credentials, assigned subjects, divisions, batch mappings, and login access.
+            </p>
+          </div>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <span class="auth-badge" style="margin-top:0; background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3);">
+              ${activeCount} Active
+            </span>
+            ${inactiveCount > 0 ? `
+              <span class="auth-badge" style="margin-top:0; background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3);">
+                ${inactiveCount} Inactive
+              </span>
+            ` : ''}
+            <button class="btn-primary" onclick="AdminApp.openAddTeacherModal()" style="width:auto; padding:8px 18px; font-size:13px; margin:0; display:inline-flex; align-items:center; gap:6px;">
+              <span>➕</span> <span>Add Teacher</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Search and Filter Bar -->
+        <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+          <input type="text" id="admin-teacher-search" class="form-control" placeholder="Search by name, ID, or department..." style="max-width:320px; font-size:13px;" oninput="AdminApp.filterTeachersList()" />
+        </div>
+
+        <!-- Teachers Table -->
+        <div class="table-container" style="overflow-x:auto;">
+          <table class="data-table" id="admin-teachers-table" style="width:100%; border-collapse:collapse; min-width:850px;">
+            <thead>
+              <tr style="border-bottom:1px solid var(--border-color); text-align:left; font-size:12px; color:var(--text-muted);">
+                <th style="padding:10px 12px;">TEACHER ID</th>
+                <th style="padding:10px 12px;">FACULTY NAME</th>
+                <th style="padding:10px 12px;">DEPARTMENT</th>
+                <th style="padding:10px 12px;">ASSIGNED SUBJECTS</th>
+                <th style="padding:10px 12px;">CLASS & BATCH</th>
+                <th style="padding:10px 12px;">STATUS</th>
+                <th style="padding:10px 12px; text-align:right;">ACTIONS</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${teachers.length === 0 ? `
+                <tr>
+                  <td colspan="7" style="text-align:center; padding:30px; color:var(--text-muted); font-size:13px;">
+                    No faculty accounts found. Click "+ Add Teacher" to create the first faculty account.
+                  </td>
+                </tr>
+              ` : teachers.map(t => {
+                const subjList = (t.subjects || '').split(',').map(s => s.trim()).filter(Boolean);
+                const isInactive = t.status === 'INACTIVE';
+                return `
+                  <tr class="teacher-row" data-search="${(t.teacher_id + ' ' + t.name + ' ' + (t.department || '') + ' ' + (t.subjects || '')).toLowerCase()}" style="border-bottom:1px solid rgba(255,255,255,0.06); font-size:13px;">
+                    <td style="padding:12px;">
+                      <span class="auth-badge" style="margin-top:0; font-family:monospace; font-weight:700;">${t.teacher_id}</span>
+                    </td>
+                    <td style="padding:12px;">
+                      <div style="font-weight:700; color:var(--text-primary);">${t.name}</div>
+                      <div style="font-size:11px; color:var(--text-muted);">${t.designation || 'Faculty'}</div>
+                      ${t.email ? `<div style="font-size:10.5px; color:var(--text-muted);">${t.email}</div>` : ''}
+                    </td>
+                    <td style="padding:12px; color:var(--text-secondary); font-size:12px;">
+                      ${t.department || 'Computer Science & Eng.'}
+                    </td>
+                    <td style="padding:12px;">
+                      <div style="display:flex; flex-wrap:wrap; gap:4px;">
+                        ${subjList.length > 0 ? subjList.map(s => `
+                          <span style="font-size:11px; padding:2px 7px; background:rgba(56,189,248,0.12); color:#38bdf8; border-radius:var(--radius-sm); font-weight:600;">${s}</span>
+                        `).join('') : '<span style="color:var(--text-muted); font-size:11px;">None</span>'}
+                      </div>
+                    </td>
+                    <td style="padding:12px;">
+                      <div style="font-weight:600; font-size:12px;">${t.division || '3CYBER7'}</div>
+                      <span class="lab-chip" style="font-size:10.5px; margin-top:2px;">${t.batch || 'Both'}</span>
+                    </td>
+                    <td style="padding:12px;">
+                      ${isInactive ? `
+                        <span style="display:inline-block; padding:3px 8px; border-radius:var(--radius-full); font-size:11px; font-weight:700; background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3);">
+                          INACTIVE
+                        </span>
+                      ` : `
+                        <span style="display:inline-block; padding:3px 8px; border-radius:var(--radius-full); font-size:11px; font-weight:700; background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3);">
+                          ACTIVE
+                        </span>
+                      `}
+                    </td>
+                    <td style="padding:12px; text-align:right;">
+                      <div style="display:inline-flex; gap:6px; align-items:center;">
+                        <button class="btn-sec" onclick="AdminApp.openAssignTeacherModal(${t.id}, '${escape(t.name)}', '${t.subjects || ''}', '${t.batch || 'Both'}', '${t.division || '3CYBER7'}')" style="padding:4px 8px; font-size:11.5px; margin:0;" title="Assign Subjects & Batches">
+                          📚 Assign
+                        </button>
+                        <button class="btn-sec" onclick="AdminApp.openEditTeacherModal('${t.teacher_id}')" style="padding:4px 8px; font-size:11.5px; margin:0;" title="Edit Details">
+                          ✏️ Edit
+                        </button>
+                        <button class="btn-sec" onclick="AdminApp.openResetTeacherPasswordModal(${t.id}, '${escape(t.name)}')" style="padding:4px 8px; font-size:11.5px; margin:0;" title="Reset Password">
+                          🔑 Reset Pass
+                        </button>
+                        <button class="btn-sec" onclick="AdminApp.toggleTeacherStatus(${t.id}, '${t.status}')" style="padding:4px 8px; font-size:11.5px; margin:0; ${isInactive ? 'color:#10b981; border-color:rgba(16,185,129,0.4);' : 'color:#f59e0b; border-color:rgba(245,158,11,0.4);'}" title="${isInactive ? 'Enable Login' : 'Disable Login'}">
+                          ${isInactive ? 'Enable' : 'Disable'}
+                        </button>
+                        <button class="btn-sec" onclick="AdminApp.deleteTeacher(${t.id}, '${escape(t.name)}')" style="padding:4px 8px; font-size:11.5px; margin:0; color:#ef4444; border-color:rgba(239,68,68,0.3);" title="Delete Account">
+                          🗑
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  },
+
+  filterTeachersList() {
+    const q = (document.getElementById('admin-teacher-search')?.value || '').toLowerCase().trim();
+    const rows = document.querySelectorAll('#admin-teachers-table tbody tr.teacher-row');
+    rows.forEach(r => {
+      const text = r.dataset.search || '';
+      r.style.display = !q || text.includes(q) ? '' : 'none';
+    });
+  },
+
+  openAddTeacherModal() {
+    const modalId = 'add-teacher-modal';
+    const existing = document.getElementById(modalId);
+    if (existing) existing.remove();
+
+    const div = document.createElement('div');
+    div.id = modalId;
+    div.className = 'modal-backdrop active';
+    div.innerHTML = `
+      <div class="glass-card modal-box" style="max-width:580px; width:92%; padding:26px; max-height:90vh; overflow-y:auto;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+          <h3 style="font-size:17px; font-weight:800;">➕ Create New Faculty Account</h3>
+          <button class="icon-btn" onclick="AdminApp.closeModal('${modalId}')">✕</button>
+        </div>
+
+        <form id="admin-add-teacher-form" onsubmit="event.preventDefault(); AdminApp.submitAddTeacher();">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div class="form-group">
+              <label class="form-label">Teacher ID *</label>
+              <input type="text" id="add-teacher-id" class="form-control" placeholder="e.g. TCH01 or NWAGH" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Full Name *</label>
+              <input type="text" id="add-teacher-name" class="form-control" placeholder="e.g. Prof. N. Wagh" required />
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div class="form-group">
+              <label class="form-label">Password *</label>
+              <input type="password" id="add-teacher-password" class="form-control" placeholder="Min 6 characters" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Confirm Password *</label>
+              <input type="password" id="add-teacher-confirm-password" class="form-control" placeholder="Repeat password" required />
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div class="form-group">
+              <label class="form-label">Department</label>
+              <input type="text" id="add-teacher-dept" class="form-control" value="Computer Science & Engineering" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Designation</label>
+              <input type="text" id="add-teacher-desig" class="form-control" placeholder="e.g. Assistant Professor" value="Assistant Professor" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Assigned Subjects (comma-separated)</label>
+            <input type="text" id="add-teacher-subjects" class="form-control" placeholder="e.g. DBMS, NCS, DM, JAVA" />
+            <span style="font-size:11px; color:var(--text-muted); margin-top:3px; display:block;">Teacher will have access to attendance, notes, assignments, and results only for these subjects.</span>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div class="form-group">
+              <label class="form-label">Division</label>
+              <input type="text" id="add-teacher-division" class="form-control" value="3CYBER7" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Assigned Batch</label>
+              <select id="add-teacher-batch" class="form-control">
+                <option value="Both">Both (Batch 1 & 2)</option>
+                <option value="Batch 1">Batch 1</option>
+                <option value="Batch 2">Batch 2</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div class="form-group">
+              <label class="form-label">Phone Number</label>
+              <input type="tel" id="add-teacher-phone" class="form-control" placeholder="e.g. 9876543210" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email Address</label>
+              <input type="email" id="add-teacher-email" class="form-control" placeholder="faculty@mgi.edu.in" />
+            </div>
+          </div>
+
+          <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+            <button type="button" class="btn-sec" onclick="AdminApp.closeModal('${modalId}')">Cancel</button>
+            <button type="submit" class="btn-primary" id="btn-submit-add-teacher" style="width:auto; padding:10px 22px;">Create Teacher</button>
+          </div>
+        </form>
+      </div>
+    `;
+    document.getElementById('admin-modal-container').appendChild(div);
+  },
+
+  async submitAddTeacher() {
+    const teacher_id = (document.getElementById('add-teacher-id')?.value || '').trim();
+    const name = (document.getElementById('add-teacher-name')?.value || '').trim();
+    const password = document.getElementById('add-teacher-password')?.value || '';
+    const confirm_password = document.getElementById('add-teacher-confirm-password')?.value || '';
+    const department = (document.getElementById('add-teacher-dept')?.value || '').trim();
+    const designation = (document.getElementById('add-teacher-desig')?.value || '').trim();
+    const subjects = (document.getElementById('add-teacher-subjects')?.value || '').trim();
+    const division = (document.getElementById('add-teacher-division')?.value || '3CYBER7').trim();
+    const batch = document.getElementById('add-teacher-batch')?.value || 'Both';
+    const phone = (document.getElementById('add-teacher-phone')?.value || '').trim();
+    const email = (document.getElementById('add-teacher-email')?.value || '').trim();
+
+    if (!teacher_id || !name || !password) {
+      window.App.showToast('Please fill in Teacher ID, Name, and Password.', 'error');
+      return;
+    }
+    if (password.length < 6) {
+      window.App.showToast('Password must be at least 6 characters long.', 'error');
+      return;
+    }
+    if (password !== confirm_password) {
+      window.App.showToast('Passwords do not match.', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('btn-submit-add-teacher');
+    if (btn) { btn.disabled = true; btn.innerText = 'Creating...'; }
+
+    const res = await API.createAdminTeacher({
+      teacher_id, name, password, department, designation, subjects, division, batch, phone, email
+    });
+
+    if (btn) { btn.disabled = false; btn.innerText = 'Create Teacher'; }
+
+    if (res && res.success) {
+      window.App.showToast(`Faculty account for ${name} created successfully!`, 'success');
+      this.closeModal('add-teacher-modal');
+      this.loadSectionData('teachers');
+    } else {
+      window.App.showToast(res ? res.message : 'Failed to create teacher account.', 'error');
+    }
+  },
+
+  async openEditTeacherModal(teacherId) {
+    const modalId = 'edit-teacher-modal';
+    const existing = document.getElementById(modalId);
+    if (existing) existing.remove();
+
+    const res = await API.getAdminTeacherById(teacherId);
+    if (!res || !res.success || !res.teacher) {
+      window.App.showToast('Failed to fetch teacher details.', 'error');
+      return;
+    }
+    const t = res.teacher;
+
+    const div = document.createElement('div');
+    div.id = modalId;
+    div.className = 'modal-backdrop active';
+    div.innerHTML = `
+      <div class="glass-card modal-box" style="max-width:540px; width:92%; padding:26px; max-height:90vh; overflow-y:auto;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+          <div>
+            <h3 style="font-size:17px; font-weight:800;">✏️ Edit Faculty Details</h3>
+            <span class="auth-badge" style="margin-top:2px;">${t.teacher_id}</span>
+          </div>
+          <button class="icon-btn" onclick="AdminApp.closeModal('${modalId}')">✕</button>
+        </div>
+
+        <form id="admin-edit-teacher-form" onsubmit="event.preventDefault(); AdminApp.submitEditTeacher(${t.id});">
+          <div class="form-group">
+            <label class="form-label">Full Name *</label>
+            <input type="text" id="edit-teacher-name" class="form-control" value="${t.name}" required />
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div class="form-group">
+              <label class="form-label">Department</label>
+              <input type="text" id="edit-teacher-dept" class="form-control" value="${t.department || ''}" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Designation</label>
+              <input type="text" id="edit-teacher-desig" class="form-control" value="${t.designation || ''}" />
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div class="form-group">
+              <label class="form-label">Phone Number</label>
+              <input type="tel" id="edit-teacher-phone" class="form-control" value="${t.phone || ''}" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email Address</label>
+              <input type="email" id="edit-teacher-email" class="form-control" value="${t.email || ''}" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Account Status</label>
+            <select id="edit-teacher-status" class="form-control">
+              <option value="ACTIVE" ${t.status === 'ACTIVE' ? 'selected' : ''}>ACTIVE (Can Login)</option>
+              <option value="INACTIVE" ${t.status === 'INACTIVE' ? 'selected' : ''}>INACTIVE (Login Blocked)</option>
+            </select>
+          </div>
+
+          <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+            <button type="button" class="btn-sec" onclick="AdminApp.closeModal('${modalId}')">Cancel</button>
+            <button type="submit" class="btn-primary" id="btn-submit-edit-teacher" style="width:auto; padding:10px 22px;">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    `;
+    document.getElementById('admin-modal-container').appendChild(div);
+  },
+
+  async submitEditTeacher(id) {
+    const name = (document.getElementById('edit-teacher-name')?.value || '').trim();
+    const department = (document.getElementById('edit-teacher-dept')?.value || '').trim();
+    const designation = (document.getElementById('edit-teacher-desig')?.value || '').trim();
+    const phone = (document.getElementById('edit-teacher-phone')?.value || '').trim();
+    const email = (document.getElementById('edit-teacher-email')?.value || '').trim();
+    const status = document.getElementById('edit-teacher-status')?.value || 'ACTIVE';
+
+    if (!name) {
+      window.App.showToast('Name cannot be empty.', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('btn-submit-edit-teacher');
+    if (btn) { btn.disabled = true; btn.innerText = 'Saving...'; }
+
+    const res = await API.updateAdminTeacher(id, { name, department, designation, phone, email, status });
+    if (btn) { btn.disabled = false; btn.innerText = 'Save Changes'; }
+
+    if (res && res.success) {
+      window.App.showToast('Faculty profile updated successfully!', 'success');
+      this.closeModal('edit-teacher-modal');
+      this.loadSectionData('teachers');
+    } else {
+      window.App.showToast(res ? res.message : 'Failed to update teacher.', 'error');
+    }
+  },
+
+  openAssignTeacherModal(id, name, currentSubjects, currentBatch, currentDivision) {
+    const modalId = 'assign-teacher-modal';
+    const existing = document.getElementById(modalId);
+    if (existing) existing.remove();
+
+    const div = document.createElement('div');
+    div.id = modalId;
+    div.className = 'modal-backdrop active';
+    div.innerHTML = `
+      <div class="glass-card modal-box" style="max-width:520px; width:92%; padding:26px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+          <div>
+            <h3 style="font-size:17px; font-weight:800;">📚 Subject & Batch Assignments</h3>
+            <p style="font-size:12.5px; color:var(--text-secondary); margin-top:2px;">Faculty: ${unescape(name)}</p>
+          </div>
+          <button class="icon-btn" onclick="AdminApp.closeModal('${modalId}')">✕</button>
+        </div>
+
+        <form id="admin-assign-teacher-form" onsubmit="event.preventDefault(); AdminApp.submitAssignTeacher(${id});">
+          <div class="form-group">
+            <label class="form-label">Assigned Subjects (comma-separated) *</label>
+            <input type="text" id="assign-teacher-subjects" class="form-control" value="${currentSubjects || ''}" placeholder="e.g. DBMS, NCS, DM" required />
+            <span style="font-size:11.5px; color:var(--text-muted); margin-top:3px; display:block;">Common 3CYBER7 Subjects: DBMS, NCS, DM, JAVA, FCS, COMA, DSA</span>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div class="form-group">
+              <label class="form-label">Division</label>
+              <input type="text" id="assign-teacher-division" class="form-control" value="${currentDivision || '3CYBER7'}" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Assigned Batch</label>
+              <select id="assign-teacher-batch" class="form-control">
+                <option value="Both" ${currentBatch === 'Both' ? 'selected' : ''}>Both (Batch 1 & 2)</option>
+                <option value="Batch 1" ${currentBatch === 'Batch 1' ? 'selected' : ''}>Batch 1 (Roll 1–30)</option>
+                <option value="Batch 2" ${currentBatch === 'Batch 2' ? 'selected' : ''}>Batch 2 (Roll 31+)</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+            <button type="button" class="btn-sec" onclick="AdminApp.closeModal('${modalId}')">Cancel</button>
+            <button type="submit" class="btn-primary" id="btn-submit-assign-teacher" style="width:auto; padding:10px 22px;">Update Assignments</button>
+          </div>
+        </form>
+      </div>
+    `;
+    document.getElementById('admin-modal-container').appendChild(div);
+  },
+
+  async submitAssignTeacher(id) {
+    const subjects = (document.getElementById('assign-teacher-subjects')?.value || '').trim();
+    const batch = document.getElementById('assign-teacher-batch')?.value || 'Both';
+    const division = (document.getElementById('assign-teacher-division')?.value || '3CYBER7').trim();
+
+    if (!subjects) {
+      window.App.showToast('Please enter at least one subject.', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('btn-submit-assign-teacher');
+    if (btn) { btn.disabled = true; btn.innerText = 'Updating...'; }
+
+    const res = await API.updateTeacherAssignments(id, { subjects, batch, division });
+    if (btn) { btn.disabled = false; btn.innerText = 'Update Assignments'; }
+
+    if (res && res.success) {
+      window.App.showToast('Faculty assignments updated successfully!', 'success');
+      this.closeModal('assign-teacher-modal');
+      this.loadSectionData('teachers');
+    } else {
+      window.App.showToast(res ? res.message : 'Failed to update assignments.', 'error');
+    }
+  },
+
+  openResetTeacherPasswordModal(id, name) {
+    const modalId = 'reset-teacher-pass-modal';
+    const existing = document.getElementById(modalId);
+    if (existing) existing.remove();
+
+    const div = document.createElement('div');
+    div.id = modalId;
+    div.className = 'modal-backdrop active';
+    div.innerHTML = `
+      <div class="glass-card modal-box" style="max-width:460px; width:92%; padding:26px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+          <div>
+            <h3 style="font-size:17px; font-weight:800;">🔑 Reset Password</h3>
+            <p style="font-size:12.5px; color:var(--text-secondary); margin-top:2px;">Faculty: ${unescape(name)}</p>
+          </div>
+          <button class="icon-btn" onclick="AdminApp.closeModal('${modalId}')">✕</button>
+        </div>
+
+        <form id="admin-reset-teacher-pass-form" onsubmit="event.preventDefault(); AdminApp.submitResetTeacherPassword(${id});">
+          <div class="form-group">
+            <label class="form-label">New Password *</label>
+            <input type="password" id="reset-teacher-pass" class="form-control" placeholder="Min 6 characters" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirm New Password *</label>
+            <input type="password" id="reset-teacher-pass-confirm" class="form-control" placeholder="Repeat password" required />
+          </div>
+
+          <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+            <button type="button" class="btn-sec" onclick="AdminApp.closeModal('${modalId}')">Cancel</button>
+            <button type="submit" class="btn-primary" id="btn-submit-reset-teacher" style="width:auto; padding:10px 22px;">Update Password</button>
+          </div>
+        </form>
+      </div>
+    `;
+    document.getElementById('admin-modal-container').appendChild(div);
+  },
+
+  async submitResetTeacherPassword(id) {
+    const pass = document.getElementById('reset-teacher-pass')?.value || '';
+    const passConfirm = document.getElementById('reset-teacher-pass-confirm')?.value || '';
+
+    if (!pass || pass.length < 6) {
+      window.App.showToast('Password must be at least 6 characters.', 'error');
+      return;
+    }
+    if (pass !== passConfirm) {
+      window.App.showToast('Passwords do not match.', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('btn-submit-reset-teacher');
+    if (btn) { btn.disabled = true; btn.innerText = 'Updating...'; }
+
+    const res = await API.resetTeacherPassword(id, pass);
+    if (btn) { btn.disabled = false; btn.innerText = 'Update Password'; }
+
+    if (res && res.success) {
+      window.App.showToast('Teacher password reset successfully!', 'success');
+      this.closeModal('reset-teacher-pass-modal');
+    } else {
+      window.App.showToast(res ? res.message : 'Failed to reset password.', 'error');
+    }
+  },
+
+  async toggleTeacherStatus(id, currentStatus) {
+    const isActivating = currentStatus === 'INACTIVE';
+    const actionName = isActivating ? 'activate' : 'deactivate';
+    if (!confirm(`Are you sure you want to ${actionName} this teacher account?`)) return;
+
+    const res = await API.toggleTeacherStatus(id);
+    if (res && res.success) {
+      window.App.showToast(`Teacher status changed to ${res.status}.`, 'success');
+      this.loadSectionData('teachers');
+    } else {
+      window.App.showToast(res ? res.message : 'Failed to toggle status.', 'error');
+    }
+  },
+
+  async deleteTeacher(id, name) {
+    if (!confirm(`Are you sure you want to delete teacher "${unescape(name)}"? This action cannot be undone.`)) return;
+
+    const res = await API.deleteAdminTeacher(id);
+    if (res && res.success) {
+      window.App.showToast('Teacher deleted successfully.', 'info');
+      this.loadSectionData('teachers');
+    } else {
+      window.App.showToast(res ? res.message : 'Failed to delete teacher.', 'error');
     }
   }
 };

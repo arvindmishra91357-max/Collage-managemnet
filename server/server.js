@@ -10,7 +10,7 @@ const multer = require('multer');
 const rateLimit = require('express-rate-limit');
 
 const db = require('./db');
-const { authenticateToken, requireAdmin, requireStudent } = require('./middleware/auth');
+const { authenticateToken, requireAdmin, requireStudent, requireTeacher, requireTeacherOrAdmin } = require('./middleware/auth');
 const { uploadPhoto, uploadDocument, getMimeType, retrieveFile } = require('./services/storageService');
 const { ensureSampleFiles } = require('./services/seedFiles');
 const realtime = require('./realtime');
@@ -26,6 +26,7 @@ const excelCtrl = require('./controllers/excelController');
 const notifCtrl = require('./controllers/notificationController');
 const aiCtrl = require('./controllers/aiController');
 const searchCtrl = require('./controllers/searchController');
+const teacherCtrl = require('./controllers/teacherController');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -128,6 +129,16 @@ app.put('/api/admin/students/:id', authenticateToken, requireAdmin, studentCtrl.
 app.post('/api/admin/students/:id/toggle-cr', authenticateToken, requireAdmin, studentCtrl.toggleCRStatus);
 app.delete('/api/admin/students/:id', authenticateToken, requireAdmin, studentCtrl.deleteStudent);
 
+// 3b. Faculty / Teacher Management (Admin Control)
+app.get('/api/admin/teachers', authenticateToken, requireAdmin, teacherCtrl.adminGetAllTeachers);
+app.post('/api/admin/teachers', authenticateToken, requireAdmin, teacherCtrl.adminCreateTeacher);
+app.get('/api/admin/teachers/:id', authenticateToken, requireAdmin, teacherCtrl.adminGetTeacherById);
+app.put('/api/admin/teachers/:id', authenticateToken, requireAdmin, teacherCtrl.adminUpdateTeacher);
+app.delete('/api/admin/teachers/:id', authenticateToken, requireAdmin, teacherCtrl.adminDeleteTeacher);
+app.post('/api/admin/teachers/:id/toggle-status', authenticateToken, requireAdmin, teacherCtrl.adminToggleStatus);
+app.post('/api/admin/teachers/:id/reset-password', authenticateToken, requireAdmin, teacherCtrl.adminResetPassword);
+app.put('/api/admin/teachers/:id/assignments', authenticateToken, requireAdmin, teacherCtrl.adminUpdateAssignments);
+
 // 4. Timetable & Manual Room Change / Class Overrides
 app.get('/api/timetable', authenticateToken, timetableCtrl.getStudentTimetable);
 app.get('/api/timetable/today', authenticateToken, timetableCtrl.getTodayClasses);
@@ -223,6 +234,54 @@ app.post('/api/ai/chat', authenticateToken, aiCtrl.chatWithAI);
 // 10. Global Search
 app.get('/api/search', authenticateToken, searchCtrl.globalSearch);
 
+// ==================== TEACHER PORTAL ROUTES ====================
+// Dashboard & Profile
+app.get('/api/teacher/dashboard', authenticateToken, requireTeacher, teacherCtrl.getDashboard);
+app.get('/api/teacher/profile', authenticateToken, requireTeacher, teacherCtrl.getProfile);
+app.put('/api/teacher/profile', authenticateToken, requireTeacher, teacherCtrl.updateProfile);
+app.post('/api/teacher/upload-photo', authenticateToken, requireTeacher, uploadPhoto.single('photo'), teacherCtrl.uploadProfilePhoto);
+
+// Timetable
+app.get('/api/teacher/timetable', authenticateToken, requireTeacher, teacherCtrl.getTimetable);
+
+// Students
+app.get('/api/teacher/students', authenticateToken, requireTeacher, teacherCtrl.getStudents);
+app.get('/api/teacher/students/:ug_id', authenticateToken, requireTeacher, teacherCtrl.getStudentProfile);
+app.get('/api/teacher/student-profile/:ug_id', authenticateToken, requireTeacher, teacherCtrl.getStudentProfile);
+
+// Attendance (Dynamic QR + Live Scans + Manual + Reports)
+app.get('/api/teacher/attendance', authenticateToken, requireTeacher, teacherCtrl.getAttendanceOverview);
+app.post('/api/teacher/attendance/session', authenticateToken, requireTeacher, teacherCtrl.startQRSession);
+app.post('/api/teacher/attendance/session/:id/stop', authenticateToken, requireTeacher, teacherCtrl.stopQRSession);
+app.get('/api/teacher/attendance/session/:id/live', authenticateToken, requireTeacher, teacherCtrl.getLiveSessionScans);
+app.get('/api/teacher/attendance/session/:id/live-scans', authenticateToken, requireTeacher, teacherCtrl.getLiveSessionScans);
+app.post('/api/teacher/attendance/manual', authenticateToken, requireTeacher, teacherCtrl.saveManualAttendance);
+app.get('/api/teacher/attendance/reports', authenticateToken, requireTeacher, teacherCtrl.getAttendanceReports);
+
+// Notes & Study Materials
+app.get('/api/teacher/notes', authenticateToken, requireTeacher, teacherCtrl.getNotes);
+app.post('/api/teacher/notes', authenticateToken, requireTeacher, uploadDocument('notes').single('file'), teacherCtrl.uploadNote);
+app.delete('/api/teacher/notes/:id', authenticateToken, requireTeacher, teacherCtrl.deleteNote);
+
+app.get('/api/teacher/materials', authenticateToken, requireTeacher, teacherCtrl.getMaterials);
+app.post('/api/teacher/materials', authenticateToken, requireTeacher, uploadDocument('material').single('file'), teacherCtrl.uploadMaterial);
+app.delete('/api/teacher/materials/:id', authenticateToken, requireTeacher, teacherCtrl.deleteMaterial);
+
+// Assignments & Submissions
+app.get('/api/teacher/assignments', authenticateToken, requireTeacher, teacherCtrl.getAssignments);
+app.post('/api/teacher/assignments', authenticateToken, requireTeacher, uploadDocument('assignments').single('file'), teacherCtrl.createAssignment);
+app.delete('/api/teacher/assignments/:id', authenticateToken, requireTeacher, teacherCtrl.deleteAssignment);
+app.get('/api/teacher/assignments/:id/submissions', authenticateToken, requireTeacher, teacherCtrl.getAssignmentSubmissions);
+app.put('/api/teacher/submissions/:id/grade', authenticateToken, requireTeacher, teacherCtrl.gradeSubmission);
+
+// Results / Marks Entry
+app.get('/api/teacher/results', authenticateToken, requireTeacher, teacherCtrl.getResults);
+app.post('/api/teacher/results', authenticateToken, requireTeacher, teacherCtrl.saveResult);
+
+// Announcements & Notifications
+app.get('/api/teacher/notifications', authenticateToken, requireTeacher, teacherCtrl.getNotifications);
+app.post('/api/teacher/notifications', authenticateToken, requireTeacher, teacherCtrl.createNotification);
+
 // 11. Admin Dashboard Stats
 app.get('/api/admin/dashboard-stats', authenticateToken, requireAdmin, async (req, res) => {
   try {
@@ -243,12 +302,20 @@ app.get('/api/admin/dashboard-stats', authenticateToken, requireAdmin, async (re
     const papersCount = await db.get("SELECT COUNT(*) as c FROM question_papers");
     const notifCount = await db.get("SELECT COUNT(*) as c FROM notifications");
 
+    const teachers = await db.query("SELECT status FROM teachers");
+    const totalTeachers = teachers.length;
+    const activeTeachers = teachers.filter(t => t.status === 'ACTIVE').length;
+    const inactiveTeachers = teachers.filter(t => t.status === 'INACTIVE').length;
+
     res.json({
       success: true,
       stats: {
         totalStudents,
         batch1Students,
         batch2Students,
+        totalTeachers,
+        activeTeachers,
+        inactiveTeachers,
         presentToday: presentToday || (totalStudents > 0 ? Math.round(totalStudents * 0.9) : 0),
         absentToday: absentToday || (totalStudents > 0 ? Math.round(totalStudents * 0.1) : 0),
         attendanceRate: totalStudents > 0 ? '91.5%' : '0%',
@@ -281,21 +348,26 @@ app.get('*', (req, res) => {
 });
 
 // Start Server & Initialize Database
-async function startServer() {
+async function startServer(port = PORT) {
   try {
     ensureSampleFiles();
     await db.initDB();
-    app.listen(PORT, () => {
+    const serverInstance = app.listen(port, () => {
       console.log(`====================================================`);
       console.log(`🚀 Mishra Group Institute Student Portal & Admin Backend`);
-      console.log(`   Running at: http://localhost:${PORT}`);
+      console.log(`   Running at: http://localhost:${port}`);
       console.log(`   Division: 3CYBER7 | Academic Year: 2026-27`);
       console.log(`====================================================`);
     });
+    return serverInstance;
   } catch (err) {
     console.error('Fatal server startup failure:', err);
     process.exit(1);
   }
 }
 
-startServer();
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = { app, startServer };
