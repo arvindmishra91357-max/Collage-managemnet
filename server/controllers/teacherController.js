@@ -717,7 +717,8 @@ async function saveManualAttendance(req, res) {
     for (const r of records) {
       if (!r.ug_id || !r.status) continue;
       const cleanUgId = r.ug_id.trim().toUpperCase();
-      const status = r.status.toUpperCase();
+      const rawStatus = r.status.toUpperCase();
+      const status = (rawStatus === 'N/A' || rawStatus === 'NA') ? 'LEAVE' : rawStatus;
       const studentName = r.name || cleanUgId;
 
       const existing = await db.get(

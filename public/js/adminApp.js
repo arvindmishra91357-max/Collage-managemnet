@@ -1280,18 +1280,24 @@ const AdminApp = {
             </div>
           </div>
 
-          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-            <div style="flex:1; min-width:260px;">
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <div style="flex:1; min-width:240px;">
               <input type="text" id="admin-quick-roll-input" class="form-control" placeholder="e.g. 17 or bulk paste: 5, 8, 12, 17, 23" autocomplete="off" style="font-size:15px; font-weight:800; padding:10px 14px; border-color:#38bdf8; letter-spacing:0.5px;" />
             </div>
-            <button type="button" class="btn-primary" onclick="AdminApp.submitAdminQuickRollInput()" style="padding:10px 20px; font-size:13px; font-weight:800; width:auto; margin:0; background:linear-gradient(135deg, #0ea5e9, #2563eb);">
+            <button type="button" class="btn-primary" onclick="AdminApp.submitAdminQuickRollInput()" style="padding:10px 18px; font-size:13px; font-weight:800; width:auto; margin:0; background:linear-gradient(135deg, #0ea5e9, #2563eb);">
               ↵ Mark Present
             </button>
-            <button type="button" class="btn-sec" onclick="AdminApp.undoAdminQuickEntry()" title="Undo last entry (Ctrl+Z)" style="padding:10px 14px; font-size:13px; font-weight:700; width:auto; margin:0;">
+            <button type="button" class="btn-sec" onclick="AdminApp.undoAdminQuickEntry()" title="Undo last entry (Ctrl+Z)" style="padding:10px 12px; font-size:13px; font-weight:700; width:auto; margin:0;">
               ↩ Undo
             </button>
-            <button type="button" class="btn-sec" onclick="AdminApp.clearAllAdminQuickStatus()" title="Reset all to Absent" style="padding:10px 14px; font-size:13px; font-weight:700; width:auto; margin:0; color:#ef4444; border-color:rgba(239,68,68,0.3);">
-              ✕ Reset All
+            <button type="button" class="btn-sec" onclick="AdminApp.setAllAdminQuickStatus('PRESENT')" title="Mark all students as Present" style="padding:10px 13px; font-size:12.5px; font-weight:800; width:auto; margin:0; color:#10b981; border-color:rgba(16,185,129,0.4); background:rgba(16,185,129,0.08);">
+              ✓ All Present
+            </button>
+            <button type="button" class="btn-sec" onclick="AdminApp.setAllAdminQuickStatus('ABSENT')" title="Mark all students as Absent" style="padding:10px 13px; font-size:12.5px; font-weight:800; width:auto; margin:0; color:#ef4444; border-color:rgba(239,68,68,0.4); background:rgba(239,68,68,0.08);">
+              ✕ All Absent
+            </button>
+            <button type="button" class="btn-sec" onclick="AdminApp.setAllAdminQuickStatus('N/A')" title="Mark all students as N/A (Leave / Excused)" style="padding:10px 13px; font-size:12.5px; font-weight:800; width:auto; margin:0; color:#fbbf24; border-color:rgba(245,158,11,0.4); background:rgba(245,158,11,0.08);">
+              ➖ All N/A
             </button>
           </div>
 
@@ -1302,7 +1308,7 @@ const AdminApp = {
         </div>
 
         <!-- Live Summary Metrics Bar -->
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:10px; margin-bottom:18px;">
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap:10px; margin-bottom:18px;">
           <div style="background:rgba(255,255,255,0.04); border:1px solid var(--border-color); border-radius:10px; padding:10px 14px;">
             <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Total Students</div>
             <div id="admin-quick-stat-total" style="font-size:22px; font-weight:900; color:var(--text-primary); margin-top:2px;">0</div>
@@ -1314,6 +1320,10 @@ const AdminApp = {
           <div style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.3); border-radius:10px; padding:10px 14px;">
             <div style="font-size:11px; color:#ef4444; text-transform:uppercase; font-weight:700;">Absent ❌</div>
             <div id="admin-quick-stat-absent" style="font-size:22px; font-weight:900; color:#ef4444; margin-top:2px;">0</div>
+          </div>
+          <div style="background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.3); border-radius:10px; padding:10px 14px;">
+            <div style="font-size:11px; color:#fbbf24; text-transform:uppercase; font-weight:700;">N/A ➖</div>
+            <div id="admin-quick-stat-na" style="font-size:22px; font-weight:900; color:#fbbf24; margin-top:2px;">0</div>
           </div>
           <div style="background:rgba(56,189,248,0.08); border:1px solid rgba(56,189,248,0.3); border-radius:10px; padding:10px 14px;">
             <div style="font-size:11px; color:#38bdf8; text-transform:uppercase; font-weight:700;">Turnout Rate</div>
@@ -1329,7 +1339,7 @@ const AdminApp = {
         <!-- Footer Action Toolbar -->
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:18px; flex-wrap:wrap; gap:12px; border-top:1px solid var(--border-color); padding-top:16px;">
           <div style="font-size:12px; color:var(--text-secondary);">
-            Tip: Click directly on any student's status badge below to quickly toggle between Present and Absent.
+            Tip: Check the box to mark Present, or select <strong>P / A / N/A</strong> on each student. Entering roll numbers automatically marks students Present.
           </div>
           <button class="btn-primary" id="btn-save-admin-quick" onclick="AdminApp.promptSaveAdminQuickAttendance()" style="padding:11px 28px; font-size:13.5px; font-weight:800; width:auto; margin:0; background:linear-gradient(135deg, #10b981, #059669); box-shadow:0 4px 14px rgba(16,185,129,0.35);">
             💾 Save Attendance
@@ -1350,6 +1360,16 @@ const AdminApp = {
     const date = document.getElementById('admin-quick-date')?.value || new Date().toISOString().split('T')[0];
     const period = document.getElementById('admin-quick-period')?.value || 'Lecture 1';
 
+    // Reset feedback message & input on batch/filter change (clears stale data from previous batch)
+    const msgBox = document.getElementById('admin-quick-roll-msg');
+    if (msgBox) {
+      msgBox.innerHTML = `<span style="color:var(--text-muted); font-weight:normal;">Enter roll numbers of students who are present. All others default to Absent.</span>`;
+    }
+    const input = document.getElementById('admin-quick-roll-input');
+    if (input) {
+      input.value = '';
+    }
+
     tableBox.innerHTML = `<div style="text-align:center; padding:30px; color:var(--text-muted);"><div class="spinner" style="margin:0 auto 10px auto;"></div>Loading roster for ${batch}...</div>`;
 
     const res = await API.getStudents();
@@ -1364,7 +1384,7 @@ const AdminApp = {
     }
     students = students.slice().sort((a, b) => parseInt(a.roll_number, 10) - parseInt(b.roll_number, 10));
 
-    // Initialize all students as ABSENT by default (Requirement #7)
+    // Initialize all students as ABSENT by default
     const statusMap = {};
     students.forEach(s => {
       statusMap[s.ug_id.toUpperCase()] = 'ABSENT';
@@ -1385,9 +1405,7 @@ const AdminApp = {
     this.updateAdminQuickMetrics();
     this.attachAdminQuickInputListeners();
 
-    const input = document.getElementById('admin-quick-roll-input');
     if (input) {
-      input.value = '';
       input.focus();
     }
   },
@@ -1403,16 +1421,23 @@ const AdminApp = {
       return;
     }
 
+    const presentCount = students.filter(s => (statusMap[s.ug_id.toUpperCase()] || 'ABSENT') === 'PRESENT').length;
+    const allChecked = students.length > 0 && presentCount === students.length;
+    const isIndeterminate = presentCount > 0 && presentCount < students.length;
+
     tableBox.innerHTML = `
       <table class="data-table" style="font-size:12.5px; width:100%; border-collapse:collapse;">
         <thead>
           <tr style="position:sticky; top:0; background:var(--bg-glass-strong); z-index:2;">
+            <th style="width:45px; text-align:center;">
+              <input type="checkbox" id="admin-quick-master-cb" title="Toggle All Present / Absent" onchange="AdminApp.toggleAllAdminQuickCheckbox(this.checked)" style="cursor:pointer; width:16px; height:16px; accent-color:#10b981; vertical-align:middle;" ${allChecked ? 'checked' : ''} />
+            </th>
             <th style="width:65px; text-align:center;">Roll</th>
             <th style="width:120px;">UG ID</th>
             <th>Student Name</th>
-            <th style="width:90px; text-align:center;">Batch</th>
-            <th style="width:150px; text-align:center;">Status</th>
-            <th style="width:90px; text-align:center;">Action</th>
+            <th style="width:85px; text-align:center;">Batch</th>
+            <th style="width:130px; text-align:center;">Status</th>
+            <th style="width:120px; text-align:center;">Action</th>
           </tr>
         </thead>
         <tbody>
@@ -1420,12 +1445,16 @@ const AdminApp = {
             const ugKey = s.ug_id.toUpperCase();
             const status = statusMap[ugKey] || 'ABSENT';
             const isPresent = status === 'PRESENT';
+            const isNA = status === 'N/A';
             const isLast = lastEnteredRoll === parseInt(s.roll_number, 10);
 
             return `
               <tr id="admin-quick-row-${ugKey}" style="transition:all 0.2s ease; ${isLast ? 'background:rgba(16,185,129,0.15);' : ''}">
-                <td style="text-align:center; font-weight:800; font-size:13px; color:${isPresent ? '#10b981' : 'var(--text-primary)'};">
-                  #${s.roll_number}
+                <td style="text-align:center;">
+                  <input type="checkbox" class="admin-quick-student-cb" data-ug="${ugKey}" ${isPresent ? 'checked' : ''} onchange="AdminApp.onAdminStudentCheckboxToggle('${ugKey}', this.checked)" style="cursor:pointer; width:16px; height:16px; accent-color:#10b981; vertical-align:middle;" />
+                </td>
+                <td style="text-align:center; font-weight:800; font-size:13px; color:${isPresent ? '#10b981' : (isNA ? '#fbbf24' : 'var(--text-primary)')};">
+                  ${s.roll_number}
                 </td>
                 <td><code style="color:#38bdf8; font-weight:700;">${s.ug_id}</code></td>
                 <td><strong>${s.name}</strong></td>
@@ -1433,14 +1462,22 @@ const AdminApp = {
                   <span class="badge" style="background:rgba(255,255,255,0.06); font-size:11px;">${s.batch}</span>
                 </td>
                 <td style="text-align:center;">
-                  <span class="badge" style="cursor:pointer; font-size:11.5px; font-weight:800; padding:5px 12px; border-radius:6px; transition:all 0.15s ease; ${isPresent ? 'background:#10b981; color:#fff; box-shadow:0 0 10px rgba(16,185,129,0.4);' : 'background:rgba(239,68,68,0.12); color:#f87171; border:1px solid rgba(239,68,68,0.3);'}" onclick="AdminApp.toggleAdminQuickStatus('${ugKey}')">
-                    ${isPresent ? 'PRESENT ✅' : 'ABSENT'}
+                  <span id="admin-quick-badge-${ugKey}" class="badge" style="cursor:pointer; font-size:11.5px; font-weight:800; padding:5px 12px; border-radius:6px; transition:all 0.15s ease; ${
+                    isPresent
+                      ? 'background:#10b981; color:#fff; box-shadow:0 0 10px rgba(16,185,129,0.4);'
+                      : (isNA
+                          ? 'background:rgba(245,158,11,0.18); color:#fbbf24; border:1px solid rgba(245,158,11,0.45);'
+                          : 'background:rgba(239,68,68,0.12); color:#f87171; border:1px solid rgba(239,68,68,0.3);')
+                  }" onclick="AdminApp.cycleAdminStudentStatus('${ugKey}')" title="Click to cycle status: Present / Absent / N/A">
+                    ${isPresent ? 'PRESENT ✅' : (isNA ? 'N/A ➖' : 'ABSENT ❌')}
                   </span>
                 </td>
                 <td style="text-align:center;">
-                  <button type="button" class="btn-sec" onclick="AdminApp.toggleAdminQuickStatus('${ugKey}')" style="padding:3px 8px; font-size:11px; margin:0; width:auto;" title="Toggle status">
-                    ${isPresent ? 'Mark A' : 'Mark P'}
-                  </button>
+                  <div style="display:inline-flex; gap:2px; background:rgba(255,255,255,0.06); padding:2px; border-radius:6px; border:1px solid var(--border-color);">
+                    <button type="button" onclick="AdminApp.setAdminStudentStatus('${ugKey}', 'PRESENT')" title="Mark Present" style="padding:2px 7px; font-size:11px; font-weight:800; border-radius:4px; border:none; cursor:pointer; ${isPresent ? 'background:#10b981; color:#fff;' : 'background:transparent; color:var(--text-muted);'}">P</button>
+                    <button type="button" onclick="AdminApp.setAdminStudentStatus('${ugKey}', 'ABSENT')" title="Mark Absent" style="padding:2px 7px; font-size:11px; font-weight:800; border-radius:4px; border:none; cursor:pointer; ${status === 'ABSENT' ? 'background:#ef4444; color:#fff;' : 'background:transparent; color:var(--text-muted);'}">A</button>
+                    <button type="button" onclick="AdminApp.setAdminStudentStatus('${ugKey}', 'N/A')" title="Mark N/A" style="padding:2px 7px; font-size:11px; font-weight:800; border-radius:4px; border:none; cursor:pointer; ${isNA ? 'background:#f59e0b; color:#fff;' : 'background:transparent; color:var(--text-muted);'}">N/A</button>
+                  </div>
                 </td>
               </tr>
             `;
@@ -1448,6 +1485,11 @@ const AdminApp = {
         </tbody>
       </table>
     `;
+
+    const masterEl = document.getElementById('admin-quick-master-cb');
+    if (masterEl) {
+      masterEl.indeterminate = isIndeterminate;
+    }
   },
 
   submitAdminQuickRollInput() {
@@ -1495,9 +1537,10 @@ const AdminApp = {
         if (statusMap[ugKey] === 'PRESENT') {
           alreadyPresent.push({ roll: rollNum, name: student.name });
         } else {
+          const prev = statusMap[ugKey] || 'ABSENT';
           statusMap[ugKey] = 'PRESENT';
           addedPresent.push({ roll: rollNum, name: student.name, ug_id: ugKey });
-          history.push({ action: 'MARK_PRESENT', roll: rollNum, name: student.name, ug_id: ugKey });
+          history.push({ action: 'SET_STATUS', roll: rollNum, name: student.name, ug_id: ugKey, prevStatus: prev, newStatus: 'PRESENT' });
           this.quickAttState.lastEnteredRoll = rollNum;
         }
       }
@@ -1521,23 +1564,117 @@ const AdminApp = {
     if (msgBox) {
       if (addedPresent.length > 0 && invalidRolls.length === 0 && alreadyPresent.length === 0) {
         if (addedPresent.length === 1) {
-          msgBox.innerHTML = `<span style="color:#10b981;">✓ Roll <strong>#${addedPresent[0].roll}</strong> (${addedPresent[0].name}) marked <strong>PRESENT ✅</strong></span>`;
+          msgBox.innerHTML = `<span style="color:#10b981;">✓ Roll <strong>${addedPresent[0].roll}</strong> (${addedPresent[0].name}) marked <strong>PRESENT ✅</strong></span>`;
         } else {
-          const rollsStr = addedPresent.map(p => `#${p.roll}`).join(', ');
-          msgBox.innerHTML = `<span style="color:#10b981;">✓ Marked <strong>${addedPresent.length} students PRESENT:</strong> ${rollsStr}</span>`;
+          const rollsStr = addedPresent.map(p => p.roll).join(', ');
+          msgBox.innerHTML = `<span style="color:#10b981;">✓ Marked <strong>${addedPresent.length} students PRESENT:</strong> Roll ${rollsStr}</span>`;
         }
       } else if (invalidRolls.length > 0 && addedPresent.length === 0) {
-        msgBox.innerHTML = `<span style="color:#ef4444;">❌ Invalid Roll Number: Roll ${invalidRolls.map(r => `#${r}`).join(', ')} does not exist in <strong>${batch}</strong>.</span>`;
+        msgBox.innerHTML = `<span style="color:#ef4444;">❌ Invalid Roll Number: Roll ${invalidRolls.join(', ')} does not exist in <strong>${batch}</strong>.</span>`;
       } else if (alreadyPresent.length > 0 && addedPresent.length === 0) {
-        msgBox.innerHTML = `<span style="color:#f59e0b;">⚠️ Roll #${alreadyPresent[0].roll} (${alreadyPresent[0].name}) is already marked Present.</span>`;
+        msgBox.innerHTML = `<span style="color:#f59e0b;">⚠️ Roll ${alreadyPresent[0].roll} (${alreadyPresent[0].name}) is already marked Present.</span>`;
       } else {
         const parts = [];
         if (addedPresent.length > 0) parts.push(`<span style="color:#10b981;">✓ Marked ${addedPresent.length} Present</span>`);
         if (alreadyPresent.length > 0) parts.push(`<span style="color:#f59e0b;">⚠️ ${alreadyPresent.length} Already Present</span>`);
-        if (invalidRolls.length > 0) parts.push(`<span style="color:#ef4444;">❌ Invalid: ${invalidRolls.map(r => `#${r}`).join(', ')}</span>`);
+        if (invalidRolls.length > 0) parts.push(`<span style="color:#ef4444;">❌ Invalid: Roll ${invalidRolls.join(', ')}</span>`);
         msgBox.innerHTML = parts.join(' &bull; ');
       }
     }
+  },
+
+  onAdminStudentCheckboxToggle(ugKey, isChecked) {
+    this.setAdminStudentStatus(ugKey, isChecked ? 'PRESENT' : 'ABSENT');
+  },
+
+  toggleAllAdminQuickCheckbox(isChecked) {
+    this.setAllAdminQuickStatus(isChecked ? 'PRESENT' : 'ABSENT');
+  },
+
+  setAllAdminQuickStatus(targetStatus) {
+    if (!this.quickAttState) return;
+    const { students, statusMap, history } = this.quickAttState;
+    if (!students || students.length === 0) return;
+
+    students.forEach(s => {
+      statusMap[s.ug_id.toUpperCase()] = targetStatus;
+    });
+
+    history.push({
+      action: 'BULK_SET',
+      targetStatus,
+      count: students.length
+    });
+    this.quickAttState.lastEnteredRoll = null;
+
+    const msgBox = document.getElementById('admin-quick-roll-msg');
+    if (msgBox) {
+      if (targetStatus === 'PRESENT') {
+        msgBox.innerHTML = `<span style="color:#10b981;">✓ All <strong>${students.length}</strong> students marked <strong>PRESENT ✅</strong></span>`;
+      } else if (targetStatus === 'ABSENT') {
+        msgBox.innerHTML = `<span style="color:#ef4444;">✕ All <strong>${students.length}</strong> students marked <strong>ABSENT ❌</strong></span>`;
+      } else if (targetStatus === 'N/A') {
+        msgBox.innerHTML = `<span style="color:#fbbf24;">➖ All <strong>${students.length}</strong> students marked <strong>N/A ➖</strong></span>`;
+      }
+    }
+
+    this.renderAdminQuickTable();
+    this.updateAdminQuickMetrics();
+    this.persistAdminQuickDraft();
+
+    const input = document.getElementById('admin-quick-roll-input');
+    if (input) input.focus();
+  },
+
+  setAdminStudentStatus(ugKey, targetStatus) {
+    if (!this.quickAttState) return;
+    const { statusMap, students, history } = this.quickAttState;
+    const prev = statusMap[ugKey] || 'ABSENT';
+    if (prev === targetStatus) return;
+
+    const student = students.find(s => s.ug_id.toUpperCase() === ugKey);
+    statusMap[ugKey] = targetStatus;
+
+    history.push({
+      action: 'SET_STATUS',
+      ug_id: ugKey,
+      roll: student ? student.roll_number : '',
+      name: student ? student.name : '',
+      prevStatus: prev,
+      newStatus: targetStatus
+    });
+
+    if (targetStatus === 'PRESENT') {
+      this.quickAttState.lastEnteredRoll = student ? parseInt(student.roll_number, 10) : null;
+    }
+
+    const msgBox = document.getElementById('admin-quick-roll-msg');
+    if (msgBox && student) {
+      if (targetStatus === 'PRESENT') {
+        msgBox.innerHTML = `<span style="color:#10b981;">✓ Roll <strong>${student.roll_number}</strong> (${student.name}) switched to <strong>PRESENT ✅</strong></span>`;
+      } else if (targetStatus === 'N/A') {
+        msgBox.innerHTML = `<span style="color:#fbbf24;">➖ Roll <strong>${student.roll_number}</strong> (${student.name}) switched to <strong>N/A ➖</strong></span>`;
+      } else {
+        msgBox.innerHTML = `<span style="color:#f87171;">✕ Roll <strong>${student.roll_number}</strong> (${student.name}) switched to <strong>ABSENT ❌</strong></span>`;
+      }
+    }
+
+    this.renderAdminQuickTable();
+    this.updateAdminQuickMetrics();
+    this.persistAdminQuickDraft();
+
+    const input = document.getElementById('admin-quick-roll-input');
+    if (input) input.focus();
+  },
+
+  cycleAdminStudentStatus(ugKey) {
+    if (!this.quickAttState) return;
+    const current = this.quickAttState.statusMap[ugKey] || 'ABSENT';
+    let next = 'PRESENT';
+    if (current === 'PRESENT') next = 'ABSENT';
+    else if (current === 'ABSENT') next = 'N/A';
+    else if (current === 'N/A') next = 'PRESENT';
+    this.setAdminStudentStatus(ugKey, next);
   },
 
   undoAdminQuickEntry() {
@@ -1555,16 +1692,18 @@ const AdminApp = {
     }
 
     const last = history.pop();
-    if (last.action === 'MARK_PRESENT') {
-      statusMap[last.ug_id] = 'ABSENT';
+    if (last.action === 'SET_STATUS' || last.action === 'TOGGLE') {
+      statusMap[last.ug_id] = last.prevStatus;
       this.quickAttState.lastEnteredRoll = null;
       if (msgBox) {
-        msgBox.innerHTML = `<span style="color:#38bdf8;">↩ Reverted Roll <strong>#${last.roll}</strong> (${last.name}) back to <strong>ABSENT</strong>.</span>`;
+        msgBox.innerHTML = `<span style="color:#38bdf8;">↩ Reverted Roll <strong>${last.roll}</strong> (${last.name}) back to <strong>${last.prevStatus}</strong>.</span>`;
       }
-    } else if (last.action === 'TOGGLE') {
-      statusMap[last.ug_id] = last.prevStatus;
+    } else if (last.action === 'BULK_SET') {
+      this.quickAttState.students.forEach(s => {
+        statusMap[s.ug_id.toUpperCase()] = 'ABSENT';
+      });
       if (msgBox) {
-        msgBox.innerHTML = `<span style="color:#38bdf8;">↩ Reverted Roll <strong>#${last.roll}</strong> back to <strong>${last.prevStatus}</strong>.</span>`;
+        msgBox.innerHTML = `<span style="color:#38bdf8;">↩ Undid bulk action. Reset all to <strong>ABSENT</strong>.</span>`;
       }
     }
 
@@ -1576,68 +1715,11 @@ const AdminApp = {
   },
 
   toggleAdminQuickStatus(ugKey) {
-    if (!this.quickAttState) return;
-    const { statusMap, students, history } = this.quickAttState;
-    const current = statusMap[ugKey] || 'ABSENT';
-    const next = current === 'PRESENT' ? 'ABSENT' : 'PRESENT';
-    const student = students.find(s => s.ug_id.toUpperCase() === ugKey);
-
-    statusMap[ugKey] = next;
-    history.push({
-      action: 'TOGGLE',
-      ug_id: ugKey,
-      roll: student ? student.roll_number : '',
-      prevStatus: current,
-      newStatus: next,
-      name: student ? student.name : ''
-    });
-
-    const msgBox = document.getElementById('admin-quick-roll-msg');
-    if (msgBox && student) {
-      msgBox.innerHTML = next === 'PRESENT'
-        ? `<span style="color:#10b981;">✓ Roll <strong>#${student.roll_number}</strong> (${student.name}) switched to <strong>PRESENT ✅</strong></span>`
-        : `<span style="color:#f87171;">✕ Roll <strong>#${student.roll_number}</strong> (${student.name}) switched to <strong>ABSENT</strong></span>`;
-    }
-
-    this.renderAdminQuickTable();
-    this.updateAdminQuickMetrics();
-    this.persistAdminQuickDraft();
-
-    const input = document.getElementById('admin-quick-roll-input');
-    if (input) input.focus();
+    this.cycleAdminStudentStatus(ugKey);
   },
 
   clearAllAdminQuickStatus() {
-    if (!this.quickAttState) return;
-    const { students, statusMap } = this.quickAttState;
-    const presentCount = Object.values(statusMap).filter(s => s === 'PRESENT').length;
-
-    if (presentCount === 0) {
-      window.App.showToast('All students are already marked Absent.', 'info');
-      return;
-    }
-
-    if (!confirm(`Are you sure you want to reset all ${presentCount} present students back to ABSENT?`)) {
-      return;
-    }
-
-    students.forEach(s => {
-      statusMap[s.ug_id.toUpperCase()] = 'ABSENT';
-    });
-    this.quickAttState.history = [];
-    this.quickAttState.lastEnteredRoll = null;
-
-    const msgBox = document.getElementById('admin-quick-roll-msg');
-    if (msgBox) {
-      msgBox.innerHTML = `<span style="color:#f87171;">✕ All students in this batch have been reset to <strong>ABSENT</strong>.</span>`;
-    }
-
-    this.renderAdminQuickTable();
-    this.updateAdminQuickMetrics();
-    this.persistAdminQuickDraft();
-
-    const input = document.getElementById('admin-quick-roll-input');
-    if (input) input.focus();
+    this.setAllAdminQuickStatus('ABSENT');
   },
 
   updateAdminQuickMetrics() {
@@ -1646,10 +1728,12 @@ const AdminApp = {
     const total = students.length;
     let present = 0;
     let absent = 0;
+    let na = 0;
 
     students.forEach(s => {
       const st = statusMap[s.ug_id.toUpperCase()] || 'ABSENT';
       if (st === 'PRESENT') present++;
+      else if (st === 'N/A') na++;
       else absent++;
     });
 
@@ -1658,11 +1742,13 @@ const AdminApp = {
     const elTotal = document.getElementById('admin-quick-stat-total');
     const elPresent = document.getElementById('admin-quick-stat-present');
     const elAbsent = document.getElementById('admin-quick-stat-absent');
+    const elNa = document.getElementById('admin-quick-stat-na');
     const elPercent = document.getElementById('admin-quick-stat-rate');
 
     if (elTotal) elTotal.textContent = total;
     if (elPresent) elPresent.textContent = present;
     if (elAbsent) elAbsent.textContent = absent;
+    if (elNa) elNa.textContent = na;
     if (elPercent) elPercent.textContent = `${percent}%`;
   },
 
@@ -1698,8 +1784,16 @@ const AdminApp = {
     if (!this.quickAttState) return;
     const { students, statusMap, subject, batch, date, period } = this.quickAttState;
     const total = students.length;
-    const present = Object.values(statusMap).filter(s => s === 'PRESENT').length;
-    const absent = total - present;
+    let present = 0;
+    let absent = 0;
+    let na = 0;
+
+    students.forEach(s => {
+      const st = statusMap[s.ug_id.toUpperCase()] || 'ABSENT';
+      if (st === 'PRESENT') present++;
+      else if (st === 'N/A') na++;
+      else absent++;
+    });
 
     const oldModal = document.getElementById('admin-quick-confirm-modal');
     if (oldModal) oldModal.remove();
@@ -1739,14 +1833,18 @@ const AdminApp = {
           </div>
         </div>
 
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
-          <div style="background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.4); border-radius:10px; padding:12px;">
-            <div style="font-size:24px; font-weight:900; color:#10b981;">${present}</div>
-            <div style="font-size:11px; font-weight:800; color:#10b981; text-transform:uppercase;">Present ✅</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px;">
+          <div style="background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.4); border-radius:10px; padding:10px 8px;">
+            <div style="font-size:22px; font-weight:900; color:#10b981;">${present}</div>
+            <div style="font-size:10.5px; font-weight:800; color:#10b981; text-transform:uppercase;">Present ✅</div>
           </div>
-          <div style="background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.4); border-radius:10px; padding:12px;">
-            <div style="font-size:24px; font-weight:900; color:#ef4444;">${absent}</div>
-            <div style="font-size:11px; font-weight:800; color:#ef4444; text-transform:uppercase;">Absent ❌</div>
+          <div style="background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.4); border-radius:10px; padding:10px 8px;">
+            <div style="font-size:22px; font-weight:900; color:#ef4444;">${absent}</div>
+            <div style="font-size:10.5px; font-weight:800; color:#ef4444; text-transform:uppercase;">Absent ❌</div>
+          </div>
+          <div style="background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.4); border-radius:10px; padding:10px 8px;">
+            <div style="font-size:22px; font-weight:900; color:#fbbf24;">${na}</div>
+            <div style="font-size:10.5px; font-weight:800; color:#fbbf24; text-transform:uppercase;">N/A ➖</div>
           </div>
         </div>
 
@@ -1792,16 +1890,20 @@ const AdminApp = {
 
     const records = students.map(s => {
       const status = statusMap[s.ug_id.toUpperCase()] || 'ABSENT';
+      let remarks = `Admin Quick Roll Call: Absent (${period})`;
+      if (status === 'PRESENT') remarks = `Admin Quick Roll Call: Present (${period})`;
+      else if (status === 'N/A') remarks = `Admin Quick Roll Call: N/A (${period})`;
       return {
         ug_id: s.ug_id,
         student_name: s.name,
         status: status,
-        remarks: status === 'PRESENT' ? `Admin Quick Roll Call: Present (${period})` : `Admin Quick Roll Call: Absent (${period})`
+        remarks: remarks
       };
     });
 
     const presentCount = records.filter(r => r.status === 'PRESENT').length;
-    const absentCount = records.length - presentCount;
+    const naCount = records.filter(r => r.status === 'N/A').length;
+    const absentCount = records.length - presentCount - naCount;
 
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       this.persistAdminQuickDraft();
@@ -1837,7 +1939,7 @@ const AdminApp = {
 
       if (res && res.success) {
         try { sessionStorage.removeItem('mgi_admin_quick_att_draft'); } catch (e) {}
-        window.App.showToast(`Attendance saved successfully! (${presentCount} Present, ${absentCount} Absent)`, 'success');
+        window.App.showToast(`Attendance saved successfully! (${presentCount} Present, ${absentCount} Absent, ${naCount} N/A)`, 'success');
       } else {
         window.App.showToast(res?.message || 'Failed to save attendance. Draft is preserved.', 'error');
       }

@@ -277,6 +277,49 @@ async function runQuickRollAttendanceTests() {
     }, adminToken);
     assert(adminSaveRes.status === 200 && adminSaveRes.data.success, 'Admin Quick Attendance saved successfully via /api/attendance/manual');
 
+    // TEST 9: N/A Status Mapping to LEAVE in SQLite & Bulk Actions
+    console.log('\n[Phase 8] Testing N/A Status Mapping to LEAVE & Bulk Actions...');
+    const naRecords = batch1Students.map((s, idx) => {
+      let status = 'ABSENT';
+      if (idx === 0) status = 'PRESENT';
+      else if (idx === 1) status = 'N/A';
+      return {
+        ug_id: s.ug_id,
+        name: s.name,
+        status: status,
+        remarks: status === 'N/A' ? 'Quick Roll Call: N/A (Lecture 2)' : `Quick Roll Call: ${status} (Lecture 2)`
+      };
+    });
+
+    const teacherNaSaveRes = await makeRequest('/api/teacher/attendance/manual', 'POST', {
+      subject: 'DBMS',
+      batch: 'Batch 1',
+      date: '2026-09-17',
+      records: naRecords
+    }, teacherToken);
+    assert(teacherNaSaveRes.status === 200 && teacherNaSaveRes.data.success, 'Teacher: Saved attendance containing N/A status without SQLite constraint error');
+
+    const dbNaCheck = await db.query(
+      "SELECT ug_id, status FROM attendance_manual WHERE date = '2026-09-17' AND subject = 'DBMS' AND UPPER(ug_id) = ?",
+      [batch1Students[1].ug_id.toUpperCase()]
+    );
+    assert(dbNaCheck.length > 0 && dbNaCheck[0].status === 'LEAVE', 'Database: N/A status successfully mapped and stored as LEAVE in SQLite');
+
+    // Admin N/A check
+    const adminNaSaveRes = await makeRequest('/api/attendance/manual', 'POST', {
+      date: '2026-09-17',
+      subject: 'NCS',
+      batch: 'Batch 1',
+      records: naRecords
+    }, adminToken);
+    assert(adminNaSaveRes.status === 200 && adminNaSaveRes.data.success, 'Admin: Saved attendance containing N/A status without error');
+
+    const dbAdminNaCheck = await db.query(
+      "SELECT ug_id, status FROM attendance_manual WHERE date = '2026-09-17' AND subject = 'NCS' AND UPPER(ug_id) = ?",
+      [batch1Students[1].ug_id.toUpperCase()]
+    );
+    assert(dbAdminNaCheck.length > 0 && dbAdminNaCheck[0].status === 'LEAVE', 'Database: Admin N/A status successfully stored as LEAVE');
+
     console.log('\n================================================================');
     console.log(`🎉 ALL QUICK ROLL ATTENDANCE TESTS COMPLETED!`);
     console.log(`   Passed: ${passed} | Failed: ${failed}`);

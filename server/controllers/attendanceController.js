@@ -387,7 +387,8 @@ async function saveManualAttendance(req, res) {
       );
 
       const oldStatus = existing ? existing.status : null;
-      const newStatus = rec.status || 'PRESENT';
+      const rawStatus = (rec.status || 'PRESENT').toUpperCase();
+      const newStatus = (rawStatus === 'N/A' || rawStatus === 'NA') ? 'LEAVE' : rawStatus;
 
       if (existing) {
         await db.run(`
