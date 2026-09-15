@@ -299,7 +299,7 @@ const StudentApp = {
               this.refreshCurrentTabSilent();
             }
           }
-          else if (payload.type === 'ATTENDANCE_UPDATED' || payload.type === 'ATTENDANCE_SESSION_STOPPED') {
+          else if (payload.type === 'ATTENDANCE_UPDATED' || payload.type === 'ATTENDANCE_MODIFIED' || payload.type === 'ATTENDANCE_SESSION_STOPPED') {
             if (this.currentTab === 'attendance' || this.currentTab === 'home') {
               this.refreshCurrentTabSilent();
             }

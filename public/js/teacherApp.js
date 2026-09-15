@@ -634,6 +634,9 @@ const TeacherApp = {
         <button class="btn-primary" id="btn-tab-qr" onclick="TeacherApp.switchAttendanceSubtab('qr')" style="padding:7px 16px; font-size:12.5px; width:auto; margin:0;">
           📷 Dynamic QR Session
         </button>
+        <button class="btn-sec" id="btn-tab-quick" onclick="TeacherApp.switchAttendanceSubtab('quick')" style="padding:7px 16px; font-size:12.5px; width:auto; margin:0; border-color:rgba(56,189,248,0.4); color:#38bdf8; font-weight:700;">
+          ⚡ Quick Attendance
+        </button>
         <button class="btn-sec" id="btn-tab-manual" onclick="TeacherApp.switchAttendanceSubtab('manual')" style="padding:7px 16px; font-size:12.5px; width:auto; margin:0;">
           ✍️ Manual Roll Call
         </button>
@@ -651,11 +654,13 @@ const TeacherApp = {
 
   switchAttendanceSubtab(subtab) {
     const btnQr = document.getElementById('btn-tab-qr');
+    const btnQuick = document.getElementById('btn-tab-quick');
     const btnManual = document.getElementById('btn-tab-manual');
     const btnReports = document.getElementById('btn-tab-reports');
     const content = document.getElementById('attendance-subtab-content');
 
     if (btnQr) btnQr.className = subtab === 'qr' ? 'btn-primary' : 'btn-sec';
+    if (btnQuick) btnQuick.className = subtab === 'quick' ? 'btn-primary' : 'btn-sec';
     if (btnManual) btnManual.className = subtab === 'manual' ? 'btn-primary' : 'btn-sec';
     if (btnReports) btnReports.className = subtab === 'reports' ? 'btn-primary' : 'btn-sec';
 
@@ -663,6 +668,8 @@ const TeacherApp = {
 
     if (subtab === 'qr') {
       this.renderQRSubtab(content);
+    } else if (subtab === 'quick') {
+      this.renderQuickSubtab(content);
     } else if (subtab === 'manual') {
       this.renderManualSubtab(content);
     } else if (subtab === 'reports') {
@@ -905,7 +912,689 @@ const TeacherApp = {
     }
   },
 
-  // Subtab 2: Manual Roll Call
+  // ==========================================================================
+  // QUICK ROLL NUMBER ATTENDANCE (Absent By Default, Fast Keyboard-First Entry)
+  // ==========================================================================
+  async renderQuickSubtab(container) {
+    const teacher = this.currentUser || {};
+    const subjects = (teacher.subjects || 'DBMS, NCS').split(',').map(s => s.trim()).filter(Boolean);
+    const todayStr = getIndianDateString();
+
+    container.innerHTML = `
+      <div class="card" style="padding:22px; margin-bottom:20px; border:1px solid var(--border-color); background:var(--bg-card); border-radius:14px; box-shadow:var(--shadow-md);">
+        
+        <!-- Header Controls (Division, Batch, Subject, Period, Date) -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px; border-bottom:1px solid var(--border-color); padding-bottom:14px;">
+          <div>
+            <h3 style="font-size:18px; font-weight:800; margin:0; display:flex; align-items:center; gap:8px; color:var(--text-primary);">
+              <span>⚡</span> Quick Roll Number Attendance
+            </h3>
+            <p style="font-size:12px; color:var(--text-secondary); margin:3px 0 0 0;">
+              Class: <strong>3CYBER7</strong> &bull; Enter present roll numbers — all non-entered students remain <strong>ABSENT</strong> by default.
+            </p>
+          </div>
+          
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <div id="quick-connection-status" style="display:inline-flex; align-items:center; gap:6px; font-size:11.5px; padding:4px 10px; border-radius:6px; background:rgba(16,185,129,0.12); color:#34d399; font-weight:700;">
+              <span style="width:7px; height:7px; border-radius:50%; background:#10b981;"></span> Online
+            </div>
+            <button class="btn-sec" onclick="TeacherApp.loadQuickRoster()" style="padding:6px 12px; font-size:12px; margin:0;">
+              🔄 Reload Roster
+            </button>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:12px; margin-bottom:18px;">
+          <div>
+            <label class="form-label" style="font-size:11.5px; font-weight:700;">Class / Division</label>
+            <input type="text" class="form-control" value="3CYBER7 (Cyber Security)" disabled style="background:rgba(255,255,255,0.04); color:var(--text-muted); cursor:not-allowed;" />
+          </div>
+          <div>
+            <label class="form-label" style="font-size:11.5px; font-weight:700;">Subject</label>
+            <select id="quick-subject-select" class="form-control" onchange="TeacherApp.loadQuickRoster()">
+              ${subjects.map(s => `<option value="${s}">${s}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="form-label" style="font-size:11.5px; font-weight:700;">Batch</label>
+            <select id="quick-batch-select" class="form-control" onchange="TeacherApp.loadQuickRoster()">
+              ${teacher.batch === 'Batch 1' ? '<option value="Batch 1" selected>Batch 1 (Roll 1–30)</option>' : ''}
+              ${teacher.batch === 'Batch 2' ? '<option value="Batch 2" selected>Batch 2 (Roll 31–66)</option>' : ''}
+              ${(!teacher.batch || teacher.batch === 'Both') ? `
+                <option value="Batch 1" selected>Batch 1 (Roll 1–30)</option>
+                <option value="Batch 2">Batch 2 (Roll 31–66)</option>
+                <option value="Both">Both Batches (Roll 1–66)</option>
+              ` : ''}
+            </select>
+          </div>
+          <div>
+            <label class="form-label" style="font-size:11.5px; font-weight:700;">Lecture / Period</label>
+            <select id="quick-period-select" class="form-control">
+              <option value="Lecture 1">Lecture 1 (09:00 - 10:00)</option>
+              <option value="Lecture 2">Lecture 2 (10:00 - 11:00)</option>
+              <option value="Lecture 3">Lecture 3 (11:15 - 12:15)</option>
+              <option value="Lecture 4">Lecture 4 (12:15 - 01:15)</option>
+              <option value="Lecture 5">Lecture 5 (02:00 - 03:00)</option>
+              <option value="Practical Lab">Practical Lab Session</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label" style="font-size:11.5px; font-weight:700;">Date</label>
+            <input type="date" id="quick-date-input" class="form-control" value="${todayStr}" onchange="TeacherApp.loadQuickRoster()" />
+          </div>
+        </div>
+
+        <!-- Fast Roll Number Input Section -->
+        <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(56,189,248,0.28); border-radius:12px; padding:16px 18px; margin-bottom:18px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+            <label for="teacher-quick-roll-input" style="font-size:13px; font-weight:800; color:#38bdf8; display:flex; align-items:center; gap:6px; margin:0;">
+              <span>⌨️</span> Enter Present Roll Number (Press ENTER)
+            </label>
+            <div style="font-size:11.5px; color:var(--text-muted);">
+              Shortcuts: <kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-family:monospace; color:#38bdf8;">ENTER</kbd> Add Roll &bull; <kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-family:monospace; color:#38bdf8;">Ctrl+Z</kbd> Undo &bull; <kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-family:monospace; color:#38bdf8;">ESC</kbd> Clear
+            </div>
+          </div>
+
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <div style="flex:1; min-width:260px;">
+              <input type="text" id="teacher-quick-roll-input" class="form-control" placeholder="e.g. 17 or bulk paste: 5, 8, 12, 17, 23" autocomplete="off" style="font-size:15px; font-weight:800; padding:10px 14px; border-color:#38bdf8; letter-spacing:0.5px;" />
+            </div>
+            <button type="button" class="btn-primary" onclick="TeacherApp.submitQuickRollInput()" style="padding:10px 20px; font-size:13px; font-weight:800; width:auto; margin:0; background:linear-gradient(135deg, #0ea5e9, #2563eb);">
+              ↵ Mark Present
+            </button>
+            <button type="button" class="btn-sec" onclick="TeacherApp.undoQuickEntry()" title="Undo last entry (Ctrl+Z)" style="padding:10px 14px; font-size:13px; font-weight:700; width:auto; margin:0;">
+              ↩ Undo
+            </button>
+            <button type="button" class="btn-sec" onclick="TeacherApp.clearAllQuickStatus()" title="Reset all to Absent" style="padding:10px 14px; font-size:13px; font-weight:700; width:auto; margin:0; color:#ef4444; border-color:rgba(239,68,68,0.3);">
+              ✕ Reset All
+            </button>
+          </div>
+
+          <!-- Inline Feedback Badge -->
+          <div id="teacher-quick-roll-msg" style="margin-top:10px; min-height:22px; font-size:12.5px; font-weight:700; display:flex; align-items:center; gap:6px;">
+            <span style="color:var(--text-muted); font-weight:normal;">Enter roll numbers of students who are present. All others default to Absent.</span>
+          </div>
+        </div>
+
+        <!-- Live Summary Metrics Bar -->
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:10px; margin-bottom:18px;">
+          <div style="background:rgba(255,255,255,0.04); border:1px solid var(--border-color); border-radius:10px; padding:10px 14px;">
+            <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Total Students</div>
+            <div id="quick-metric-total" style="font-size:22px; font-weight:900; color:var(--text-primary); margin-top:2px;">0</div>
+          </div>
+          <div style="background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.3); border-radius:10px; padding:10px 14px;">
+            <div style="font-size:11px; color:#10b981; text-transform:uppercase; font-weight:700;">Present ✅</div>
+            <div id="quick-metric-present" style="font-size:22px; font-weight:900; color:#10b981; margin-top:2px;">0</div>
+          </div>
+          <div style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.3); border-radius:10px; padding:10px 14px;">
+            <div style="font-size:11px; color:#ef4444; text-transform:uppercase; font-weight:700;">Absent ❌</div>
+            <div id="quick-metric-absent" style="font-size:22px; font-weight:900; color:#ef4444; margin-top:2px;">0</div>
+          </div>
+          <div style="background:rgba(56,189,248,0.08); border:1px solid rgba(56,189,248,0.3); border-radius:10px; padding:10px 14px;">
+            <div style="font-size:11px; color:#38bdf8; text-transform:uppercase; font-weight:700;">Turnout Rate</div>
+            <div id="quick-metric-percent" style="font-size:22px; font-weight:900; color:#38bdf8; margin-top:2px;">0.0%</div>
+          </div>
+        </div>
+
+        <!-- Student Roster Table Container -->
+        <div id="quick-roster-table-box" style="overflow-x:auto; border:1px solid var(--border-color); border-radius:10px; max-height:460px; overflow-y:auto;">
+          <div style="text-align:center; padding:30px; color:var(--text-muted);">Loading student roster...</div>
+        </div>
+
+        <!-- Footer Action Toolbar -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:18px; flex-wrap:wrap; gap:12px; border-top:1px solid var(--border-color); padding-top:16px;">
+          <div style="font-size:12px; color:var(--text-secondary);">
+            Tip: You can also click directly on any student's status badge below to quickly toggle between Present and Absent.
+          </div>
+          <button class="btn-primary" id="btn-save-quick-att" onclick="TeacherApp.promptSaveQuickAttendance()" style="padding:11px 28px; font-size:13.5px; font-weight:800; width:auto; margin:0; background:linear-gradient(135deg, #10b981, #059669); box-shadow:0 4px 14px rgba(16,185,129,0.35);">
+            💾 Save Attendance
+          </button>
+        </div>
+      </div>
+    `;
+
+    await this.loadQuickRoster();
+  },
+
+  async loadQuickRoster() {
+    const tableBox = document.getElementById('quick-roster-table-box');
+    if (!tableBox) return;
+
+    const batchSelect = document.getElementById('quick-batch-select');
+    const subjectSelect = document.getElementById('quick-subject-select');
+    const dateInput = document.getElementById('quick-date-input');
+    const periodSelect = document.getElementById('quick-period-select');
+
+    const batch = batchSelect ? batchSelect.value : 'Batch 1';
+    const subject = subjectSelect ? subjectSelect.value : '';
+    const date = dateInput ? dateInput.value : getIndianDateString();
+    const period = periodSelect ? periodSelect.value : 'Lecture 1';
+
+    tableBox.innerHTML = `<div style="text-align:center; padding:30px; color:var(--text-muted);"><div class="spinner" style="margin:0 auto 10px auto;"></div>Loading roster for ${batch}...</div>`;
+
+    const res = await API.getTeacherStudents('', batch);
+    if (!res || !res.success || !Array.isArray(res.data)) {
+      tableBox.innerHTML = `<div style="text-align:center; padding:30px; color:#ef4444;">Failed to load student roster. Please check your connection.</div>`;
+      return;
+    }
+
+    // Sort students strictly by roll_number ascending
+    const students = res.data.slice().sort((a, b) => parseInt(a.roll_number, 10) - parseInt(b.roll_number, 10));
+
+    // Initialize state: ALL students ABSENT by default (Requirement #7)
+    const statusMap = {};
+    students.forEach(s => {
+      statusMap[s.ug_id.toUpperCase()] = 'ABSENT';
+    });
+
+    this.quickAttState = {
+      subject,
+      batch,
+      date,
+      period,
+      students,
+      statusMap,
+      history: [],
+      lastEnteredRoll: null
+    };
+
+    this.renderQuickRosterTable();
+    this.updateQuickMetrics();
+    this.attachQuickInputListeners();
+
+    // Autofocus input box immediately
+    const input = document.getElementById('teacher-quick-roll-input');
+    if (input) {
+      input.value = '';
+      input.focus();
+    }
+  },
+
+  renderQuickRosterTable() {
+    const tableBox = document.getElementById('quick-roster-table-box');
+    if (!tableBox || !this.quickAttState) return;
+
+    const { students, statusMap, lastEnteredRoll } = this.quickAttState;
+
+    if (students.length === 0) {
+      tableBox.innerHTML = `<div style="text-align:center; padding:30px; color:var(--text-muted);">No active students found in ${this.quickAttState.batch}.</div>`;
+      return;
+    }
+
+    tableBox.innerHTML = `
+      <table class="table" style="font-size:12.5px; width:100%; border-collapse:collapse;">
+        <thead>
+          <tr style="position:sticky; top:0; background:var(--bg-glass-strong); z-index:2;">
+            <th style="width:65px; text-align:center;">Roll</th>
+            <th style="width:120px;">UG ID</th>
+            <th>Student Name</th>
+            <th style="width:90px; text-align:center;">Batch</th>
+            <th style="width:150px; text-align:center;">Status</th>
+            <th style="width:90px; text-align:center;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${students.map(s => {
+            const ugKey = s.ug_id.toUpperCase();
+            const status = statusMap[ugKey] || 'ABSENT';
+            const isPresent = status === 'PRESENT';
+            const isLastEntered = lastEnteredRoll === parseInt(s.roll_number, 10);
+
+            return `
+              <tr id="quick-row-${ugKey}" style="transition:all 0.2s ease; ${isLastEntered ? 'background:rgba(16,185,129,0.15);' : ''}">
+                <td style="text-align:center; font-weight:800; font-size:13px; color:${isPresent ? '#10b981' : 'var(--text-primary)'};">
+                  #${s.roll_number}
+                </td>
+                <td><code style="color:#38bdf8; font-weight:700;">${s.ug_id}</code></td>
+                <td><strong>${s.name}</strong></td>
+                <td style="text-align:center;">
+                  <span class="badge" style="background:rgba(255,255,255,0.06); font-size:11px;">${s.batch}</span>
+                </td>
+                <td style="text-align:center;">
+                  <span id="quick-badge-${ugKey}" class="badge" style="cursor:pointer; font-size:11.5px; font-weight:800; padding:5px 12px; border-radius:6px; transition:all 0.15s ease; ${isPresent ? 'background:#10b981; color:#fff; box-shadow:0 0 10px rgba(16,185,129,0.4);' : 'background:rgba(239,68,68,0.12); color:#f87171; border:1px solid rgba(239,68,68,0.3);'}" onclick="TeacherApp.toggleQuickStatus('${ugKey}')">
+                    ${isPresent ? 'PRESENT ✅' : 'ABSENT'}
+                  </span>
+                </td>
+                <td style="text-align:center;">
+                  <button type="button" class="btn-sec" onclick="TeacherApp.toggleQuickStatus('${ugKey}')" style="padding:3px 8px; font-size:11px; margin:0; width:auto;" title="Toggle status">
+                    ${isPresent ? 'Mark A' : 'Mark P'}
+                  </button>
+                </td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
+  },
+
+  submitQuickRollInput() {
+    const input = document.getElementById('teacher-quick-roll-input');
+    const msgBox = document.getElementById('teacher-quick-roll-msg');
+    if (!input || !this.quickAttState) return;
+
+    const raw = input.value.trim();
+    if (!raw) {
+      if (msgBox) {
+        msgBox.innerHTML = `<span style="color:#f59e0b;">⚠️ Please enter a roll number (e.g. 17) or multiple rolls separated by spaces or commas.</span>`;
+      }
+      input.focus();
+      return;
+    }
+
+    // Parse all numbers from the input string (supports comma, space, newline, or mixed delimiters)
+    const matches = raw.match(/\d+/g);
+    if (!matches || matches.length === 0) {
+      if (msgBox) {
+        msgBox.innerHTML = `<span style="color:#ef4444;">❌ Invalid input. Please enter valid numeric roll numbers.</span>`;
+      }
+      input.value = '';
+      input.focus();
+      return;
+    }
+
+    const { students, statusMap, history, batch } = this.quickAttState;
+    const addedPresent = [];
+    const alreadyPresent = [];
+    const invalidRolls = [];
+
+    // Map roll number to student object for O(1) lookup
+    const rollToStudent = new Map();
+    students.forEach(s => {
+      rollToStudent.set(parseInt(s.roll_number, 10), s);
+    });
+
+    matches.forEach(m => {
+      const rollNum = parseInt(m, 10);
+      const student = rollToStudent.get(rollNum);
+
+      if (!student) {
+        invalidRolls.push(rollNum);
+      } else {
+        const ugKey = student.ug_id.toUpperCase();
+        if (statusMap[ugKey] === 'PRESENT') {
+          alreadyPresent.push({ roll: rollNum, name: student.name });
+        } else {
+          // Mark as PRESENT
+          statusMap[ugKey] = 'PRESENT';
+          addedPresent.push({ roll: rollNum, name: student.name, ug_id: ugKey });
+          history.push({ action: 'MARK_PRESENT', roll: rollNum, name: student.name, ug_id: ugKey });
+          this.quickAttState.lastEnteredRoll = rollNum;
+        }
+      }
+    });
+
+    // Clear input and maintain focus immediately (Requirement #2, #14)
+    input.value = '';
+    input.focus();
+
+    // Render updated table and metrics
+    this.renderQuickRosterTable();
+    this.updateQuickMetrics();
+    this.persistQuickDraft();
+
+    // Scroll to the last marked student row smoothly
+    if (addedPresent.length > 0) {
+      const lastUg = addedPresent[addedPresent.length - 1].ug_id;
+      const row = document.getElementById(`quick-row-${lastUg}`);
+      if (row) {
+        row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+
+    // Compose informative inline feedback message
+    if (msgBox) {
+      if (addedPresent.length > 0 && invalidRolls.length === 0 && alreadyPresent.length === 0) {
+        if (addedPresent.length === 1) {
+          msgBox.innerHTML = `<span style="color:#10b981;">✓ Roll <strong>#${addedPresent[0].roll}</strong> (${addedPresent[0].name}) marked <strong>PRESENT ✅</strong></span>`;
+        } else {
+          const rollsStr = addedPresent.map(p => `#${p.roll}`).join(', ');
+          msgBox.innerHTML = `<span style="color:#10b981;">✓ Marked <strong>${addedPresent.length} students PRESENT:</strong> ${rollsStr}</span>`;
+        }
+      } else if (invalidRolls.length > 0 && addedPresent.length === 0) {
+        msgBox.innerHTML = `<span style="color:#ef4444;">❌ Invalid Roll Number: Roll ${invalidRolls.map(r => `#${r}`).join(', ')} does not exist in <strong>${batch}</strong>.</span>`;
+      } else if (alreadyPresent.length > 0 && addedPresent.length === 0) {
+        msgBox.innerHTML = `<span style="color:#f59e0b;">⚠️ Roll #${alreadyPresent[0].roll} (${alreadyPresent[0].name}) is already marked Present.</span>`;
+      } else {
+        const parts = [];
+        if (addedPresent.length > 0) parts.push(`<span style="color:#10b981;">✓ Marked ${addedPresent.length} Present</span>`);
+        if (alreadyPresent.length > 0) parts.push(`<span style="color:#f59e0b;">⚠️ ${alreadyPresent.length} Already Present</span>`);
+        if (invalidRolls.length > 0) parts.push(`<span style="color:#ef4444;">❌ Invalid: ${invalidRolls.map(r => `#${r}`).join(', ')}</span>`);
+        msgBox.innerHTML = parts.join(' &bull; ');
+      }
+    }
+  },
+
+  undoQuickEntry() {
+    const input = document.getElementById('teacher-quick-roll-input');
+    const msgBox = document.getElementById('teacher-quick-roll-msg');
+    if (!this.quickAttState) return;
+
+    const { history, statusMap } = this.quickAttState;
+    if (!history || history.length === 0) {
+      if (msgBox) {
+        msgBox.innerHTML = `<span style="color:var(--text-muted);">ℹ️ Nothing to undo.</span>`;
+      }
+      if (input) input.focus();
+      return;
+    }
+
+    const last = history.pop();
+    if (last.action === 'MARK_PRESENT') {
+      statusMap[last.ug_id] = 'ABSENT';
+      this.quickAttState.lastEnteredRoll = null;
+      if (msgBox) {
+        msgBox.innerHTML = `<span style="color:#38bdf8;">↩ Reverted Roll <strong>#${last.roll}</strong> (${last.name}) back to <strong>ABSENT</strong>.</span>`;
+      }
+    } else if (last.action === 'TOGGLE') {
+      statusMap[last.ug_id] = last.prevStatus;
+      if (msgBox) {
+        msgBox.innerHTML = `<span style="color:#38bdf8;">↩ Reverted Roll <strong>#${last.roll}</strong> back to <strong>${last.prevStatus}</strong>.</span>`;
+      }
+    }
+
+    this.renderQuickRosterTable();
+    this.updateQuickMetrics();
+    this.persistQuickDraft();
+
+    if (input) input.focus();
+  },
+
+  toggleQuickStatus(ugKey) {
+    if (!this.quickAttState) return;
+    const { statusMap, students, history } = this.quickAttState;
+    const current = statusMap[ugKey] || 'ABSENT';
+    const next = current === 'PRESENT' ? 'ABSENT' : 'PRESENT';
+    const student = students.find(s => s.ug_id.toUpperCase() === ugKey);
+
+    statusMap[ugKey] = next;
+    history.push({
+      action: 'TOGGLE',
+      ug_id: ugKey,
+      roll: student ? student.roll_number : '',
+      prevStatus: current,
+      newStatus: next,
+      name: student ? student.name : ''
+    });
+
+    const msgBox = document.getElementById('teacher-quick-roll-msg');
+    if (msgBox && student) {
+      msgBox.innerHTML = next === 'PRESENT'
+        ? `<span style="color:#10b981;">✓ Roll <strong>#${student.roll_number}</strong> (${student.name}) switched to <strong>PRESENT ✅</strong></span>`
+        : `<span style="color:#f87171;">✕ Roll <strong>#${student.roll_number}</strong> (${student.name}) switched to <strong>ABSENT</strong></span>`;
+    }
+
+    this.renderQuickRosterTable();
+    this.updateQuickMetrics();
+    this.persistQuickDraft();
+
+    const input = document.getElementById('teacher-quick-roll-input');
+    if (input) input.focus();
+  },
+
+  clearAllQuickStatus() {
+    if (!this.quickAttState) return;
+    const { students, statusMap } = this.quickAttState;
+    const presentCount = Object.values(statusMap).filter(s => s === 'PRESENT').length;
+
+    if (presentCount === 0) {
+      App.showToast('All students are already marked Absent.', 'info');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to reset all ${presentCount} present students back to ABSENT?`)) {
+      return;
+    }
+
+    students.forEach(s => {
+      statusMap[s.ug_id.toUpperCase()] = 'ABSENT';
+    });
+    this.quickAttState.history = [];
+    this.quickAttState.lastEnteredRoll = null;
+
+    const msgBox = document.getElementById('teacher-quick-roll-msg');
+    if (msgBox) {
+      msgBox.innerHTML = `<span style="color:#f87171;">✕ All students in this batch have been reset to <strong>ABSENT</strong>.</span>`;
+    }
+
+    this.renderQuickRosterTable();
+    this.updateQuickMetrics();
+    this.persistQuickDraft();
+
+    const input = document.getElementById('teacher-quick-roll-input');
+    if (input) input.focus();
+  },
+
+  updateQuickMetrics() {
+    if (!this.quickAttState) return;
+    const { students, statusMap } = this.quickAttState;
+    const total = students.length;
+    let present = 0;
+    let absent = 0;
+
+    students.forEach(s => {
+      const st = statusMap[s.ug_id.toUpperCase()] || 'ABSENT';
+      if (st === 'PRESENT') present++;
+      else absent++;
+    });
+
+    const percent = total > 0 ? ((present / total) * 100).toFixed(1) : '0.0';
+
+    const elTotal = document.getElementById('quick-metric-total');
+    const elPresent = document.getElementById('quick-metric-present');
+    const elAbsent = document.getElementById('quick-metric-absent');
+    const elPercent = document.getElementById('quick-metric-percent');
+
+    if (elTotal) elTotal.textContent = total;
+    if (elPresent) elPresent.textContent = present;
+    if (elAbsent) elAbsent.textContent = absent;
+    if (elPercent) elPercent.textContent = `${percent}%`;
+  },
+
+  attachQuickInputListeners() {
+    const input = document.getElementById('teacher-quick-roll-input');
+    if (!input) return;
+
+    // Clone to remove stale listeners
+    const newInput = input.cloneNode(true);
+    input.parentNode.replaceChild(newInput, input);
+
+    newInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        TeacherApp.submitQuickRollInput();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        newInput.value = '';
+        const msgBox = document.getElementById('teacher-quick-roll-msg');
+        if (msgBox) msgBox.innerHTML = '';
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        TeacherApp.undoQuickEntry();
+      }
+    });
+
+    setTimeout(() => {
+      const activeInput = document.getElementById('teacher-quick-roll-input');
+      if (activeInput) activeInput.focus();
+    }, 50);
+  },
+
+  promptSaveQuickAttendance() {
+    if (!this.quickAttState) return;
+    const { students, statusMap, subject, batch, date, period } = this.quickAttState;
+    const total = students.length;
+    const present = Object.values(statusMap).filter(s => s === 'PRESENT').length;
+    const absent = total - present;
+
+    const oldModal = document.getElementById('quick-confirm-modal');
+    if (oldModal) oldModal.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'quick-confirm-modal';
+    modal.className = 'modal-overlay';
+    modal.style.display = 'flex';
+    modal.innerHTML = `
+      <div class="modal-content glass-card" style="max-width:440px; padding:24px; text-align:center; border:1px solid rgba(56,189,248,0.3); border-radius:16px;">
+        <div style="font-size:36px; margin-bottom:8px;">📋</div>
+        <h3 style="font-size:18px; font-weight:800; margin:0 0 6px 0; color:var(--text-primary);">Confirm Attendance Submission</h3>
+        <p style="font-size:12.5px; color:var(--text-secondary); margin:0 0 16px 0;">
+          Review attendance summary for <strong>${subject}</strong> before saving.
+        </p>
+
+        <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border-color); border-radius:10px; padding:12px 14px; font-size:12px; margin-bottom:16px; text-align:left;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+            <span style="color:var(--text-muted);">Class:</span>
+            <strong>3CYBER7</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+            <span style="color:var(--text-muted);">Subject:</span>
+            <strong>${subject}</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+            <span style="color:var(--text-muted);">Batch Scope:</span>
+            <strong>${batch}</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+            <span style="color:var(--text-muted);">Lecture / Period:</span>
+            <strong>${period}</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span style="color:var(--text-muted);">Date:</span>
+            <strong>${date}</strong>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+          <div style="background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.4); border-radius:10px; padding:12px;">
+            <div style="font-size:24px; font-weight:900; color:#10b981;">${present}</div>
+            <div style="font-size:11px; font-weight:800; color:#10b981; text-transform:uppercase;">Present ✅</div>
+          </div>
+          <div style="background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.4); border-radius:10px; padding:12px;">
+            <div style="font-size:24px; font-weight:900; color:#ef4444;">${absent}</div>
+            <div style="font-size:11px; font-weight:800; color:#ef4444; text-transform:uppercase;">Absent ❌</div>
+          </div>
+        </div>
+
+        <p style="font-size:11.5px; color:var(--text-muted); margin-bottom:20px;">
+          Students not entered are recorded as ABSENT. Real-time updates will automatically sync with student apps.
+        </p>
+
+        <div style="display:flex; gap:10px; justify-content:center;">
+          <button type="button" class="btn-sec" onclick="TeacherApp.closeQuickConfirmModal()" style="width:auto; margin:0; padding:9px 18px;">
+            Cancel
+          </button>
+          <button type="button" id="btn-quick-confirm-submit" class="btn-primary" onclick="TeacherApp.executeSaveQuickAttendance()" style="width:auto; margin:0; padding:9px 24px; background:linear-gradient(135deg, #10b981, #059669); font-weight:800;">
+            Confirm & Save Attendance
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+  },
+
+  closeQuickConfirmModal() {
+    const modal = document.getElementById('quick-confirm-modal');
+    if (modal) modal.remove();
+    const input = document.getElementById('teacher-quick-roll-input');
+    if (input) input.focus();
+  },
+
+  async executeSaveQuickAttendance() {
+    if (!this.quickAttState) return;
+    const { students, statusMap, subject, batch, date, period } = this.quickAttState;
+    const submitBtn = document.getElementById('btn-quick-confirm-submit');
+    const mainSaveBtn = document.getElementById('btn-save-quick-att');
+
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Saving to Database...';
+    }
+    if (mainSaveBtn) {
+      mainSaveBtn.disabled = true;
+      mainSaveBtn.innerText = 'Saving Attendance...';
+    }
+
+    const records = students.map(s => {
+      const status = statusMap[s.ug_id.toUpperCase()] || 'ABSENT';
+      return {
+        ug_id: s.ug_id,
+        name: s.name,
+        status: status,
+        remarks: status === 'PRESENT' ? `Quick Roll Call: Present (${period})` : `Quick Roll Call: Absent (${period})`
+      };
+    });
+
+    const presentCount = records.filter(r => r.status === 'PRESENT').length;
+    const absentCount = records.length - presentCount;
+
+    // Check connection status
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      this.persistQuickDraft();
+      this.closeQuickConfirmModal();
+      if (mainSaveBtn) {
+        mainSaveBtn.disabled = false;
+        mainSaveBtn.innerText = '💾 Retry Save Attendance';
+      }
+      const conn = document.getElementById('quick-connection-status');
+      if (conn) {
+        conn.innerHTML = `<span style="width:7px; height:7px; border-radius:50%; background:#f59e0b;"></span> Offline (Saved locally)`;
+        conn.style.color = '#f59e0b';
+        conn.style.background = 'rgba(245,158,11,0.15)';
+      }
+      App.showToast('⚠️ Connection lost. Attendance is preserved locally. Reconnect and tap Retry.', 'warning');
+      return;
+    }
+
+    try {
+      const res = await API.saveTeacherManualAttendance({
+        subject,
+        batch,
+        date,
+        records
+      });
+
+      this.closeQuickConfirmModal();
+
+      if (mainSaveBtn) {
+        mainSaveBtn.disabled = false;
+        mainSaveBtn.innerText = '💾 Save Attendance';
+      }
+
+      if (res && res.success) {
+        try { sessionStorage.removeItem('mgi_quick_att_draft'); } catch (e) {}
+        App.showToast(`Attendance saved successfully! (${presentCount} Present, ${absentCount} Absent)`, 'success');
+      } else {
+        App.showToast(res?.message || 'Failed to save attendance. Your entered entries are preserved.', 'error');
+      }
+    } catch (err) {
+      console.error('[QuickAttendance] Save error:', err);
+      this.persistQuickDraft();
+      this.closeQuickConfirmModal();
+      if (mainSaveBtn) {
+        mainSaveBtn.disabled = false;
+        mainSaveBtn.innerText = '💾 Retry Save Attendance';
+      }
+      App.showToast('Network error during save. Entered attendance preserved locally. Click Retry to submit.', 'error');
+    }
+  },
+
+  persistQuickDraft() {
+    try {
+      if (!this.quickAttState) return;
+      sessionStorage.setItem('mgi_quick_att_draft', JSON.stringify({
+        subject: this.quickAttState.subject,
+        batch: this.quickAttState.batch,
+        date: this.quickAttState.date,
+        period: this.quickAttState.period,
+        statusMap: this.quickAttState.statusMap,
+        timestamp: Date.now()
+      }));
+    } catch (e) {}
+  },
+
+  // Subtab 3: Manual Roll Call
   async renderManualSubtab(container) {
     const teacher = this.currentUser || {};
     const subjects = (teacher.subjects || 'DBMS, NCS').split(',').map(s => s.trim()).filter(Boolean);

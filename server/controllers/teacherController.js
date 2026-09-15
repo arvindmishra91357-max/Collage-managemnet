@@ -761,6 +761,15 @@ async function saveManualAttendance(req, res) {
       message: `📋 Attendance saved for ${subject} by Prof. ${teacher.name}`
     });
 
+    realtime.broadcastEvent({
+      type: 'ATTENDANCE_UPDATED',
+      subject,
+      batch: assignedBatch,
+      date: dateStr,
+      teacher: teacher.name,
+      message: `📋 Attendance saved for ${subject} by Prof. ${teacher.name}`
+    });
+
     return res.json({
       success: true,
       message: `Manual attendance saved successfully (${updatedCount} students).`,
