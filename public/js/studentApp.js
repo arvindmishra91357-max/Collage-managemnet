@@ -65,6 +65,7 @@ const StudentApp = {
     this.setupNotificationBadge();
     this.initRealtimeSSE();
     this.setupAutoSyncTriggers();
+    setTimeout(() => window.App?.updatePWAInstallVisibility(), 50);
   },
 
   setupAutoSyncTriggers() {
@@ -346,6 +347,7 @@ const StudentApp = {
             </div>
           </div>
           <div class="topbar-actions">
+            <button class="icon-btn btn-pwa-install" onclick="window.App.triggerPWAInstall()" title="Install App" style="display:none; color:#38bdf8; font-size:14px;">📲</button>
             <button class="icon-btn" onclick="window.App.toggleTheme()" title="Toggle Theme" style="font-size:14px;">🌓</button>
             <button class="icon-btn" id="btn-global-search" title="Search Portal">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2">

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mgi-cyber-portal-v5.1.4';
+const CACHE_NAME = 'mgi-cyber-portal-v5.1.6';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -7,16 +7,28 @@ const STATIC_ASSETS = [
   '/js/jsqr.min.js',
   '/js/api.js',
   '/js/studentApp.js',
+  '/js/teacherApp.js',
   '/js/adminApp.js',
   '/js/app.js',
-  '/manifest.json'
+  '/manifest.json',
+  '/favicon.svg',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  '/icons/icon-192.svg',
+  '/icons/icon-512.svg'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Pre-caching core app shell v5.0.0');
-      return cache.addAll(STATIC_ASSETS).catch(err => console.warn('[SW] Pre-caching err:', err));
+    caches.open(CACHE_NAME).then(async (cache) => {
+      console.log('[SW] Pre-caching core app shell v5.1.6');
+      for (const asset of STATIC_ASSETS) {
+        try {
+          await cache.add(asset);
+        } catch (e) {
+          console.warn('[SW] Could not pre-cache asset:', asset, e);
+        }
+      }
     })
   );
   self.skipWaiting();

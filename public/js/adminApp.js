@@ -64,6 +64,7 @@ const AdminApp = {
     if (titleEl) titleEl.innerText = titles[initialSection] || 'Admin Panel';
 
     await this.loadSectionData(initialSection);
+    setTimeout(() => window.App?.updatePWAInstallVisibility(), 50);
   },
 
   renderLayout() {
@@ -176,6 +177,7 @@ const AdminApp = {
               <h2 id="admin-page-title" style="font-size:17px; font-weight:800;">Dashboard Overview</h2>
             </div>
             <div style="display:flex; align-items:center; gap:10px;">
+              <button class="icon-btn btn-pwa-install" onclick="window.App.triggerPWAInstall()" title="Install App" style="display:none; color:#38bdf8; font-size:14px;">📲</button>
               <span class="auth-badge" style="margin-top:0; font-size:11px; padding:3px 8px;">MGI • 2026–27</span>
               <button class="icon-btn" onclick="window.App.toggleTheme()" title="Toggle Theme">🌓</button>
             </div>
@@ -3704,21 +3706,21 @@ const AdminApp = {
                       `}
                     </td>
                     <td style="padding:12px; text-align:right;">
-                      <div style="display:inline-flex; gap:6px; align-items:center;">
-                        <button class="btn-sec" onclick="AdminApp.openAssignTeacherModal(${t.id}, '${escape(t.name)}', '${t.subjects || ''}', '${t.batch || 'Both'}', '${t.division || '3CYBER7'}')" style="padding:4px 8px; font-size:11.5px; margin:0;" title="Assign Subjects & Batches">
-                          📚 Assign
+                      <div style="display:inline-flex; gap:6px; align-items:center; flex-wrap:nowrap;">
+                        <button class="btn-table-action" onclick="AdminApp.openAssignTeacherModal(${t.id}, '${escape(t.name)}', '${t.subjects || ''}', '${t.batch || 'Both'}', '${t.division || '3CYBER7'}')" title="Assign Subjects & Batches">
+                          <span>📚</span> <span>Assign</span>
                         </button>
-                        <button class="btn-sec" onclick="AdminApp.openEditTeacherModal('${t.teacher_id}')" style="padding:4px 8px; font-size:11.5px; margin:0;" title="Edit Details">
-                          ✏️ Edit
+                        <button class="btn-table-action" onclick="AdminApp.openEditTeacherModal('${t.teacher_id}')" title="Edit Details">
+                          <span>✏️</span> <span>Edit</span>
                         </button>
-                        <button class="btn-sec" onclick="AdminApp.openResetTeacherPasswordModal(${t.id}, '${escape(t.name)}')" style="padding:4px 8px; font-size:11.5px; margin:0;" title="Reset Password">
-                          🔑 Reset Pass
+                        <button class="btn-table-action" onclick="AdminApp.openResetTeacherPasswordModal(${t.id}, '${escape(t.name)}')" title="Reset Password">
+                          <span>🔑</span> <span>Reset</span>
                         </button>
-                        <button class="btn-sec" onclick="AdminApp.toggleTeacherStatus(${t.id}, '${t.status}')" style="padding:4px 8px; font-size:11.5px; margin:0; ${isInactive ? 'color:#10b981; border-color:rgba(16,185,129,0.4);' : 'color:#f59e0b; border-color:rgba(245,158,11,0.4);'}" title="${isInactive ? 'Enable Login' : 'Disable Login'}">
-                          ${isInactive ? 'Enable' : 'Disable'}
+                        <button class="btn-table-action ${isInactive ? 'btn-action-success' : 'btn-action-warning'}" onclick="AdminApp.toggleTeacherStatus(${t.id}, '${t.status}')" title="${isInactive ? 'Enable Login' : 'Disable Login'}">
+                          <span>${isInactive ? '✓' : '⊘'}</span> <span>${isInactive ? 'Enable' : 'Disable'}</span>
                         </button>
-                        <button class="btn-sec" onclick="AdminApp.deleteTeacher(${t.id}, '${escape(t.name)}')" style="padding:4px 8px; font-size:11.5px; margin:0; color:#ef4444; border-color:rgba(239,68,68,0.3);" title="Delete Account">
-                          🗑
+                        <button class="btn-table-action btn-action-danger" onclick="AdminApp.deleteTeacher(${t.id}, '${escape(t.name)}')" title="Delete Account" style="padding:5px 8px;">
+                          <span>🗑</span>
                         </button>
                       </div>
                     </td>
@@ -3823,8 +3825,8 @@ const AdminApp = {
           </div>
 
           <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
-            <button type="button" class="btn-sec" onclick="AdminApp.closeModal('${modalId}')">Cancel</button>
-            <button type="submit" class="btn-primary" id="btn-submit-add-teacher" style="width:auto; padding:10px 22px;">Create Teacher</button>
+            <button type="button" class="btn-sec" onclick="AdminApp.closeModal('${modalId}')" style="padding:10px 20px; font-weight:600; cursor:pointer;">Cancel</button>
+            <button type="submit" class="btn-primary" id="btn-submit-add-teacher" style="width:auto; padding:10px 22px; font-weight:700;">Create Teacher</button>
           </div>
         </form>
       </div>
@@ -3938,8 +3940,8 @@ const AdminApp = {
           </div>
 
           <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
-            <button type="button" class="btn-sec" onclick="AdminApp.closeModal('${modalId}')">Cancel</button>
-            <button type="submit" class="btn-primary" id="btn-submit-edit-teacher" style="width:auto; padding:10px 22px;">Save Changes</button>
+            <button type="button" class="btn-sec" onclick="AdminApp.closeModal('${modalId}')" style="padding:10px 20px; font-weight:600; cursor:pointer;">Cancel</button>
+            <button type="submit" class="btn-primary" id="btn-submit-edit-teacher" style="width:auto; padding:10px 22px; font-weight:700;">Save Changes</button>
           </div>
         </form>
       </div>
@@ -4016,8 +4018,8 @@ const AdminApp = {
           </div>
 
           <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
-            <button type="button" class="btn-sec" onclick="AdminApp.closeModal('${modalId}')">Cancel</button>
-            <button type="submit" class="btn-primary" id="btn-submit-assign-teacher" style="width:auto; padding:10px 22px;">Update Assignments</button>
+            <button type="button" class="btn-sec" onclick="AdminApp.closeModal('${modalId}')" style="padding:10px 20px; font-weight:600; cursor:pointer;">Cancel</button>
+            <button type="submit" class="btn-primary" id="btn-submit-assign-teacher" style="width:auto; padding:10px 22px; font-weight:700;">Update Assignments</button>
           </div>
         </form>
       </div>
@@ -4079,8 +4081,8 @@ const AdminApp = {
           </div>
 
           <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
-            <button type="button" class="btn-sec" onclick="AdminApp.closeModal('${modalId}')">Cancel</button>
-            <button type="submit" class="btn-primary" id="btn-submit-reset-teacher" style="width:auto; padding:10px 22px;">Update Password</button>
+            <button type="button" class="btn-sec" onclick="AdminApp.closeModal('${modalId}')" style="padding:10px 20px; font-weight:600; cursor:pointer;">Cancel</button>
+            <button type="submit" class="btn-primary" id="btn-submit-reset-teacher" style="width:auto; padding:10px 22px; font-weight:700;">Update Password</button>
           </div>
         </form>
       </div>

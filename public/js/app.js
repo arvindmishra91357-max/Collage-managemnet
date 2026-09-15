@@ -82,6 +82,9 @@ const App = {
             </div>
 
             <div style="margin-top:14px; text-align:center; display:flex; flex-direction:column; gap:8px; align-items:center;">
+              <button type="button" id="btn-pwa-install" class="btn-pwa-install" onclick="App.triggerPWAInstall()" style="display:none; align-items:center; justify-content:center; gap:8px; padding:9px 20px; font-size:12.5px; font-weight:700; border-radius:var(--radius-full); background:linear-gradient(135deg, rgba(56,189,248,0.2), rgba(14,165,233,0.15)); border:1px solid rgba(56,189,248,0.5); color:#38bdf8; cursor:pointer; transition:all 0.2s ease;">
+                <span>📲</span> <span>Install App (PWA)</span>
+              </button>
               <a href="/apk/MGI_Student_Portal.apk" download="MGI_Student_Portal.apk" onclick="App.handleAPKDownload(event)" style="display:inline-flex; align-items:center; gap:8px; padding:8px 16px; font-size:12px; font-weight:700; text-decoration:none; border-radius:var(--radius-full); background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.35); color:#38bdf8; transition:all 0.2s ease;">
                 <span>🤖</span> <span>Download Android App (.apk)</span>
               </a>
@@ -93,6 +96,7 @@ const App = {
         </div>
       </div>
     `;
+    setTimeout(() => this.updatePWAInstallVisibility(), 50);
   },
 
   handleAPKDownload(e) {
@@ -308,13 +312,65 @@ const App = {
     }
   },
 
-  // PWA Install Prompt Listener
+  // PWA Install Prompt Lifecycle & Installer
   setupPWAInstallPrompt() {
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       this.deferredPrompt = e;
-      console.log('[PWA] App install prompt captured.');
+      console.log('[PWA] Native install prompt captured.');
+      this.updatePWAInstallVisibility();
     });
+
+    window.addEventListener('appinstalled', () => {
+      this.deferredPrompt = null;
+      this.updatePWAInstallVisibility();
+      console.log('[PWA] Application successfully installed.');
+      this.showToast('MGI Portal installed successfully!', 'success');
+    });
+  },
+
+  isStandalone() {
+    return window.matchMedia('(display-mode: standalone)').matches ||
+           window.navigator.standalone === true ||
+           document.referrer.includes('android-app://');
+  },
+
+  updatePWAInstallVisibility() {
+    const shouldShow = !!this.deferredPrompt && !this.isStandalone();
+    const buttons = document.querySelectorAll('.btn-pwa-install');
+    buttons.forEach(btn => {
+      if (shouldShow) {
+        btn.style.display = btn.classList.contains('icon-btn') ? 'inline-flex' : 'inline-flex';
+      } else {
+        btn.style.display = 'none';
+      }
+    });
+  },
+
+  async triggerPWAInstall() {
+    if (!this.deferredPrompt) {
+      if (this.isStandalone()) {
+        this.showToast('App is already installed and running in standalone mode.', 'info');
+      } else {
+        this.showToast('App installation is not supported by your browser, or open via Chrome/Edge to install.', 'info');
+      }
+      return;
+    }
+    const promptEvent = this.deferredPrompt;
+    promptEvent.prompt();
+    try {
+      const choiceResult = await promptEvent.userChoice;
+      if (choiceResult && choiceResult.outcome === 'accepted') {
+        console.log('[PWA] User accepted the install prompt');
+        this.showToast('Installing MGI Student Portal...', 'success');
+      } else {
+        console.log('[PWA] User dismissed the install prompt');
+      }
+    } catch (err) {
+      console.warn('[PWA] User choice error:', err);
+    }
+    this.deferredPrompt = null;
+    this.updatePWAInstallVisibility();
   },
 
   // ==================== IN-APP ROUTING & BACK BUTTON HISTORY CONTROLLER ====================

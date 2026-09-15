@@ -46,6 +46,7 @@ const TeacherApp = {
     this.initRealtimeSSE();
 
     await this.loadSectionData(initialSection);
+    setTimeout(() => window.App?.updatePWAInstallVisibility(), 50);
   },
 
   renderLayout() {
@@ -140,6 +141,7 @@ const TeacherApp = {
             </div>
 
             <div style="display:flex; align-items:center; gap:10px;">
+              <button class="icon-btn btn-pwa-install" onclick="window.App.triggerPWAInstall()" title="Install App" style="display:none; color:#38bdf8; font-size:14px; width:36px; height:36px;">📲</button>
               <span class="badge" style="background:rgba(56,189,248,0.12); color:#38bdf8; border:1px solid rgba(56,189,248,0.3); font-size:11.5px; font-weight:700; padding:4px 10px; border-radius:var(--radius-full);">
                 ${user.department || 'Cyber Security'}
               </span>
@@ -350,55 +352,61 @@ const TeacherApp = {
 
     container.innerHTML = `
       <!-- Greeting Banner -->
-      <div style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+      <div style="margin-bottom:22px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
         <div>
-          <h2 style="font-size:20px; font-weight:800; margin:0;">Welcome, ${teacher.name} 👋</h2>
-          <div style="font-size:12.5px; color:var(--text-secondary); margin-top:2px;">
-            ${teacher.designation} • ${teacher.department}
+          <h2 style="font-size:22px; font-weight:800; margin:0; letter-spacing:-0.4px;">Welcome, ${teacher.name} 👋</h2>
+          <div style="font-size:13px; color:var(--text-secondary); margin-top:3px; font-weight:500;">
+            ${teacher.designation || 'Faculty Member'} • ${teacher.department || 'Computer Science & Engineering'}
           </div>
         </div>
-        <div style="display:flex; gap:8px;">
-          <button class="btn-primary" onclick="TeacherApp.loadSectionData('attendance')" style="padding:8px 16px; font-size:12.5px; width:auto; margin:0; display:inline-flex; align-items:center; gap:6px;">
+        <div style="display:flex; flex-wrap:wrap; gap:8px;">
+          <button class="btn-primary" onclick="TeacherApp.loadSectionData('attendance')" style="padding:9px 18px; font-size:12.5px; width:auto; margin:0; display:inline-flex; align-items:center; gap:7px; font-weight:700;">
             <span>📷</span> <span>Start Attendance</span>
+          </button>
+          <button class="btn-sec" onclick="TeacherApp.loadSectionData('announcements')" style="padding:9px 16px; font-size:12.5px; margin:0; display:inline-flex; align-items:center; gap:6px;">
+            <span>📢</span> <span>Post Notice</span>
+          </button>
+          <button class="btn-sec" onclick="TeacherApp.loadSectionData('notes')" style="padding:9px 16px; font-size:12.5px; margin:0; display:inline-flex; align-items:center; gap:6px;">
+            <span>📤</span> <span>Upload Notes</span>
           </button>
         </div>
       </div>
 
-      <!-- Quick Metrics Grid -->
-      <div class="admin-stats-grid" style="margin-bottom:20px;">
-        <div class="stat-card">
+      <!-- Quick Metrics Grid with Fallback Grid Layout -->
+      <div class="admin-stats-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px; margin-bottom:24px;">
+        <div class="stat-card stat-card-cyan" style="cursor:pointer;" onclick="TeacherApp.loadSectionData('timetable')">
           <div class="stat-header">
             <span class="stat-title">Today's Classes</span>
-            <span class="stat-icon">📅</span>
+            <div class="stat-icon-wrap stat-icon-cyan">🗓️</div>
           </div>
-          <div class="stat-value">${stats.todayClassesCount}</div>
+          <div class="stat-value" style="color:#38bdf8;">${stats.todayClassesCount}</div>
           <div class="stat-desc">Scheduled for ${today.day}</div>
         </div>
 
-        <div class="stat-card">
+        <div class="stat-card stat-card-purple" style="cursor:pointer;" onclick="TeacherApp.loadSectionData('students')">
           <div class="stat-header">
             <span class="stat-title">Assigned Students</span>
-            <span class="stat-icon">🎓</span>
+            <div class="stat-icon-wrap stat-icon-purple">👥</div>
           </div>
-          <div class="stat-value">${stats.totalStudents}</div>
-          <div class="stat-desc">Scope: ${stats.assignedBatch}</div>
+          <div class="stat-value" style="color:#c084fc;">${stats.totalStudents}</div>
+          <div class="stat-desc">Division 3CYBER7 • ${stats.assignedBatch}</div>
         </div>
 
-        <div class="stat-card">
+        <div class="stat-card stat-card-emerald" style="cursor:pointer;" onclick="TeacherApp.loadSectionData('attendance')">
           <div class="stat-header">
             <span class="stat-title">Today's Attendance</span>
-            <span class="stat-icon">📊</span>
+            <div class="stat-icon-wrap stat-icon-emerald">📊</div>
           </div>
-          <div class="stat-value" style="color:#10b981;">${stats.attendanceToday.present} <span style="font-size:14px; color:var(--text-muted);">/ ${stats.attendanceToday.totalMarked || stats.totalStudents}</span></div>
+          <div class="stat-value" style="color:#34d399;">${stats.attendanceToday.present} <span style="font-size:14px; font-weight:600; color:var(--text-muted);">/ ${stats.attendanceToday.totalMarked || stats.totalStudents}</span></div>
           <div class="stat-desc">${stats.attendanceToday.absent} Absent marked today</div>
         </div>
 
-        <div class="stat-card">
+        <div class="stat-card stat-card-amber" style="cursor:pointer;" onclick="TeacherApp.loadSectionData('assignments')">
           <div class="stat-header">
-            <span class="stat-title">Assignments</span>
-            <span class="stat-icon">📝</span>
+            <span class="stat-title">Course Assignments</span>
+            <div class="stat-icon-wrap stat-icon-amber">📝</div>
           </div>
-          <div class="stat-value">${stats.pendingAssignmentsCount}</div>
+          <div class="stat-value" style="color:#fbbf24;">${stats.pendingAssignmentsCount}</div>
           <div class="stat-desc">Active course assignments</div>
         </div>
       </div>
