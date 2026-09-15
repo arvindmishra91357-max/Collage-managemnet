@@ -545,6 +545,12 @@ async function startQRSession(req, res) {
     const expiryTime = new Date(startTime.getTime() + (duration_minutes * 60 * 1000));
     const sessionSecret = crypto.randomBytes(16).toString('hex');
 
+    // Retire any previously active session for this teacher and subject to prevent stale collisions
+    await db.run(
+      "UPDATE attendance_sessions SET status = 'EXPIRED' WHERE status = 'ACTIVE' AND teacher_id = ? AND subject = ?",
+      [teacher.teacher_id, subject]
+    );
+
     const result = await db.run(`
       INSERT INTO attendance_sessions (
         date, subject, division, batch, start_time, expiry_time, session_token,

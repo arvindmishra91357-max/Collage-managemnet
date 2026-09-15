@@ -255,6 +255,8 @@ app.post('/api/teacher/attendance/session', authenticateToken, requireTeacher, t
 app.post('/api/teacher/attendance/session/:id/stop', authenticateToken, requireTeacher, teacherCtrl.stopQRSession);
 app.get('/api/teacher/attendance/session/:id/live', authenticateToken, requireTeacher, teacherCtrl.getLiveSessionScans);
 app.get('/api/teacher/attendance/session/:id/live-scans', authenticateToken, requireTeacher, teacherCtrl.getLiveSessionScans);
+app.get('/api/teacher/attendance/session/:id/live-token', attendanceCtrl.getLiveQRToken);
+app.get('/api/teacher/attendance/session/:id/token', attendanceCtrl.getLiveQRToken);
 app.post('/api/teacher/attendance/manual', authenticateToken, requireTeacher, teacherCtrl.saveManualAttendance);
 app.get('/api/teacher/attendance/reports', authenticateToken, requireTeacher, teacherCtrl.getAttendanceReports);
 

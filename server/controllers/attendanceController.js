@@ -29,18 +29,22 @@ function generateDynamicToken(sessionId, secret, intervalSeconds = 15) {
   return `${sessionId}_${timeBlock}_${hash}`;
 }
 
-// Verify dynamic token (allows current block or immediate previous block for network tolerance)
+// Verify dynamic token (allows current block or preceding intervals within ~60s tolerance)
 function verifyDynamicToken(tokenString, secret, intervalSeconds = 15) {
-  if (!tokenString) return { valid: false };
-  const parts = tokenString.split('_');
-  if (parts.length !== 3) return { valid: false };
+  if (!tokenString) return { valid: false, reason: 'Missing attendance token.' };
+  const parts = String(tokenString).trim().split('_');
+  if (parts.length !== 3) return { valid: false, reason: 'Invalid QR token format. Ensure full QR code is scanned.' };
 
   const [sessionId, tokenTimeBlock, hash] = parts;
   const currentTimeBlock = Math.floor(Date.now() / (intervalSeconds * 1000));
   const parsedTimeBlock = parseInt(tokenTimeBlock, 10);
 
-  // Accept token if generated in the last 2 intervals (e.g. ~30s max tolerance)
-  if (Math.abs(currentTimeBlock - parsedTimeBlock) > 2) {
+  if (isNaN(parsedTimeBlock)) {
+    return { valid: false, reason: 'Invalid QR token timestamp block.' };
+  }
+
+  // Accept token if generated in the last 4 intervals (~60s max tolerance for network & camera scanning)
+  if (Math.abs(currentTimeBlock - parsedTimeBlock) > 4) {
     return { valid: false, reason: 'QR Code expired. Please scan the newly refreshed QR.' };
   }
 
@@ -76,6 +80,12 @@ async function startQRSession(req, res) {
     const startTime = new Date();
     const expiryTime = new Date(startTime.getTime() + (duration_minutes * 60 * 1000));
     const sessionSecret = crypto.randomBytes(16).toString('hex');
+
+    // Retire any previously active admin sessions for this subject to prevent stale collisions
+    await db.run(
+      "UPDATE attendance_sessions SET status = 'EXPIRED' WHERE status = 'ACTIVE' AND subject = ? AND created_by = 'Admin'",
+      [subject]
+    );
 
     const result = await db.run(`
       INSERT INTO attendance_sessions (
@@ -187,8 +197,8 @@ async function markQRScan(req, res) {
       return res.status(400).json({ success: false, message: 'Missing QR attendance token.' });
     }
 
-    // 1. Get Student details
-    const student = await db.get("SELECT * FROM students WHERE ug_id = ?", [ugId]);
+    // 1. Get Student details (case-insensitive & trimmed)
+    const student = await db.get("SELECT * FROM students WHERE TRIM(UPPER(ug_id)) = TRIM(UPPER(?))", [ugId]);
     if (!student || student.status !== 'ACTIVE') {
       return res.status(403).json({ success: false, message: 'Student account is not authorized or active.' });
     }
@@ -197,7 +207,7 @@ async function markQRScan(req, res) {
     const tokenParts = token.split('_');
     const sessionId = parseInt(tokenParts[0], 10);
     if (!sessionId) {
-      return res.status(400).json({ success: false, message: 'Invalid QR token structure.' });
+      return res.status(400).json({ success: false, message: 'Invalid QR token format or structure.' });
     }
 
     // 2. Fetch Session
@@ -223,8 +233,10 @@ async function markQRScan(req, res) {
       });
     }
 
-    // 4. Batch Validation
-    if (session.batch !== 'Both' && session.batch !== student.batch) {
+    // 4. Batch Validation (Case-insensitive & whitespace trimmed)
+    const sessionBatch = (session.batch || 'Both').trim().toUpperCase();
+    const studentBatch = (student.batch || '').trim().toUpperCase();
+    if (sessionBatch !== 'BOTH' && sessionBatch !== studentBatch) {
       return res.status(403).json({
         success: false,
         message: `This attendance session is designated for ${session.batch}. Your assigned batch is ${student.batch}.`
@@ -232,7 +244,10 @@ async function markQRScan(req, res) {
     }
 
     // 5. Check Duplicate Attendance (One attendance per student per session)
-    const alreadyMarked = await db.get("SELECT id, marked_at FROM attendance_records WHERE session_id = ? AND ug_id = ?", [sessionId, ugId]);
+    const alreadyMarked = await db.get(
+      "SELECT id, marked_at FROM attendance_records WHERE session_id = ? AND TRIM(UPPER(ug_id)) = TRIM(UPPER(?))",
+      [sessionId, ugId]
+    );
     if (alreadyMarked) {
       return res.status(409).json({
         success: false,
@@ -253,14 +268,34 @@ async function markQRScan(req, res) {
       session.subject, session.date, sLat, sLng
     ]);
 
-    // Also update aggregated logs table for marksheets and student stats
-    await db.run(`
-      INSERT OR REPLACE INTO attendance_manual (ug_id, student_name, date, subject, batch, status, remarks, marked_by)
-      VALUES (?, ?, ?, ?, ?, 'PRESENT', 'Verified via Live Classroom QR Scan', 'QR_SYSTEM')
-    `, [ugId, student.name, session.date, session.subject, student.batch]);
+    // Also update aggregated logs table for marksheets and student stats (Cross-DB SQLite + PostgreSQL Safe)
+    const existingManual = await db.get(
+      "SELECT id FROM attendance_manual WHERE TRIM(UPPER(ug_id)) = TRIM(UPPER(?)) AND date = ? AND subject = ?",
+      [ugId, session.date, session.subject]
+    );
+    if (existingManual) {
+      await db.run(
+        "UPDATE attendance_manual SET status = 'PRESENT', remarks = 'Verified via Live Classroom QR Scan', marked_by = 'QR_SYSTEM' WHERE id = ?",
+        [existingManual.id]
+      );
+    } else {
+      await db.run(`
+        INSERT INTO attendance_manual (ug_id, student_name, date, subject, batch, status, remarks, marked_by)
+        VALUES (?, ?, ?, ?, ?, 'PRESENT', 'Verified via Live Classroom QR Scan', 'QR_SYSTEM')
+      `, [ugId, student.name, session.date, session.subject, student.batch]);
+    }
+
+    // Record audit log
+    try {
+      await db.run(`
+        INSERT INTO attendance_audit_logs (action, ug_id, session_id, new_status, teacher_id, changed_by, reason)
+        VALUES ('QR_SCAN', ?, ?, 'PRESENT', ?, 'System', 'Live QR Scan Verified')
+      `, [ugId, sessionId, session.teacher_id || 'Admin']);
+    } catch (auditErr) {}
 
     realtime.broadcastEvent({
       type: 'ATTENDANCE_UPDATED',
+      sessionId: sessionId,
       ug_id: ugId,
       subject: session.subject,
       batch: student.batch,
@@ -637,11 +672,22 @@ async function markFaceScanAttendance(req, res) {
       session.subject, session.date
     ]);
 
-    // Also update aggregated logs table for marksheets and student stats
-    await db.run(`
-      INSERT OR REPLACE INTO attendance_manual (ug_id, student_name, date, subject, batch, status, remarks, marked_by)
-      VALUES (?, ?, ?, ?, ?, 'PRESENT', 'Verified via Biometric Face Scan (${confidenceScore}% Match)', 'FACE_SCAN_AI')
-    `, [ugId, student.name, session.date, session.subject, student.batch]);
+    // Also update aggregated logs table for marksheets and student stats (Cross-DB Safe)
+    const existingFaceManual = await db.get(
+      "SELECT id FROM attendance_manual WHERE TRIM(UPPER(ug_id)) = TRIM(UPPER(?)) AND date = ? AND subject = ?",
+      [ugId, session.date, session.subject]
+    );
+    if (existingFaceManual) {
+      await db.run(
+        "UPDATE attendance_manual SET status = 'PRESENT', remarks = ?, marked_by = 'FACE_SCAN_AI' WHERE id = ?",
+        [`Verified via Biometric Face Scan (${confidenceScore}% Match)`, existingFaceManual.id]
+      );
+    } else {
+      await db.run(`
+        INSERT INTO attendance_manual (ug_id, student_name, date, subject, batch, status, remarks, marked_by)
+        VALUES (?, ?, ?, ?, ?, 'PRESENT', ?, 'FACE_SCAN_AI')
+      `, [ugId, student.name, session.date, session.subject, student.batch, `Verified via Biometric Face Scan (${confidenceScore}% Match)`]);
+    }
 
     return res.json({
       success: true,

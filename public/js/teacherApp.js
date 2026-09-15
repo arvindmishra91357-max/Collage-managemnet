@@ -805,9 +805,14 @@ const TeacherApp = {
           <img id="active-qr-img" src="${session.initial_qr_image}" alt="Attendance QR Code" style="width:230px; height:230px; display:block;" />
         </div>
 
-        <div style="margin-top:14px; font-size:12px; color:var(--text-secondary); display:flex; align-items:center; gap:8px;">
+        <div style="margin-top:12px; padding:6px 14px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:8px; display:inline-flex; align-items:center; gap:8px;">
+          <span style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Live Code:</span>
+          <span id="active-qr-code-display" style="font-size:13px; font-family:monospace; font-weight:700; color:#38bdf8;">${session.initial_token}</span>
+        </div>
+
+        <div style="margin-top:12px; font-size:12px; color:var(--text-secondary); display:flex; align-items:center; justify-content:center; gap:8px;">
           <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10b981; animation:pulse 1s infinite;"></span>
-          Auto-refreshing dynamic token to prevent proxies
+          Auto-refreshing dynamic token every ${session.qr_refresh_interval || 15}s
         </div>
       `;
     }
@@ -817,22 +822,33 @@ const TeacherApp = {
     this.refreshLiveScans();
 
     this.activeQrInterval = setInterval(async () => {
-      // Refresh token
+      // 1. Refresh live dynamic QR token
       try {
-        const liveTokRes = await fetch(`${API.baseUrl}/api/attendance/session/${session.id}/live-token`);
-        const tokData = await liveTokRes.json();
+        const tokData = await API.getLiveQRToken(session.id);
         if (tokData && tokData.success && tokData.token) {
           const qrImg = document.getElementById('active-qr-img');
-          if (qrImg && typeof QRCode !== 'undefined') {
-            const dataUrl = await QRCode.toDataURL(tokData.token, { width: 320, margin: 1 });
-            qrImg.src = dataUrl;
-          }
-        }
-      } catch (e) {}
+          const codeDisplay = document.getElementById('active-qr-code-display');
+          if (codeDisplay) codeDisplay.textContent = tokData.token;
 
-      // Refresh scans
+          if (qrImg) {
+            if (tokData.qr_image) {
+              qrImg.src = tokData.qr_image;
+            } else if (typeof QRCode !== 'undefined') {
+              qrImg.src = await QRCode.toDataURL(tokData.token, { width: 320, margin: 1 });
+            }
+          }
+        } else if (tokData && (tokData.status === 'EXPIRED' || tokData.message?.includes('ended'))) {
+          clearInterval(this.activeQrInterval);
+          this.activeQrInterval = null;
+          App.showToast('Attendance QR session has ended.', 'info');
+        }
+      } catch (e) {
+        console.warn('[TeacherLiveQR] Token refresh error:', e);
+      }
+
+      // 2. Refresh scans
       this.refreshLiveScans();
-    }, 6000);
+    }, 5000);
   },
 
   async refreshLiveScans() {

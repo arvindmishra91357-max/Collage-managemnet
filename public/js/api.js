@@ -164,8 +164,8 @@ const API = {
       const saved = localStorage.getItem('mgi_api_server_url');
       if (saved && saved.trim()) return saved.trim().replace(/\/+$/, '');
       const origin = window.location.origin;
-      if (origin && origin !== 'null' && !origin.startsWith('file:') && !origin.startsWith('content:') && !origin.includes('localhost:')) {
-        return origin;
+      if (origin && origin !== 'null' && !origin.startsWith('file:') && !origin.startsWith('content:') && !origin.startsWith('capacitor:') && !origin.startsWith('ionic:')) {
+        return origin.replace(/\/+$/, '');
       }
     } catch (e) {}
     return CLOUD_BACKEND_URL;
@@ -223,12 +223,12 @@ const API = {
       headers['Content-Type'] = 'application/json';
     }
 
-    // Default 3500ms timeout controller to avoid hanging on sleeping/offline servers
+    // Default 12000ms timeout controller to avoid premature aborts on mobile networks and cloud cold-starts
     let timeoutId;
     let signal = options.signal;
     if (!signal && typeof AbortController !== 'undefined') {
       const controller = new AbortController();
-      timeoutId = setTimeout(() => controller.abort(), 3500);
+      timeoutId = setTimeout(() => controller.abort(), 12000);
       signal = controller.signal;
     }
 
@@ -756,12 +756,14 @@ const API = {
       method: 'POST',
       body: JSON.stringify(scanData)
     });
-    if (res && res.success) return res;
+    // Return actual server response (either success or structured error reason)
+    if (res && typeof res.success === 'boolean') {
+      return res;
+    }
 
-    // Standalone fallback
     return {
-      success: true,
-      message: '✓ Classroom QR code verified! Attendance recorded successfully.'
+      success: false,
+      message: (res && res.message) || 'Unable to connect to attendance verification server. Please check internet connection and try again.'
     };
   },
 

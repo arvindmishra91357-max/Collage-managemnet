@@ -2124,12 +2124,12 @@ const StudentApp = {
       canvas.height = height;
       ctx.drawImage(video, 0, 0, width, height);
 
-      // 1. Primary: Universal jsQR Decoder
+      // 1. Primary: Universal jsQR Decoder (attemptBoth handles screen glare and dark mode)
       if (window.jsQR) {
         try {
           const imageData = ctx.getImageData(0, 0, width, height);
           const code = window.jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: "dontInvert",
+            inversionAttempts: "attemptBoth",
           });
           if (code && code.data && code.data.trim()) {
             this.handleScannedToken(code.data.trim());
@@ -2156,9 +2156,25 @@ const StudentApp = {
     }, 120);
   },
 
-  async handleScannedToken(token) {
-    if (this.isProcessingScan || !token) return;
+  async handleScannedToken(rawToken) {
+    if (this.isProcessingScan || !rawToken) return;
     this.isProcessingScan = true;
+
+    let cleanToken = String(rawToken).trim();
+    // 1. If scanned as JSON
+    if (cleanToken.startsWith('{') && cleanToken.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(cleanToken);
+        if (parsed.token) cleanToken = parsed.token;
+      } catch (e) {}
+    }
+    // 2. If scanned as URL containing token parameter
+    if (cleanToken.includes('token=')) {
+      try {
+        const match = cleanToken.match(/[?&]token=([^&#\s]+)/);
+        if (match && match[1]) cleanToken = decodeURIComponent(match[1]);
+      } catch (e) {}
+    }
 
     if (this.cameraScanInterval) {
       clearInterval(this.cameraScanInterval);
@@ -2169,8 +2185,11 @@ const StudentApp = {
       try { navigator.vibrate(150); } catch (e) {}
     }
 
+    const statusBanner = document.getElementById('scanner-status-text');
+    if (statusBanner) statusBanner.innerHTML = '⚡ Verifying Attendance with Server...';
+
     window.App.showToast('📷 QR Code Detected! Verifying token...', 'info');
-    await this.processAttendanceVerification(token);
+    await this.processAttendanceVerification(cleanToken);
     this.isProcessingScan = false;
   },
 
@@ -2179,19 +2198,24 @@ const StudentApp = {
       token
     });
 
-    if (res.success) {
-      window.App.showToast(res.message, 'success');
+    if (res && res.success) {
+      window.App.showToast(res.message || '✓ Attendance marked PRESENT successfully!', 'success');
       this.closeScannerModal();
-      this.loadTabData('attendance');
+      await this.renderAttendanceTab(document.getElementById('student-tab-content'));
     } else {
-      window.App.showToast(res.message || 'Attendance verification failed.', 'error');
+      const errMsg = (res && res.message) ? res.message : 'Attendance verification failed.';
+      window.App.showToast(errMsg, 'error');
+      const statusBanner = document.getElementById('scanner-status-text');
+      if (statusBanner) statusBanner.innerHTML = `<span style="color:#f87171;">⚠️ ${errMsg}</span>`;
+
       // Allow retry if modal is still open
       if (document.getElementById('scanner-modal') && this.activeVideoTrack) {
         setTimeout(() => {
           this.isProcessingScan = false;
+          if (statusBanner) statusBanner.innerHTML = '🟢 Camera Active — Point at classroom QR';
           const video = document.getElementById('qr-video-feed');
           if (video) this.startContinuousFrameScanner(video);
-        }, 1500);
+        }, 2000);
       }
     }
   },
