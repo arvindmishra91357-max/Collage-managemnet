@@ -2,7 +2,53 @@
 // TEACHER WEB APP / PORTAL CONTROLLER (MGI 3CYBER7)
 // ==========================================================================
 
+// Indian Standard Time (IST) Date & Day Helpers
+const TEACHER_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function getIndianDate() {
+  try {
+    const now = new Date();
+    const istString = now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
+    return new Date(istString);
+  } catch (e) {
+    const now = new Date();
+    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+    return new Date(utc + (3600000 * 5.5));
+  }
+}
+
+function getIndianDateString() {
+  try {
+    const d = getIndianDate();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  } catch (e) {
+    return new Date().toISOString().split('T')[0];
+  }
+}
+
+function getIndianDayName() {
+  try {
+    const d = getIndianDate();
+    return TEACHER_DAYS[d.getDay()] || 'Monday';
+  } catch (e) {
+    const fallbackDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    return fallbackDays[new Date().getDay()] || 'Monday';
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.getIndianDate = getIndianDate;
+  window.getIndianDateString = getIndianDateString;
+  window.getIndianDayName = getIndianDayName;
+}
+
 const TeacherApp = {
+  getIndianDate,
+  getIndianDateString,
+  getIndianDayName,
   currentSection: 'dashboard',
   currentUser: null,
   activeQrInterval: null,
