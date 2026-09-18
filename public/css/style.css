@@ -1454,20 +1454,24 @@ input:-webkit-autofill:active {
 }
 
 /* Modals */
-.modal-backdrop {
+.modal-backdrop,
+.modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 200;
+  z-index: 1000;
   padding: 20px;
   animation: fadeIn 0.2s ease;
+  overflow-y: auto;
 }
 
-.modal-card {
+.modal-card,
+.modal-content {
   width: 100%;
   max-width: 520px;
   background: var(--bg-modal);
@@ -1475,6 +1479,8 @@ input:-webkit-autofill:active {
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lg);
   overflow: hidden;
+  margin: auto;
+  position: relative;
 }
 
 .modal-header {
@@ -3379,14 +3385,17 @@ input:-webkit-autofill:active {
 }
 
 /* Light Theme Modals & Dialogs */
-[data-theme="light"] .modal-backdrop {
-  background: rgba(15, 23, 42, 0.5);
+[data-theme="light"] .modal-backdrop,
+[data-theme="light"] .modal-overlay {
+  background: rgba(15, 23, 42, 0.55);
 }
 
-[data-theme="light"] .modal-card {
+[data-theme="light"] .modal-card,
+[data-theme="light"] .modal-content {
   background: #ffffff;
   border: 1px solid #e2e8f0;
   box-shadow: 0 20px 45px rgba(0, 0, 0, 0.15);
+  color: #0f172a;
 }
 
 [data-theme="light"] .modal-header {

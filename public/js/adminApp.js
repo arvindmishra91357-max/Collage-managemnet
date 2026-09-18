@@ -1800,36 +1800,48 @@ const AdminApp = {
 
     const modal = document.createElement('div');
     modal.id = 'admin-quick-confirm-modal';
-    modal.className = 'modal-overlay';
+    modal.className = 'modal-backdrop active modal-overlay';
     modal.style.display = 'flex';
+    modal.onclick = (e) => {
+      if (e.target === modal) AdminApp.closeAdminQuickConfirmModal();
+    };
+
+    if (this._adminQuickModalEscHandler) {
+      document.removeEventListener('keydown', this._adminQuickModalEscHandler);
+    }
+    this._adminQuickModalEscHandler = (e) => {
+      if (e.key === 'Escape') AdminApp.closeAdminQuickConfirmModal();
+    };
+    document.addEventListener('keydown', this._adminQuickModalEscHandler);
+
     modal.innerHTML = `
-      <div class="modal-content glass-card" style="max-width:440px; padding:24px; text-align:center; border:1px solid rgba(56,189,248,0.3); border-radius:16px;">
+      <div class="modal-card modal-content glass-card" style="max-width:460px; width:92%; padding:26px 24px; text-align:center; border:1px solid rgba(56,189,248,0.35); border-radius:18px; margin:auto; background:var(--bg-modal, var(--bg-card)); box-shadow:var(--shadow-xl); position:relative;" onclick="event.stopPropagation()">
         <div style="font-size:36px; margin-bottom:8px;">📋</div>
         <h3 style="font-size:18px; font-weight:800; margin:0 0 6px 0; color:var(--text-primary);">Confirm Attendance Submission</h3>
         <p style="font-size:12.5px; color:var(--text-secondary); margin:0 0 16px 0;">
-          Review attendance summary for <strong>${subject}</strong> before saving.
+          Review attendance summary for <strong style="color:var(--primary);">${subject}</strong> before saving.
         </p>
 
-        <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border-color); border-radius:10px; padding:12px 14px; font-size:12px; margin-bottom:16px; text-align:left;">
+        <div style="background:var(--bg-input, rgba(255,255,255,0.04)); border:1px solid var(--border-color); border-radius:12px; padding:12px 16px; font-size:12.5px; margin-bottom:16px; text-align:left;">
           <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
             <span style="color:var(--text-muted);">Class / Division:</span>
-            <strong>3CYBER7</strong>
+            <strong style="color:var(--text-primary);">3CYBER7</strong>
           </div>
           <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
             <span style="color:var(--text-muted);">Subject:</span>
-            <strong>${subject}</strong>
+            <strong style="color:var(--text-primary);">${subject}</strong>
           </div>
           <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
             <span style="color:var(--text-muted);">Batch Scope:</span>
-            <strong>${batch}</strong>
+            <strong style="color:var(--text-primary);">${batch}</strong>
           </div>
           <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
             <span style="color:var(--text-muted);">Lecture / Period:</span>
-            <strong>${period}</strong>
+            <strong style="color:var(--text-primary);">${period}</strong>
           </div>
           <div style="display:flex; justify-content:space-between;">
             <span style="color:var(--text-muted);">Date:</span>
-            <strong>${date}</strong>
+            <strong style="color:var(--text-primary);">${date}</strong>
           </div>
         </div>
 
@@ -1853,10 +1865,10 @@ const AdminApp = {
         </p>
 
         <div style="display:flex; gap:10px; justify-content:center;">
-          <button type="button" class="btn-sec" onclick="AdminApp.closeAdminQuickConfirmModal()" style="width:auto; margin:0; padding:9px 18px;">
+          <button type="button" class="btn-sec" onclick="AdminApp.closeAdminQuickConfirmModal()" style="width:auto; margin:0; padding:10px 20px; font-weight:700;">
             Cancel
           </button>
-          <button type="button" id="btn-admin-quick-confirm-submit" class="btn-primary" onclick="AdminApp.executeSaveAdminQuickAttendance()" style="width:auto; margin:0; padding:9px 24px; background:linear-gradient(135deg, #10b981, #059669); font-weight:800;">
+          <button type="button" id="btn-admin-quick-confirm-submit" class="btn-primary" onclick="AdminApp.executeSaveAdminQuickAttendance()" style="width:auto; margin:0; padding:10px 24px; background:linear-gradient(135deg, #10b981, #059669); font-weight:800; box-shadow:0 4px 14px rgba(16,185,129,0.35);">
             Confirm & Save Attendance
           </button>
         </div>
@@ -1867,6 +1879,10 @@ const AdminApp = {
   },
 
   closeAdminQuickConfirmModal() {
+    if (this._adminQuickModalEscHandler) {
+      document.removeEventListener('keydown', this._adminQuickModalEscHandler);
+      this._adminQuickModalEscHandler = null;
+    }
     const modal = document.getElementById('admin-quick-confirm-modal');
     if (modal) modal.remove();
     const input = document.getElementById('admin-quick-roll-input');
