@@ -627,13 +627,20 @@ const API = {
       const endMin = parseInt(partsEnd[0], 10) * 60 + parseInt(partsEnd[1], 10);
 
       if (clientMin >= startMin && clientMin <= endMin) {
-        liveClass = c;
+        const remMin = Math.max(0, endMin - clientMin);
+        c.status = 'LIVE NOW';
+        c.remainingMinutes = remMin;
+        liveClass = { ...c, status: 'LIVE NOW', remainingMinutes: remMin, endMinutes: endMin, startMinutes: startMin };
       } else if (clientMin < startMin) {
+        c.status = 'UPCOMING';
         const diff = startMin - clientMin;
+        c.startsInMinutes = diff;
         if (diff < minDiff) {
           minDiff = diff;
           nextClass = { ...c, startsInMinutes: diff };
         }
+      } else {
+        c.status = 'COMPLETED';
       }
     }
 

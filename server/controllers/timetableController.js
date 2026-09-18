@@ -356,12 +356,14 @@ async function getTodayClasses(req, res) {
       const endMin = timeToMinutes(c.end_time);
 
       let status = 'UPCOMING';
+      let remainingMinutes = 0;
       if (c.is_cancelled) {
         status = 'CANCELLED';
         completedCount++;
       } else if (currentMinutes >= startMin && currentMinutes <= endMin) {
         status = 'LIVE NOW';
-        liveClass = c;
+        remainingMinutes = Math.max(0, endMin - currentMinutes);
+        liveClass = { ...c, status, remainingMinutes, startMinutes: startMin, endMinutes: endMin };
       } else if (currentMinutes > endMin) {
         status = 'COMPLETED';
         completedCount++;
@@ -376,6 +378,7 @@ async function getTodayClasses(req, res) {
       return {
         ...c,
         status,
+        remainingMinutes,
         startMinutes: startMin,
         endMinutes: endMin
       };

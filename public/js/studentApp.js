@@ -434,6 +434,9 @@ const StudentApp = {
   },
 
   switchTab(tab, pushState = true) {
+    if (tab !== 'home') {
+      this.stopLiveClassTimer();
+    }
     if (pushState) {
       if (this.tabHistory[this.tabHistory.length - 1] !== tab) {
         this.tabHistory.push(tab);
@@ -448,6 +451,70 @@ const StudentApp = {
     });
     this.stopCamera();
     this.loadTabData(tab);
+  },
+
+  liveClassTimerInterval: null,
+
+  stopLiveClassTimer() {
+    if (this.liveClassTimerInterval) {
+      clearInterval(this.liveClassTimerInterval);
+      this.liveClassTimerInterval = null;
+    }
+  },
+
+  startLiveClassTimer(endTimeStr) {
+    this.stopLiveClassTimer();
+    if (!endTimeStr) return;
+
+    const endMin = this.timeToMinutes(endTimeStr);
+
+    const updateTimerDisplays = () => {
+      const now = window.getIndianDate ? window.getIndianDate() : new Date();
+      const currentMin = now.getHours() * 60 + now.getMinutes();
+      const currentSec = now.getSeconds();
+
+      const totalEndSec = endMin * 60;
+      const totalCurrentSec = currentMin * 60 + currentSec;
+      const diffSec = totalEndSec - totalCurrentSec;
+
+      if (diffSec <= 0) {
+        this.stopLiveClassTimer();
+        const heroBadge = document.getElementById('live-class-timer-badge');
+        if (heroBadge) {
+          heroBadge.innerHTML = '● CLASS CONCLUDED';
+        }
+        document.querySelectorAll('.live-class-countdown').forEach(el => {
+          el.textContent = '0m';
+        });
+        setTimeout(() => {
+          if (this.currentTab === 'home') {
+            this.refreshCurrentTabSilent();
+          }
+        }, 2000);
+        return;
+      }
+
+      const remMinutes = Math.floor(diffSec / 60);
+      const remSeconds = diffSec % 60;
+      const secStr = remSeconds < 10 ? `0${remSeconds}` : remSeconds;
+
+      const countdownText = remMinutes > 0 
+        ? `${remMinutes}m ${secStr}s left`
+        : `${remSeconds}s left`;
+
+      const heroCountdownEl = document.getElementById('live-timer-countdown');
+      if (heroCountdownEl) {
+        heroCountdownEl.textContent = countdownText;
+      }
+
+      const listCountdownEls = document.querySelectorAll('.live-class-countdown');
+      listCountdownEls.forEach(el => {
+        el.textContent = remMinutes > 0 ? `${remMinutes}m left` : `${remSeconds}s left`;
+      });
+    };
+
+    updateTimerDisplays();
+    this.liveClassTimerInterval = setInterval(updateTimerDisplays, 1000);
   },
 
   closeModal(modalId) {
@@ -562,11 +629,17 @@ const StudentApp = {
         const endMin = this.timeToMinutes(c.end_time);
 
         if (clientMin >= startMin && clientMin <= endMin) {
-          liveClass = c;
+          const remMin = Math.max(0, endMin - clientMin);
+          c.status = 'LIVE NOW';
+          c.remainingMinutes = remMin;
+          liveClass = { ...c, status: 'LIVE NOW', remainingMinutes: remMin, endMinutes: endMin, startMinutes: startMin };
         } else if (clientMin > endMin) {
+          c.status = 'COMPLETED';
           completedCount++;
         } else if (clientMin < startMin) {
+          c.status = 'UPCOMING';
           const diff = startMin - clientMin;
+          c.startsInMinutes = diff;
           if (diff < minDiff) {
             minDiff = diff;
             nextClass = { ...c, startsInMinutes: diff };
@@ -611,7 +684,9 @@ const StudentApp = {
         <section class="next-class-card">
           <div>
             ${liveClass ? `
-              <span class="class-status-badge live">● LIVE NOW</span>
+              <span class="class-status-badge live live-timer-badge" id="live-class-timer-badge">
+                ● LIVE NOW • ⏳ <span id="live-timer-countdown">${liveClass.remainingMinutes !== undefined ? liveClass.remainingMinutes : 0}m left</span>
+              </span>
               <div class="next-class-subject">${liveClass.subject} ${liveClass.is_lab ? '<span class="lab-chip">LAB</span>' : ''}</div>
               <div class="next-class-details">
                 Room: <strong style="color:${liveClass.has_room_change ? '#38bdf8' : 'var(--text-primary)'}; font-size:14px;">${liveClass.room}</strong>
@@ -773,7 +848,7 @@ const StudentApp = {
                   ${c.is_lab ? `<span class="lab-chip">LAB</span>` : ''}
                   ${c.is_cancelled ? `<span class="lab-chip" style="background:rgba(239,68,68,0.2); color:#f87171; font-weight:800;">CANCELLED</span>` : ''}
                   ${c.has_room_change ? `<span class="lab-chip" style="background:rgba(56,189,248,0.2); color:#38bdf8; font-size:10px;">🔄 Room Changed</span>` : ''}
-                  ${c.status === 'LIVE NOW' ? `<span class="class-status-badge live" style="font-size:9px; padding:1px 6px;">LIVE</span>` : ''}
+                  ${c.status === 'LIVE NOW' ? `<span class="class-status-badge live" style="font-size:9.5px; padding:2px 7px; font-weight:800;">● LIVE • <span class="live-class-countdown">${c.remainingMinutes !== undefined ? c.remainingMinutes : 0}m left</span></span>` : ''}
                 </div>
                 <div class="schedule-meta" style="margin-top:3px;">
                   ${c.is_cancelled ? `
@@ -826,6 +901,13 @@ const StudentApp = {
         </section>
       ` : ''}
     `;
+
+    // Initialize or clear real-time live lecture ticking countdown
+    if (liveClass && liveClass.end_time) {
+      this.startLiveClassTimer(liveClass.end_time);
+    } else {
+      this.stopLiveClassTimer();
+    }
   },
 
   openStudySubTab(subTab) {

@@ -65,6 +65,10 @@ const App = {
 
   showAuth() {
     const root = document.getElementById('app-root');
+    const savedId = (() => {
+      try { return (localStorage.getItem('mgi_saved_login_id') || '').trim(); } catch (e) { return ''; }
+    })();
+
     root.innerHTML = `
       <div class="auth-wrapper">
         <div class="auth-card">
@@ -87,13 +91,31 @@ const App = {
             <span class="auth-badge">B.TECH CYBER SECURITY • 3CYBER7</span>
           </div>
 
+          <!-- Saved Account Quick Switch Header -->
+          ${savedId ? `
+            <div id="saved-account-banner" style="display:flex; align-items:center; justify-content:space-between; background:rgba(56,189,248,0.1); border:1px solid rgba(56,189,248,0.28); padding:8px 12px; border-radius:var(--radius-md); margin-top:8px; font-size:12px;">
+              <span style="color:#38bdf8; font-weight:600; display:flex; align-items:center; gap:6px;">
+                <span>👤</span> Saved ID: <strong>${savedId}</strong>
+              </span>
+              <button type="button" onclick="App.clearLoginFields(true)" style="background:transparent; border:none; color:#f87171; font-weight:700; font-size:11.5px; cursor:pointer; padding:2px 6px; text-decoration:underline;">
+                Switch / Clear ID
+              </button>
+            </div>
+          ` : ''}
+
           <!-- Unified Single Login Form for Students, Teachers, and Admins -->
-          <form id="unified-login-form" onsubmit="event.preventDefault(); App.handleUnifiedLogin();" style="margin-top:10px;">
+          <form id="unified-login-form" onsubmit="event.preventDefault(); App.handleUnifiedLogin();" style="margin-top:10px;" autocomplete="on">
             <div class="form-group">
-              <label class="form-label">User / Account ID *</label>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <label class="form-label" style="margin-bottom:0;">User / Account ID *</label>
+                <span id="id-switch-hint" style="font-size:11px; color:var(--text-muted); display:${savedId ? 'inline' : 'none'};">Tap ✕ to enter another ID</span>
+              </div>
               <div class="input-container">
                 <span class="input-icon">🆔</span>
-                <input type="text" id="login-identifier" class="form-control" placeholder="Enter UG ID, Teacher ID, or Admin ID" autocomplete="username" required />
+                <input type="text" id="login-identifier" class="form-control has-action" value="${savedId}" placeholder="Enter UG ID, Teacher ID, or Admin ID" autocomplete="username" required spellcheck="false" autocapitalize="none" />
+                <button type="button" id="btn-clear-id" class="input-action-btn" onclick="App.clearLoginFields(false)" title="Clear and enter another ID" style="${savedId ? 'display:inline-flex;' : 'display:none;'}" tabindex="-1">
+                  ✕
+                </button>
               </div>
             </div>
 
@@ -101,9 +123,16 @@ const App = {
               <label class="form-label">Password *</label>
               <div class="input-container">
                 <span class="input-icon">🔒</span>
-                <input type="password" id="login-password" class="form-control" placeholder="••••••••" autocomplete="current-password" required />
+                <input type="password" id="login-password" class="form-control has-action" placeholder="••••••••" autocomplete="current-password" required />
+                <button type="button" id="btn-toggle-password" class="input-action-btn" onclick="App.togglePasswordVisibility('login-password', this)" title="Show / Hide Password" tabindex="-1">
+                  👁️
+                </button>
               </div>
-              <div style="display:flex; justify-content:flex-end; margin-top:6px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                <label style="display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--text-secondary); cursor:pointer; user-select:none;">
+                  <input type="checkbox" id="login-remember-me" checked style="accent-color:var(--primary); cursor:pointer; width:14px; height:14px;" />
+                  <span>Remember ID</span>
+                </label>
                 <a href="javascript:void(0)" onclick="App.showForgotPasswordModal()" style="color:#38bdf8; font-size:12px; font-weight:600; text-decoration:none;">Forgot Password?</a>
               </div>
             </div>
@@ -131,7 +160,86 @@ const App = {
         </div>
       </div>
     `;
+    this.setupLoginInputHandlers(savedId);
     setTimeout(() => this.updatePWAInstallVisibility(), 50);
+  },
+
+  _lastFilledId: '',
+
+  setupLoginInputHandlers(initialId = '') {
+    this._lastFilledId = (initialId || '').trim();
+    const idInput = document.getElementById('login-identifier');
+    const passInput = document.getElementById('login-password');
+    const clearBtn = document.getElementById('btn-clear-id');
+    const switchHint = document.getElementById('id-switch-hint');
+
+    if (!idInput) return;
+
+    // Handle user typing or pasting a new ID to eliminate credentials collision glitches
+    idInput.addEventListener('input', () => {
+      const currentVal = idInput.value.trim();
+      if (clearBtn) {
+        clearBtn.style.display = currentVal.length > 0 ? 'inline-flex' : 'none';
+      }
+      if (switchHint) {
+        switchHint.style.display = currentVal.length > 0 ? 'inline' : 'none';
+      }
+
+      // If user starts editing or enters another ID, wipe the password field so the previous account's password isn't retained!
+      if (this._lastFilledId && currentVal.toUpperCase() !== this._lastFilledId.toUpperCase()) {
+        if (passInput && passInput.value) {
+          passInput.value = '';
+          passInput.placeholder = 'Enter password for ' + currentVal;
+        }
+      }
+    });
+
+    idInput.addEventListener('change', () => {
+      const currentVal = idInput.value.trim();
+      if (clearBtn) {
+        clearBtn.style.display = currentVal.length > 0 ? 'inline-flex' : 'none';
+      }
+    });
+  },
+
+  clearLoginFields(forgetSaved = false) {
+    const idInput = document.getElementById('login-identifier');
+    const passInput = document.getElementById('login-password');
+    const clearBtn = document.getElementById('btn-clear-id');
+    const banner = document.getElementById('saved-account-banner');
+    const switchHint = document.getElementById('id-switch-hint');
+    const rememberCheckbox = document.getElementById('login-remember-me');
+
+    if (idInput) {
+      idInput.value = '';
+      idInput.focus();
+    }
+    if (passInput) {
+      passInput.value = '';
+      passInput.placeholder = '••••••••';
+    }
+    if (clearBtn) clearBtn.style.display = 'none';
+    if (switchHint) switchHint.style.display = 'none';
+
+    if (forgetSaved) {
+      try { localStorage.removeItem('mgi_saved_login_id'); } catch (e) {}
+      if (banner) banner.remove();
+      if (rememberCheckbox) rememberCheckbox.checked = false;
+      this.showToast('Saved ID removed. You can now enter another ID.', 'info');
+    }
+    this._lastFilledId = '';
+  },
+
+  togglePasswordVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    if (input.type === 'password') {
+      input.type = 'text';
+      if (btn) btn.innerHTML = '👁️‍🗨️';
+    } else {
+      input.type = 'password';
+      if (btn) btn.innerHTML = '👁️';
+    }
   },
 
   handleAPKDownload(e) {
@@ -246,6 +354,15 @@ const App = {
     }
 
     if (res.success) {
+      const rememberCheckbox = document.getElementById('login-remember-me');
+      try {
+        if (rememberCheckbox && rememberCheckbox.checked) {
+          localStorage.setItem('mgi_saved_login_id', identifier);
+        } else {
+          localStorage.removeItem('mgi_saved_login_id');
+        }
+      } catch (e) {}
+
       API.setToken(res.token);
       API.setUser(res.user);
 
