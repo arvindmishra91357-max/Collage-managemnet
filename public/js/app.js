@@ -68,6 +68,9 @@ const App = {
   _lastFilledId: '',
 
   showAuth() {
+    // Purge any active modals or stray overlays from DOM
+    document.querySelectorAll('.attendance-confirm-overlay, .modal-backdrop, .modal-overlay, #quick-confirm-modal, #admin-quick-confirm-modal').forEach(el => el.remove());
+
     const root = document.getElementById('app-root');
     const savedId = (() => {
       try { return (localStorage.getItem('mgi_saved_login_id') || '').trim(); } catch (e) { return ''; }

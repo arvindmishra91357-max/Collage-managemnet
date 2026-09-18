@@ -1798,10 +1798,14 @@ const AdminApp = {
     const oldModal = document.getElementById('admin-quick-confirm-modal');
     if (oldModal) oldModal.remove();
 
+    // Clean up any stray attendance confirmation containers in DOM
+    document.querySelectorAll('.attendance-confirm-overlay, #quick-confirm-modal, #admin-quick-confirm-modal').forEach(el => el.remove());
+
     const modal = document.createElement('div');
     modal.id = 'admin-quick-confirm-modal';
-    modal.className = 'modal-backdrop active modal-overlay';
-    modal.style.display = 'flex';
+    modal.className = 'attendance-confirm-overlay modal-backdrop active modal-overlay';
+    modal.style.cssText = 'position:fixed!important; inset:0!important; top:0!important; left:0!important; right:0!important; bottom:0!important; width:100vw!important; height:100vh!important; min-height:100vh!important; min-height:100dvh!important; background:rgba(10,14,23,0.82)!important; backdrop-filter:blur(12px)!important; -webkit-backdrop-filter:blur(12px)!important; display:flex!important; align-items:center!important; justify-content:center!important; z-index:9999!important; padding:20px!important; overflow-y:auto!important; box-sizing:border-box!important; margin:0!important;';
+
     modal.onclick = (e) => {
       if (e.target === modal) AdminApp.closeAdminQuickConfirmModal();
     };
@@ -1815,62 +1819,64 @@ const AdminApp = {
     document.addEventListener('keydown', this._adminQuickModalEscHandler);
 
     modal.innerHTML = `
-      <div class="modal-card modal-content glass-card" style="max-width:460px; width:92%; padding:26px 24px; text-align:center; border:1px solid rgba(56,189,248,0.35); border-radius:18px; margin:auto; background:var(--bg-modal, var(--bg-card)); box-shadow:var(--shadow-xl); position:relative;" onclick="event.stopPropagation()">
-        <div style="font-size:36px; margin-bottom:8px;">📋</div>
-        <h3 style="font-size:18px; font-weight:800; margin:0 0 6px 0; color:var(--text-primary);">Confirm Attendance Submission</h3>
-        <p style="font-size:12.5px; color:var(--text-secondary); margin:0 0 16px 0;">
-          Review attendance summary for <strong style="color:var(--primary);">${subject}</strong> before saving.
-        </p>
+      <div class="attendance-confirm-container" style="width:100%!important; max-width:600px!important; margin:auto!important; display:flex!important; flex-direction:column!important; align-items:center!important; justify-content:center!important; box-sizing:border-box!important;">
+        <div class="attendance-confirm-card modal-card glass-card" style="width:100%!important; max-width:580px!important; margin:0 auto!important; background:var(--bg-card, #111827)!important; border:1px solid rgba(56,189,248,0.35)!important; border-radius:20px!important; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5), 0 0 30px rgba(56,189,248,0.15)!important; padding:28px 24px!important; text-align:center!important; box-sizing:border-box!important; position:relative!important;" onclick="event.stopPropagation()">
+          <div style="font-size:38px; margin-bottom:8px;">📋</div>
+          <h3 style="font-size:19px; font-weight:800; margin:0 0 6px 0; color:var(--text-primary); letter-spacing:-0.01em;">Confirm Attendance Submission</h3>
+          <p style="font-size:13px; color:var(--text-secondary); margin:0 0 18px 0;">
+            Review attendance summary for <strong style="color:var(--primary);">${subject}</strong> before saving.
+          </p>
 
-        <div style="background:var(--bg-input, rgba(255,255,255,0.04)); border:1px solid var(--border-color); border-radius:12px; padding:12px 16px; font-size:12.5px; margin-bottom:16px; text-align:left;">
-          <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-            <span style="color:var(--text-muted);">Class / Division:</span>
-            <strong style="color:var(--text-primary);">3CYBER7</strong>
+          <div style="background:var(--bg-input, rgba(255,255,255,0.04)); border:1px solid var(--border-color); border-radius:12px; padding:14px 18px; font-size:13px; margin-bottom:18px; text-align:left; box-sizing:border-box;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+              <span style="color:var(--text-muted);">Class / Division:</span>
+              <strong style="color:var(--text-primary);">3CYBER7</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+              <span style="color:var(--text-muted);">Subject:</span>
+              <strong style="color:var(--text-primary);">${subject}</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+              <span style="color:var(--text-muted);">Batch Scope:</span>
+              <strong style="color:var(--text-primary);">${batch}</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+              <span style="color:var(--text-muted);">Lecture / Period:</span>
+              <strong style="color:var(--text-primary);">${period}</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between;">
+              <span style="color:var(--text-muted);">Date:</span>
+              <strong style="color:var(--text-primary);">${date}</strong>
+            </div>
           </div>
-          <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-            <span style="color:var(--text-muted);">Subject:</span>
-            <strong style="color:var(--text-primary);">${subject}</strong>
-          </div>
-          <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-            <span style="color:var(--text-muted);">Batch Scope:</span>
-            <strong style="color:var(--text-primary);">${batch}</strong>
-          </div>
-          <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-            <span style="color:var(--text-muted);">Lecture / Period:</span>
-            <strong style="color:var(--text-primary);">${period}</strong>
-          </div>
-          <div style="display:flex; justify-content:space-between;">
-            <span style="color:var(--text-muted);">Date:</span>
-            <strong style="color:var(--text-primary);">${date}</strong>
-          </div>
-        </div>
 
-        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px;">
-          <div style="background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.4); border-radius:10px; padding:10px 8px;">
-            <div style="font-size:22px; font-weight:900; color:#10b981;">${present}</div>
-            <div style="font-size:10.5px; font-weight:800; color:#10b981; text-transform:uppercase;">Present ✅</div>
+          <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin-bottom:18px; box-sizing:border-box;">
+            <div style="background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.4); border-radius:12px; padding:12px 8px;">
+              <div style="font-size:24px; font-weight:900; color:#10b981;">${present}</div>
+              <div style="font-size:11px; font-weight:800; color:#10b981; text-transform:uppercase; margin-top:2px;">Present ✅</div>
+            </div>
+            <div style="background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.4); border-radius:12px; padding:12px 8px;">
+              <div style="font-size:24px; font-weight:900; color:#ef4444;">${absent}</div>
+              <div style="font-size:11px; font-weight:800; color:#ef4444; text-transform:uppercase; margin-top:2px;">Absent ❌</div>
+            </div>
+            <div style="background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.4); border-radius:12px; padding:12px 8px;">
+              <div style="font-size:24px; font-weight:900; color:#fbbf24;">${na}</div>
+              <div style="font-size:11px; font-weight:800; color:#fbbf24; text-transform:uppercase; margin-top:2px;">N/A ➖</div>
+            </div>
           </div>
-          <div style="background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.4); border-radius:10px; padding:10px 8px;">
-            <div style="font-size:22px; font-weight:900; color:#ef4444;">${absent}</div>
-            <div style="font-size:10.5px; font-weight:800; color:#ef4444; text-transform:uppercase;">Absent ❌</div>
-          </div>
-          <div style="background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.4); border-radius:10px; padding:10px 8px;">
-            <div style="font-size:22px; font-weight:900; color:#fbbf24;">${na}</div>
-            <div style="font-size:10.5px; font-weight:800; color:#fbbf24; text-transform:uppercase;">N/A ➖</div>
-          </div>
-        </div>
 
-        <p style="font-size:11.5px; color:var(--text-muted); margin-bottom:20px;">
-          Students not entered are recorded as ABSENT. Real-time updates will automatically sync with student apps.
-        </p>
+          <p style="font-size:12px; color:var(--text-muted); margin-bottom:22px; line-height:1.5;">
+            Students not entered are recorded as ABSENT. Real-time updates will automatically sync with student apps.
+          </p>
 
-        <div style="display:flex; gap:10px; justify-content:center;">
-          <button type="button" class="btn-sec" onclick="AdminApp.closeAdminQuickConfirmModal()" style="width:auto; margin:0; padding:10px 20px; font-weight:700;">
-            Cancel
-          </button>
-          <button type="button" id="btn-admin-quick-confirm-submit" class="btn-primary" onclick="AdminApp.executeSaveAdminQuickAttendance()" style="width:auto; margin:0; padding:10px 24px; background:linear-gradient(135deg, #10b981, #059669); font-weight:800; box-shadow:0 4px 14px rgba(16,185,129,0.35);">
-            Confirm & Save Attendance
-          </button>
+          <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+            <button type="button" class="btn-sec" onclick="AdminApp.closeAdminQuickConfirmModal()" style="width:auto; margin:0; padding:11px 22px; font-weight:700; font-size:13px; border-radius:10px;">
+              Cancel
+            </button>
+            <button type="button" id="btn-admin-quick-confirm-submit" class="btn-primary" onclick="AdminApp.executeSaveAdminQuickAttendance()" style="width:auto; margin:0; padding:11px 28px; background:linear-gradient(135deg, #10b981, #059669); font-weight:800; font-size:13.5px; border-radius:10px; box-shadow:0 4px 14px rgba(16,185,129,0.35);">
+              Confirm & Save Attendance
+            </button>
+          </div>
         </div>
       </div>
     `;

@@ -1483,6 +1483,97 @@ input:-webkit-autofill:active {
   position: relative;
 }
 
+/* ==========================================================================
+   ATTENDANCE CONFIRMATION LAYOUT ARCHITECTURE (CENTERED, BALANCED & RESPONSIVE)
+   ========================================================================== */
+.attendance-confirm-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  min-height: 100vh !important;
+  min-height: 100dvh !important;
+  background: rgba(10, 14, 23, 0.82) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 9999 !important;
+  padding: 24px !important;
+  overflow-y: auto !important;
+  box-sizing: border-box !important;
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.attendance-confirm-container {
+  width: 100% !important;
+  max-width: 600px !important;
+  margin: 0 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+}
+
+/* Multi-card grid support (utilizes available desktop width cleanly) */
+.attendance-confirm-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)) !important;
+  gap: 24px !important;
+  width: 100% !important;
+  max-width: 1140px !important;
+  margin: 0 auto !important;
+  justify-content: center !important;
+  align-items: start !important;
+  box-sizing: border-box !important;
+}
+
+.attendance-confirm-card {
+  width: 100% !important;
+  max-width: 580px !important;
+  margin: 0 auto !important;
+  background: var(--bg-card, #111827) !important;
+  border: 1px solid rgba(56, 189, 248, 0.35) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 30px rgba(56, 189, 248, 0.15) !important;
+  padding: 28px 24px !important;
+  text-align: center !important;
+  box-sizing: border-box !important;
+  position: relative !important;
+}
+
+[data-theme="light"] .attendance-confirm-overlay {
+  background: rgba(15, 23, 42, 0.6) !important;
+}
+
+[data-theme="light"] .attendance-confirm-card {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.12), 0 0 25px rgba(56, 189, 248, 0.1) !important;
+  color: #0f172a !important;
+}
+
+@media (max-width: 768px) {
+  .attendance-confirm-overlay {
+    padding: 12px !important;
+    align-items: flex-end !important;
+  }
+  .attendance-confirm-card {
+    max-width: 100% !important;
+    padding: 22px 16px !important;
+    border-radius: 18px 18px 0 0 !important;
+  }
+  .attendance-confirm-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 .modal-header {
   padding: 20px 24px;
   border-bottom: 1px solid var(--border-color);
