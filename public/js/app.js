@@ -63,6 +63,10 @@ const App = {
     }
   },
 
+  _userManuallyClearedId: false,
+  _userManuallyClearedPass: false,
+  _lastFilledId: '',
+
   showAuth() {
     const root = document.getElementById('app-root');
     const savedId = (() => {
@@ -104,7 +108,12 @@ const App = {
           ` : ''}
 
           <!-- Unified Single Login Form for Students, Teachers, and Admins -->
-          <form id="unified-login-form" onsubmit="event.preventDefault(); App.handleUnifiedLogin();" style="margin-top:10px;" autocomplete="on">
+          <form id="unified-login-form" onsubmit="event.preventDefault(); App.handleUnifiedLogin();" style="margin-top:10px;" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+            
+            <!-- Browser Autofill Neutralizer: Absorbs Chromium & Edge aggressive auto-refill probe -->
+            <input type="text" name="chrome_prevent_autofill_user" style="display:none!important;position:absolute!important;opacity:0!important;height:0!important;width:0!important;pointer-events:none;" tabindex="-1" autocomplete="off" />
+            <input type="password" name="chrome_prevent_autofill_pass" style="display:none!important;position:absolute!important;opacity:0!important;height:0!important;width:0!important;pointer-events:none;" tabindex="-1" autocomplete="new-password" />
+
             <div class="form-group">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                 <label class="form-label" style="margin-bottom:0;">User / Account ID *</label>
@@ -112,7 +121,7 @@ const App = {
               </div>
               <div class="input-container">
                 <span class="input-icon">🆔</span>
-                <input type="text" id="login-identifier" class="form-control has-action" value="${savedId}" placeholder="Enter UG ID, Teacher ID, or Admin ID" autocomplete="username" required spellcheck="false" autocapitalize="none" />
+                <input type="text" id="login-identifier" name="username" class="form-control has-action" placeholder="Enter UG ID, Teacher ID, or Admin ID" autocomplete="off" required spellcheck="false" autocapitalize="none" data-lpignore="true" data-form-type="other" />
                 <button type="button" id="btn-clear-id" class="input-action-btn" onclick="App.clearLoginFields(false)" title="Clear and enter another ID" style="${savedId ? 'display:inline-flex;' : 'display:none;'}" tabindex="-1">
                   ✕
                 </button>
@@ -123,7 +132,7 @@ const App = {
               <label class="form-label">Password *</label>
               <div class="input-container">
                 <span class="input-icon">🔒</span>
-                <input type="password" id="login-password" class="form-control has-action" placeholder="••••••••" autocomplete="current-password" required />
+                <input type="password" id="login-password" name="password" class="form-control has-action" placeholder="••••••••" autocomplete="new-password" required data-lpignore="true" data-form-type="other" />
                 <button type="button" id="btn-toggle-password" class="input-action-btn" onclick="App.togglePasswordVisibility('login-password', this)" title="Show / Hide Password" tabindex="-1">
                   👁️
                 </button>
@@ -164,40 +173,113 @@ const App = {
     setTimeout(() => this.updatePWAInstallVisibility(), 50);
   },
 
-  _lastFilledId: '',
-
   setupLoginInputHandlers(initialId = '') {
+    this._userManuallyClearedId = false;
+    this._userManuallyClearedPass = false;
     this._lastFilledId = (initialId || '').trim();
+
     const idInput = document.getElementById('login-identifier');
     const passInput = document.getElementById('login-password');
     const clearBtn = document.getElementById('btn-clear-id');
     const switchHint = document.getElementById('id-switch-hint');
+    const banner = document.getElementById('saved-account-banner');
 
     if (!idInput) return;
 
-    // Handle user typing or pasting a new ID to eliminate credentials collision glitches
-    idInput.addEventListener('input', () => {
-      const currentVal = idInput.value.trim();
-      if (clearBtn) {
-        clearBtn.style.display = currentVal.length > 0 ? 'inline-flex' : 'none';
-      }
-      if (switchHint) {
-        switchHint.style.display = currentVal.length > 0 ? 'inline' : 'none';
-      }
+    // Safely set initial value via JS so defaultValue is blank (prevents browser dirty-state restoration)
+    if (initialId && !this._userManuallyClearedId) {
+      idInput.value = initialId;
+    }
 
-      // If user starts editing or enters another ID, wipe the password field so the previous account's password isn't retained!
-      if (this._lastFilledId && currentVal.toUpperCase() !== this._lastFilledId.toUpperCase()) {
-        if (passInput && passInput.value) {
+    // Input listener: Detect manual clearing vs typing
+    idInput.addEventListener('input', () => {
+      const currentVal = idInput.value;
+      if (currentVal === '') {
+        // User explicitly cleared username!
+        this._userManuallyClearedId = true;
+        this._lastFilledId = '';
+        if (clearBtn) clearBtn.style.display = 'none';
+        if (switchHint) switchHint.style.display = 'none';
+        if (banner) banner.style.display = 'none';
+        try { localStorage.removeItem('mgi_saved_login_id'); } catch (e) {}
+
+        // When username is emptied, also clear password so old password is not retained
+        if (passInput) {
           passInput.value = '';
-          passInput.placeholder = 'Enter password for ' + currentVal;
+          this._userManuallyClearedPass = true;
+        }
+
+        // Active 300ms anti-refill guard against async browser autofill injection
+        let guardCount = 0;
+        const guard = setInterval(() => {
+          guardCount++;
+          if (this._userManuallyClearedId && idInput.value !== '') {
+            idInput.value = '';
+          }
+          if (guardCount > 10) clearInterval(guard);
+        }, 30);
+      } else {
+        // User typed something
+        this._userManuallyClearedId = false;
+        if (clearBtn) clearBtn.style.display = 'inline-flex';
+        if (switchHint) switchHint.style.display = 'inline';
+
+        // If user is typing a new ID that differs from original loaded ID, ensure password is empty
+        if (this._lastFilledId && currentVal.toUpperCase() !== this._lastFilledId.toUpperCase()) {
+          if (passInput && passInput.value) {
+            passInput.value = '';
+            this._userManuallyClearedPass = true;
+            passInput.placeholder = 'Enter password for ' + currentVal.trim();
+          }
         }
       }
     });
 
-    idInput.addEventListener('change', () => {
-      const currentVal = idInput.value.trim();
-      if (clearBtn) {
-        clearBtn.style.display = currentVal.length > 0 ? 'inline-flex' : 'none';
+    if (passInput) {
+      passInput.addEventListener('input', () => {
+        const passVal = passInput.value;
+        if (passVal === '') {
+          // User explicitly cleared password!
+          this._userManuallyClearedPass = true;
+
+          // Active 300ms anti-refill guard against browser restoring password
+          let guardCount = 0;
+          const guard = setInterval(() => {
+            guardCount++;
+            if (this._userManuallyClearedPass && passInput.value !== '') {
+              passInput.value = '';
+            }
+            if (guardCount > 10) clearInterval(guard);
+          }, 30);
+        } else {
+          this._userManuallyClearedPass = false;
+        }
+      });
+
+      // Guard against Chromium / Edge re-filling on blur or focus
+      passInput.addEventListener('blur', () => {
+        if (this._userManuallyClearedPass && passInput.value !== '') {
+          passInput.value = '';
+        }
+      });
+      passInput.addEventListener('focus', () => {
+        if (this._userManuallyClearedPass && passInput.value !== '') {
+          passInput.value = '';
+        }
+      });
+    }
+
+    // Guard against Chromium / Edge re-filling on blur or focus
+    idInput.addEventListener('blur', () => {
+      if (this._userManuallyClearedId && idInput.value !== '') {
+        idInput.value = '';
+        if (clearBtn) clearBtn.style.display = 'none';
+      }
+    });
+    idInput.addEventListener('focus', () => {
+      if (this._userManuallyClearedId && idInput.value !== '') {
+        idInput.value = '';
+        if (clearBtn) clearBtn.style.display = 'none';
       }
     });
   },
@@ -210,6 +292,10 @@ const App = {
     const switchHint = document.getElementById('id-switch-hint');
     const rememberCheckbox = document.getElementById('login-remember-me');
 
+    this._userManuallyClearedId = true;
+    this._userManuallyClearedPass = true;
+    this._lastFilledId = '';
+
     if (idInput) {
       idInput.value = '';
       idInput.focus();
@@ -221,13 +307,22 @@ const App = {
     if (clearBtn) clearBtn.style.display = 'none';
     if (switchHint) switchHint.style.display = 'none';
 
+    try { localStorage.removeItem('mgi_saved_login_id'); } catch (e) {}
+    if (banner) banner.remove();
+    if (rememberCheckbox && forgetSaved) rememberCheckbox.checked = false;
+
+    // Multi-cycle guard to ensure browser password manager does not resurrect the inputs
+    let guardCount = 0;
+    const guard = setInterval(() => {
+      guardCount++;
+      if (this._userManuallyClearedId && idInput && idInput.value !== '') idInput.value = '';
+      if (this._userManuallyClearedPass && passInput && passInput.value !== '') passInput.value = '';
+      if (guardCount > 15) clearInterval(guard);
+    }, 25);
+
     if (forgetSaved) {
-      try { localStorage.removeItem('mgi_saved_login_id'); } catch (e) {}
-      if (banner) banner.remove();
-      if (rememberCheckbox) rememberCheckbox.checked = false;
-      this.showToast('Saved ID removed. You can now enter another ID.', 'info');
+      this.showToast('Saved credentials cleared. You can now enter another ID.', 'info');
     }
-    this._lastFilledId = '';
   },
 
   togglePasswordVisibility(inputId, btn) {
