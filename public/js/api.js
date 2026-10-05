@@ -168,8 +168,57 @@ const API = {
         return origin.replace(/\/+$/, '');
       }
     } catch (e) {}
-    return CLOUD_BACKEND_URL;
+    return 'http://localhost:3000';
   })(),
+
+  async autoDetectBackend() {
+    try {
+      const saved = localStorage.getItem('mgi_api_server_url');
+      if (saved && saved.trim()) {
+        this.baseUrl = saved.trim().replace(/\/+$/, '');
+        return this.baseUrl;
+      }
+
+      const origin = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+      const isFile = !origin || origin === 'null' || origin.startsWith('file:') || origin.startsWith('content:');
+
+      // 1. If on port 3000 already, use current origin
+      if (!isFile && origin.includes(':3000')) {
+        this.baseUrl = origin.replace(/\/+$/, '');
+        return this.baseUrl;
+      }
+
+      // 2. Test local Node Express server (http://localhost:3000) with fast ping
+      try {
+        const ping = await this.pingServer('http://localhost:3000');
+        if (ping && ping.online) {
+          this.baseUrl = 'http://localhost:3000';
+          return this.baseUrl;
+        }
+      } catch (e) {}
+
+      // 3. If running on HTTP/HTTPS dev server (e.g. Live Server port 5500), test current origin
+      if (!isFile) {
+        try {
+          const originPing = await this.pingServer(origin);
+          if (originPing && originPing.online) {
+            this.baseUrl = origin.replace(/\/+$/, '');
+            return this.baseUrl;
+          }
+        } catch (e) {}
+      }
+
+      // 4. Test Cloud URL
+      try {
+        const cloudPing = await this.pingServer(CLOUD_BACKEND_URL);
+        if (cloudPing && cloudPing.online) {
+          this.baseUrl = CLOUD_BACKEND_URL;
+          return this.baseUrl;
+        }
+      } catch (e) {}
+    } catch (e) {}
+    return this.baseUrl;
+  },
 
   setBaseUrl(url) {
     if (url) {
@@ -223,12 +272,15 @@ const API = {
       headers['Content-Type'] = 'application/json';
     }
 
-    // Default 12000ms timeout controller to avoid premature aborts on mobile networks and cloud cold-starts
+    // Adaptive timeout: 3500ms for login (fast failover to offline engine), 10000ms for heavy requests
+    const isLogin = endpoint.includes('/auth/login');
+    const timeoutDuration = options.timeout || (isLogin ? 3500 : 10000);
+
     let timeoutId;
     let signal = options.signal;
     if (!signal && typeof AbortController !== 'undefined') {
       const controller = new AbortController();
-      timeoutId = setTimeout(() => controller.abort(), 12000);
+      timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
       signal = controller.signal;
     }
 
@@ -245,7 +297,7 @@ const API = {
         return {
           success: false,
           isWakingUp: true,
-          message: 'Cloud server is offline or waking up. Seamless offline mode active.'
+          message: 'Backend server is offline or waking up. Seamless offline mode active.'
         };
       }
 
@@ -555,18 +607,27 @@ const API = {
     const targetUrl = (customUrl || this.baseUrl).replace(/\/+$/, '');
     const startTime = Date.now();
     try {
+      let signal;
+      let tid;
+      if (typeof AbortController !== 'undefined') {
+        const controller = new AbortController();
+        tid = setTimeout(() => controller.abort(), 2500);
+        signal = controller.signal;
+      }
       const res = await fetch(`${targetUrl}/api/health`, {
         method: 'GET',
-        headers: { 'Accept': 'application/json' }
+        headers: { 'Accept': 'application/json' },
+        signal
       });
+      if (tid) clearTimeout(tid);
       const latency = Date.now() - startTime;
       if (res.ok) {
         const data = await res.json();
-        return { online: true, latency, data };
+        return { online: true, latency, data, targetUrl };
       }
-      return { online: false, latency, status: res.status };
+      return { online: false, latency, status: res.status, targetUrl };
     } catch (e) {
-      return { online: false, error: e.message };
+      return { online: false, error: e.message, targetUrl };
     }
   },
 

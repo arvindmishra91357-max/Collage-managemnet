@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mgi-cyber-portal-v5.2.2';
+const CACHE_NAME = 'mgi-cyber-portal-v5.3.0';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -21,7 +21,7 @@ const STATIC_ASSETS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
-      console.log('[SW] Pre-caching core app shell v5.2.0');
+      console.log('[SW] Pre-caching core app shell v5.3.0');
       for (const asset of STATIC_ASSETS) {
         try {
           await cache.add(asset);

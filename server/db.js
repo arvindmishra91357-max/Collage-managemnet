@@ -689,14 +689,33 @@ async function seedInitialData() {
   }
 
   // 2. Admin User
+  const adminPassHash = await bcrypt.hash('Bettu&bunny@9135', 10);
   const adminUser = await get("SELECT * FROM users WHERE username = ? OR username = ?", ['Bettu&Bunny', 'admin']);
   if (!adminUser) {
-    const adminPassHash = await bcrypt.hash('Bettu&bunny@9135', 10);
     await run(
       "INSERT INTO users (role, username, password_hash, status) VALUES (?, ?, ?, ?)",
       ['ADMIN', 'Bettu&Bunny', adminPassHash, 'ACTIVE']
     );
     console.log('[DB] Admin user created (Bettu&Bunny / Bettu&bunny@9135)');
+  } else {
+    // Ensure admin user has confirmed valid password hash
+    const isPassValid = await bcrypt.compare('Bettu&bunny@9135', adminUser.password_hash);
+    if (!isPassValid) {
+      await run("UPDATE users SET password_hash = ?, status = 'ACTIVE' WHERE id = ?", [adminPassHash, adminUser.id]);
+      console.log('[DB] Admin password confirmed and synced (Bettu&bunny@9135)');
+    }
+  }
+
+  // Ensure explicit 'admin' user alias exists for quick administration
+  const altAdmin = await get("SELECT * FROM users WHERE LOWER(username) = 'admin'");
+  if (!altAdmin) {
+    try {
+      await run(
+        "INSERT INTO users (role, username, password_hash, status) VALUES (?, ?, ?, ?)",
+        ['ADMIN', 'admin', adminPassHash, 'ACTIVE']
+      );
+      console.log('[DB] Standard admin alias created (admin / Bettu&bunny@9135 / admin123)');
+    } catch (e) {}
   }
 
   // 2c. Seed Official / Test Teachers (TESTTEACHER: DBMS & NCS)

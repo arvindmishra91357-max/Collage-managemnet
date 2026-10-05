@@ -63,10 +63,6 @@ const App = {
     }
   },
 
-  _userManuallyClearedId: false,
-  _userManuallyClearedPass: false,
-  _lastFilledId: '',
-
   showAuth() {
     // Purge any active modals or stray overlays from DOM
     document.querySelectorAll('.attendance-confirm-overlay, .modal-backdrop, .modal-overlay, #quick-confirm-modal, #admin-quick-confirm-modal').forEach(el => el.remove());
@@ -78,213 +74,358 @@ const App = {
 
     root.innerHTML = `
       <div class="auth-wrapper">
-        <div class="auth-card">
-          <div class="auth-header">
-            <div class="auth-logo">
-              <svg viewBox="0 0 512 512" width="48" height="48">
-                <defs>
-                  <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="#ffffff" />
-                    <stop offset="100%" stop-color="#38bdf8" />
-                  </linearGradient>
-                </defs>
-                <path d="M256 40 L440 110 C440 330 256 440 256 470 C256 440 72 330 72 110 Z" fill="none" stroke="url(#shieldGrad)" stroke-width="28" />
-                <circle cx="256" cy="220" r="40" fill="#38bdf8" />
-                <path d="M256 260 L256 360 M230 310 L282 310" stroke="#38bdf8" stroke-width="20" stroke-linecap="round" />
-              </svg>
+        <div class="auth-container">
+          
+          <!-- Desktop Left Hero Panel (Shown on Desktop >= 920px) -->
+          <div class="auth-hero-panel">
+            <div>
+              <div style="display:flex; align-items:center; gap:16px; margin-bottom:24px;">
+                <div class="auth-logo" style="margin:0; width:60px; height:60px; flex-shrink:0;">
+                  <svg viewBox="0 0 512 512" width="36" height="36">
+                    <defs>
+                      <linearGradient id="shieldGradHero" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#ffffff" />
+                        <stop offset="100%" stop-color="#38bdf8" />
+                      </linearGradient>
+                    </defs>
+                    <path d="M256 40 L440 110 C440 330 256 440 256 470 C256 440 72 330 72 110 Z" fill="none" stroke="url(#shieldGradHero)" stroke-width="28" />
+                    <circle cx="256" cy="220" r="40" fill="#38bdf8" />
+                    <path d="M256 260 L256 360 M230 310 L282 310" stroke="#38bdf8" stroke-width="20" stroke-linecap="round" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 style="font-size:20px; font-weight:900; letter-spacing:-0.02em; line-height:1.2; margin:0;">MISHRA GROUP INSTITUTE</h2>
+                  <p style="font-size:12.5px; color:var(--text-secondary); margin:2px 0 0;">Faculty of Engineering & Technology</p>
+                </div>
+              </div>
+
+              <div style="margin-bottom:20px;">
+                <span class="auth-badge" style="font-size:12px; margin-top:0;">B.TECH CYBER SECURITY • DIVISION 3CYBER7</span>
+                <p style="font-size:13px; color:var(--text-muted); margin-top:8px; line-height:1.5;">
+                  Official Academic Portal & Real-time Operations Platform for Academic Year 2026-27.
+                </p>
+              </div>
+
+              <!-- Feature Highlights -->
+              <div style="margin-top:24px;">
+                <div class="hero-feature-item">
+                  <div class="hero-feature-icon">⚡</div>
+                  <div>
+                    <div class="hero-feature-title">Live QR & Biometric Attendance</div>
+                    <div class="hero-feature-desc">Dynamic animated QR scan with campus GPS geofencing & offline failsafe.</div>
+                  </div>
+                </div>
+
+                <div class="hero-feature-item">
+                  <div class="hero-feature-icon">📅</div>
+                  <div>
+                    <div class="hero-feature-title">Smart Timetable & Live Countdown</div>
+                    <div class="hero-feature-desc">Real-time room overrides, active lecture timers, and lab allocations.</div>
+                  </div>
+                </div>
+
+                <div class="hero-feature-item">
+                  <div class="hero-feature-icon">📚</div>
+                  <div>
+                    <div class="hero-feature-title">Subject Hub & Study Materials</div>
+                    <div class="hero-feature-desc">Download lecture slides, syllabus, handwritten notes & past papers.</div>
+                  </div>
+                </div>
+
+                <div class="hero-feature-item">
+                  <div class="hero-feature-icon">🛡️</div>
+                  <div>
+                    <div class="hero-feature-title">Multi-Role Portal Access</div>
+                    <div class="hero-feature-desc">Dedicated dashboards for Students, Class Representatives, Faculty & Admins.</div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <h1 class="auth-title">MISHRA GROUP INSTITUTE</h1>
-            <p class="auth-subtitle">Faculty of Engineering & Technology</p>
-            <span class="auth-badge">B.TECH CYBER SECURITY • 3CYBER7</span>
+
+            <!-- Server Connection Status Pill in Hero Panel -->
+            <div style="margin-top:20px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:space-between;">
+              <span id="hero-server-status-pill" class="server-status-pill testing">
+                <span>🔄</span> Testing server connection...
+              </span>
+              <button type="button" onclick="App.openServerConfigModal()" style="background:transparent; border:none; color:var(--text-muted); font-size:11.5px; cursor:pointer; text-decoration:underline;">
+                Server Settings ⚙️
+              </button>
+            </div>
           </div>
 
-          <!-- Saved Account Quick Switch Header -->
-          ${savedId ? `
-            <div id="saved-account-banner" style="display:flex; align-items:center; justify-content:space-between; background:rgba(56,189,248,0.1); border:1px solid rgba(56,189,248,0.28); padding:8px 12px; border-radius:var(--radius-md); margin-top:8px; font-size:12px;">
-              <span style="color:#38bdf8; font-weight:600; display:flex; align-items:center; gap:6px;">
-                <span>👤</span> Saved ID: <strong>${savedId}</strong>
-              </span>
-              <button type="button" onclick="App.clearLoginFields(true)" style="background:transparent; border:none; color:#f87171; font-weight:700; font-size:11.5px; cursor:pointer; padding:2px 6px; text-decoration:underline;">
-                Switch / Clear ID
-              </button>
-            </div>
-          ` : ''}
-
-          <!-- Unified Single Login Form for Students, Teachers, and Admins -->
-          <form id="unified-login-form" onsubmit="event.preventDefault(); App.handleUnifiedLogin();" style="margin-top:10px;" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+          <!-- Main Login Card (Mobile Centered & Desktop Right Panel) -->
+          <div class="auth-card">
             
-            <!-- Browser Autofill Neutralizer: Absorbs Chromium & Edge aggressive auto-refill probe -->
-            <input type="text" name="chrome_prevent_autofill_user" style="display:none!important;position:absolute!important;opacity:0!important;height:0!important;width:0!important;pointer-events:none;" tabindex="-1" autocomplete="off" />
-            <input type="password" name="chrome_prevent_autofill_pass" style="display:none!important;position:absolute!important;opacity:0!important;height:0!important;width:0!important;pointer-events:none;" tabindex="-1" autocomplete="new-password" />
+            <!-- Mobile Header (Visible only on < 920px) -->
+            <div class="auth-header">
+              <div class="auth-logo">
+                <svg viewBox="0 0 512 512" width="42" height="42">
+                  <defs>
+                    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#ffffff" />
+                      <stop offset="100%" stop-color="#38bdf8" />
+                    </linearGradient>
+                  </defs>
+                  <path d="M256 40 L440 110 C440 330 256 440 256 470 C256 440 72 330 72 110 Z" fill="none" stroke="url(#shieldGrad)" stroke-width="28" />
+                  <circle cx="256" cy="220" r="40" fill="#38bdf8" />
+                  <path d="M256 260 L256 360 M230 310 L282 310" stroke="#38bdf8" stroke-width="20" stroke-linecap="round" />
+                </svg>
+              </div>
+              <h1 class="auth-title">MISHRA GROUP INSTITUTE</h1>
+              <p class="auth-subtitle">Faculty of Engineering & Technology</p>
+              <span class="auth-badge">B.TECH CYBER SECURITY • 3CYBER7</span>
+            </div>
 
-            <div class="form-group">
+            <!-- Desktop Card Header (Visible only on >= 920px) -->
+            <div class="desktop-card-header">
+              <h2 style="font-size:22px; font-weight:800; letter-spacing:-0.02em; margin:0 0 4px;">Sign In to Portal</h2>
+              <p style="font-size:13px; color:var(--text-secondary); margin:0;">Enter your institutional credentials to continue</p>
+            </div>
+
+            <!-- Saved Account Quick Switch Banner -->
+            ${savedId ? `
+              <div id="saved-account-banner" style="display:flex; align-items:center; justify-content:space-between; background:rgba(56,189,248,0.1); border:1px solid rgba(56,189,248,0.28); padding:8px 12px; border-radius:var(--radius-md); margin-bottom:14px; font-size:12px;">
+                <span style="color:#38bdf8; font-weight:600; display:flex; align-items:center; gap:6px;">
+                  <span>👤</span> Saved ID: <strong>${savedId}</strong>
+                </span>
+                <button type="button" onclick="App.clearLoginFields(true)" style="background:transparent; border:none; color:#f87171; font-weight:700; font-size:11.5px; cursor:pointer; padding:2px 6px; text-decoration:underline;">
+                  Clear / Switch
+                </button>
+              </div>
+            ` : ''}
+
+            <!-- Quick Role Chips for 1-Click Fast PC Testing -->
+            <div style="margin-bottom:14px;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                <label class="form-label" style="margin-bottom:0;">User / Account ID *</label>
-                <span id="id-switch-hint" style="font-size:11px; color:var(--text-muted); display:${savedId ? 'inline' : 'none'};">Tap ✕ to enter another ID</span>
+                <span style="font-size:11.5px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px;">Select Role Quick Fill</span>
+                <span id="auth-server-status-pill" class="server-status-pill testing" style="font-size:11px; padding:3px 8px;">
+                  <span>🔄</span> Connecting...
+                </span>
               </div>
-              <div class="input-container">
-                <span class="input-icon">🆔</span>
-                <input type="text" id="login-identifier" name="username" class="form-control has-action" placeholder="Enter UG ID, Teacher ID, or Admin ID" autocomplete="off" required spellcheck="false" autocapitalize="none" data-lpignore="true" data-form-type="other" />
-                <button type="button" id="btn-clear-id" class="input-action-btn" onclick="App.clearLoginFields(false)" title="Clear and enter another ID" style="${savedId ? 'display:inline-flex;' : 'display:none;'}" tabindex="-1">
-                  ✕
+              <div class="role-chips-row">
+                <button type="button" id="role-chip-student" class="role-chip active" onclick="App.selectRoleChip('student')">
+                  <span>🎓</span> Student
+                </button>
+                <button type="button" id="role-chip-admin" class="role-chip" onclick="App.selectRoleChip('admin')">
+                  <span>🛡️</span> Admin
+                </button>
+                <button type="button" id="role-chip-teacher" class="role-chip" onclick="App.selectRoleChip('teacher')">
+                  <span>👨‍🏫</span> Faculty
                 </button>
               </div>
             </div>
 
-            <div class="form-group">
-              <label class="form-label">Password *</label>
-              <div class="input-container">
-                <span class="input-icon">🔒</span>
-                <input type="password" id="login-password" name="password" class="form-control has-action" placeholder="••••••••" autocomplete="new-password" required data-lpignore="true" data-form-type="other" />
-                <button type="button" id="btn-toggle-password" class="input-action-btn" onclick="App.togglePasswordVisibility('login-password', this)" title="Show / Hide Password" tabindex="-1">
-                  👁️
+            <!-- Unified Login Form -->
+            <form id="unified-login-form" onsubmit="event.preventDefault(); App.handleUnifiedLogin();" autocomplete="on">
+              
+              <div class="form-group">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                  <label class="form-label" for="login-identifier" style="margin-bottom:0;">Account / User ID *</label>
+                  <span id="id-switch-hint" style="font-size:11px; color:var(--text-muted); display:${savedId ? 'inline' : 'none'};">Tap ✕ to change</span>
+                </div>
+                <div class="input-container">
+                  <span class="input-icon">🆔</span>
+                  <input 
+                    type="text" 
+                    id="login-identifier" 
+                    name="username" 
+                    class="form-control has-action" 
+                    placeholder="UG ID (e.g. 26UG033181), Roll No, or Admin" 
+                    autocomplete="username" 
+                    required 
+                    spellcheck="false" 
+                    autocapitalize="none"
+                  />
+                  <button type="button" id="btn-clear-id" class="input-action-btn" onclick="App.clearLoginFields(false)" title="Clear ID field" style="${savedId ? 'display:inline-flex;' : 'display:none;'}" tabindex="-1">
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="login-password">Password *</label>
+                <div class="input-container">
+                  <span class="input-icon">🔒</span>
+                  <input 
+                    type="password" 
+                    id="login-password" 
+                    name="password" 
+                    class="form-control has-action" 
+                    placeholder="••••••••" 
+                    autocomplete="current-password" 
+                    required 
+                  />
+                  <button type="button" id="btn-toggle-password" class="input-action-btn" onclick="App.togglePasswordVisibility('login-password', this)" title="Show / Hide Password" tabindex="-1">
+                    👁️
+                  </button>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                  <label style="display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--text-secondary); cursor:pointer; user-select:none;">
+                    <input type="checkbox" id="login-remember-me" checked style="accent-color:var(--primary); cursor:pointer; width:14px; height:14px;" />
+                    <span>Remember My ID</span>
+                  </label>
+                  <a href="javascript:void(0)" onclick="App.showForgotPasswordModal()" style="color:#38bdf8; font-size:12px; font-weight:600; text-decoration:none;">Forgot Password?</a>
+                </div>
+              </div>
+
+              <button type="submit" class="btn-primary" id="login-submit-btn" style="margin-top:14px; font-weight:800; letter-spacing:0.5px; height:46px;">
+                <span>Sign In to Portal</span>
+              </button>
+
+              <div style="text-align:center; margin-top:16px; padding-top:12px; border-top:1px solid var(--border-color); font-size:12px; color:var(--text-muted);">
+                🛡️ Mishra Group Institute • Division 3CYBER7 Official Portal
+              </div>
+
+              <!-- Secondary Actions & Utilities -->
+              <div style="margin-top:14px; text-align:center; display:flex; flex-direction:column; gap:8px; align-items:center;">
+                <button type="button" id="btn-pwa-install" class="btn-pwa-install" onclick="App.triggerPWAInstall()" style="display:none; align-items:center; justify-content:center; gap:8px; padding:9px 20px; font-size:12.5px; font-weight:700; border-radius:var(--radius-full); background:linear-gradient(135deg, rgba(56,189,248,0.2), rgba(14,165,233,0.15)); border:1px solid rgba(56,189,248,0.5); color:#38bdf8; cursor:pointer; transition:all 0.2s ease;">
+                  <span>📲</span> <span>Install App (PWA)</span>
                 </button>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center;">
+                  <a href="/apk/MGI_Student_Portal.apk" download="MGI_Student_Portal.apk" onclick="App.handleAPKDownload(event)" style="display:inline-flex; align-items:center; gap:6px; padding:7px 14px; font-size:12px; font-weight:700; text-decoration:none; border-radius:var(--radius-full); background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.35); color:#38bdf8; transition:all 0.2s ease;">
+                    <span>🤖</span> <span>Download Android App (.apk)</span>
+                  </a>
+                  <button type="button" onclick="App.openServerConfigModal()" style="background:transparent; border:none; color:var(--text-muted); font-size:12px; cursor:pointer; display:inline-flex; align-items:center; gap:4px; text-decoration:underline;">
+                    <span>⚙️</span> <span>Connection Settings</span>
+                  </button>
+                </div>
               </div>
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-                <label style="display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--text-secondary); cursor:pointer; user-select:none;">
-                  <input type="checkbox" id="login-remember-me" checked style="accent-color:var(--primary); cursor:pointer; width:14px; height:14px;" />
-                  <span>Remember ID</span>
-                </label>
-                <a href="javascript:void(0)" onclick="App.showForgotPasswordModal()" style="color:#38bdf8; font-size:12px; font-weight:600; text-decoration:none;">Forgot Password?</a>
-              </div>
-            </div>
-
-            <button type="submit" class="btn-primary" id="login-submit-btn" style="margin-top:14px; font-weight:800; letter-spacing:0.5px; height:46px;">
-              Sign In to Portal
-            </button>
-
-            <div style="text-align:center; margin-top:16px; padding-top:12px; border-top:1px solid var(--border-color); font-size:12px; color:var(--text-muted);">
-              🛡️ Unified portal authentication for Division 3CYBER7 Students & Faculty
-            </div>
-
-            <div style="margin-top:14px; text-align:center; display:flex; flex-direction:column; gap:8px; align-items:center;">
-              <button type="button" id="btn-pwa-install" class="btn-pwa-install" onclick="App.triggerPWAInstall()" style="display:none; align-items:center; justify-content:center; gap:8px; padding:9px 20px; font-size:12.5px; font-weight:700; border-radius:var(--radius-full); background:linear-gradient(135deg, rgba(56,189,248,0.2), rgba(14,165,233,0.15)); border:1px solid rgba(56,189,248,0.5); color:#38bdf8; cursor:pointer; transition:all 0.2s ease;">
-                <span>📲</span> <span>Install App (PWA)</span>
-              </button>
-              <a href="/apk/MGI_Student_Portal.apk" download="MGI_Student_Portal.apk" onclick="App.handleAPKDownload(event)" style="display:inline-flex; align-items:center; gap:8px; padding:8px 16px; font-size:12px; font-weight:700; text-decoration:none; border-radius:var(--radius-full); background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.35); color:#38bdf8; transition:all 0.2s ease;">
-                <span>🤖</span> <span>Download Android App (.apk)</span>
-              </a>
-              <button type="button" onclick="App.openServerConfigModal()" style="background:transparent; border:none; color:var(--text-muted); font-size:11.5px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; text-decoration:underline;">
-                <span>⚙️</span> <span>Server Connection Settings</span>
-              </button>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
       </div>
     `;
+
     this.setupLoginInputHandlers(savedId);
     setTimeout(() => this.updatePWAInstallVisibility(), 50);
   },
 
-  setupLoginInputHandlers(initialId = '') {
-    this._userManuallyClearedId = false;
-    this._userManuallyClearedPass = false;
-    this._lastFilledId = (initialId || '').trim();
+  selectRoleChip(role) {
+    const idInput = document.getElementById('login-identifier');
+    const passInput = document.getElementById('login-password');
+    const clearBtn = document.getElementById('btn-clear-id');
+    document.querySelectorAll('.role-chip').forEach(c => c.classList.remove('active'));
+    const clickedChip = document.getElementById(`role-chip-${role}`);
+    if (clickedChip) clickedChip.classList.add('active');
 
+    if (role === 'student') {
+      if (idInput) {
+        idInput.value = '26UG033181';
+        idInput.placeholder = 'Enter UG ID (e.g. 26UG033181) or Roll No';
+      }
+      if (passInput) {
+        passInput.value = '';
+        passInput.placeholder = 'Enter Student Password (e.g. Bunny@2606)';
+        passInput.focus();
+      }
+      if (clearBtn) clearBtn.style.display = 'inline-flex';
+    } else if (role === 'admin') {
+      if (idInput) {
+        idInput.value = 'admin';
+        idInput.placeholder = 'Enter Admin ID (admin or Bettu&Bunny)';
+      }
+      if (passInput) {
+        passInput.value = '';
+        passInput.placeholder = 'Enter Admin Password (e.g. admin123)';
+        passInput.focus();
+      }
+      if (clearBtn) clearBtn.style.display = 'inline-flex';
+    } else if (role === 'teacher') {
+      if (idInput) {
+        idInput.value = 'TESTTEACHER';
+        idInput.placeholder = 'Enter Faculty ID (TESTTEACHER)';
+      }
+      if (passInput) {
+        passInput.value = '';
+        passInput.placeholder = 'Enter Faculty Password (e.g. TestTeacher@123)';
+        passInput.focus();
+      }
+      if (clearBtn) clearBtn.style.display = 'inline-flex';
+    }
+  },
+
+  async updateServerConnectionStatus() {
+    const pill = document.getElementById('auth-server-status-pill');
+    const heroPill = document.getElementById('hero-server-status-pill');
+    if (!pill && !heroPill) return;
+
+    try {
+      if (API.autoDetectBackend) {
+        await API.autoDetectBackend();
+      }
+      const ping = await API.pingServer();
+
+      const isLocal = API.baseUrl && (API.baseUrl.includes('localhost') || API.baseUrl.includes('127.0.0.1'));
+      let label = '';
+      let cls = 'server-status-pill';
+
+      if (ping && ping.online) {
+        label = `🟢 ${isLocal ? 'Local Server (Port 3000)' : 'Cloud Backend'} • ${ping.latency}ms`;
+        cls = 'server-status-pill';
+      } else {
+        label = '🟡 Standalone Offline Mode (Roster Active)';
+        cls = 'server-status-pill offline';
+      }
+
+      if (pill) {
+        pill.className = cls;
+        pill.innerHTML = label;
+      }
+      if (heroPill) {
+        heroPill.className = cls;
+        heroPill.innerHTML = label;
+      }
+    } catch (e) {
+      if (pill) {
+        pill.className = 'server-status-pill offline';
+        pill.innerHTML = '🟡 Offline Engine Active';
+      }
+    }
+  },
+
+  setupLoginInputHandlers(initialId = '') {
     const idInput = document.getElementById('login-identifier');
     const passInput = document.getElementById('login-password');
     const clearBtn = document.getElementById('btn-clear-id');
     const switchHint = document.getElementById('id-switch-hint');
-    const banner = document.getElementById('saved-account-banner');
 
     if (!idInput) return;
 
-    // Safely set initial value via JS so defaultValue is blank (prevents browser dirty-state restoration)
-    if (initialId && !this._userManuallyClearedId) {
+    if (initialId) {
       idInput.value = initialId;
+      if (clearBtn) clearBtn.style.display = 'inline-flex';
     }
 
-    // Input listener: Detect manual clearing vs typing
+    // Normal, responsive clear button toggle without destructive blur loops
     idInput.addEventListener('input', () => {
-      const currentVal = idInput.value;
-      if (currentVal === '') {
-        // User explicitly cleared username!
-        this._userManuallyClearedId = true;
-        this._lastFilledId = '';
-        if (clearBtn) clearBtn.style.display = 'none';
-        if (switchHint) switchHint.style.display = 'none';
-        if (banner) banner.style.display = 'none';
-        try { localStorage.removeItem('mgi_saved_login_id'); } catch (e) {}
+      const val = idInput.value.trim();
+      if (clearBtn) clearBtn.style.display = val ? 'inline-flex' : 'none';
+      if (switchHint) switchHint.style.display = val ? 'inline' : 'none';
+    });
 
-        // When username is emptied, also clear password so old password is not retained
-        if (passInput) {
-          passInput.value = '';
-          this._userManuallyClearedPass = true;
-        }
-
-        // Active 300ms anti-refill guard against async browser autofill injection
-        let guardCount = 0;
-        const guard = setInterval(() => {
-          guardCount++;
-          if (this._userManuallyClearedId && idInput.value !== '') {
-            idInput.value = '';
-          }
-          if (guardCount > 10) clearInterval(guard);
-        }, 30);
-      } else {
-        // User typed something
-        this._userManuallyClearedId = false;
-        if (clearBtn) clearBtn.style.display = 'inline-flex';
-        if (switchHint) switchHint.style.display = 'inline';
-
-        // If user is typing a new ID that differs from original loaded ID, ensure password is empty
-        if (this._lastFilledId && currentVal.toUpperCase() !== this._lastFilledId.toUpperCase()) {
-          if (passInput && passInput.value) {
-            passInput.value = '';
-            this._userManuallyClearedPass = true;
-            passInput.placeholder = 'Enter password for ' + currentVal.trim();
-          }
+    // Smart PC keyboard Enter navigation: moves focus to password or submits
+    idInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (passInput && !passInput.value) {
+          passInput.focus();
+        } else {
+          App.handleUnifiedLogin();
         }
       }
     });
 
     if (passInput) {
-      passInput.addEventListener('input', () => {
-        const passVal = passInput.value;
-        if (passVal === '') {
-          // User explicitly cleared password!
-          this._userManuallyClearedPass = true;
-
-          // Active 300ms anti-refill guard against browser restoring password
-          let guardCount = 0;
-          const guard = setInterval(() => {
-            guardCount++;
-            if (this._userManuallyClearedPass && passInput.value !== '') {
-              passInput.value = '';
-            }
-            if (guardCount > 10) clearInterval(guard);
-          }, 30);
-        } else {
-          this._userManuallyClearedPass = false;
-        }
-      });
-
-      // Guard against Chromium / Edge re-filling on blur or focus
-      passInput.addEventListener('blur', () => {
-        if (this._userManuallyClearedPass && passInput.value !== '') {
-          passInput.value = '';
-        }
-      });
-      passInput.addEventListener('focus', () => {
-        if (this._userManuallyClearedPass && passInput.value !== '') {
-          passInput.value = '';
+      passInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          App.handleUnifiedLogin();
         }
       });
     }
 
-    // Guard against Chromium / Edge re-filling on blur or focus
-    idInput.addEventListener('blur', () => {
-      if (this._userManuallyClearedId && idInput.value !== '') {
-        idInput.value = '';
-        if (clearBtn) clearBtn.style.display = 'none';
-      }
-    });
-    idInput.addEventListener('focus', () => {
-      if (this._userManuallyClearedId && idInput.value !== '') {
-        idInput.value = '';
-        if (clearBtn) clearBtn.style.display = 'none';
-      }
-    });
+    // Auto-detect server in background & update live ping pill
+    setTimeout(() => this.updateServerConnectionStatus(), 60);
   },
 
   clearLoginFields(forgetSaved = false) {
@@ -294,10 +435,6 @@ const App = {
     const banner = document.getElementById('saved-account-banner');
     const switchHint = document.getElementById('id-switch-hint');
     const rememberCheckbox = document.getElementById('login-remember-me');
-
-    this._userManuallyClearedId = true;
-    this._userManuallyClearedPass = true;
-    this._lastFilledId = '';
 
     if (idInput) {
       idInput.value = '';
@@ -313,15 +450,6 @@ const App = {
     try { localStorage.removeItem('mgi_saved_login_id'); } catch (e) {}
     if (banner) banner.remove();
     if (rememberCheckbox && forgetSaved) rememberCheckbox.checked = false;
-
-    // Multi-cycle guard to ensure browser password manager does not resurrect the inputs
-    let guardCount = 0;
-    const guard = setInterval(() => {
-      guardCount++;
-      if (this._userManuallyClearedId && idInput && idInput.value !== '') idInput.value = '';
-      if (this._userManuallyClearedPass && passInput && passInput.value !== '') passInput.value = '';
-      if (guardCount > 15) clearInterval(guard);
-    }, 25);
 
     if (forgetSaved) {
       this.showToast('Saved credentials cleared. You can now enter another ID.', 'info');
@@ -429,18 +557,25 @@ const App = {
   },
 
   async handleUnifiedLogin() {
-    const identifier = document.getElementById('login-identifier').value.trim();
-    const password = document.getElementById('login-password').value;
+    const idInput = document.getElementById('login-identifier');
+    const passInput = document.getElementById('login-password');
+    const identifier = (idInput ? idInput.value : '').trim();
+    const password = (passInput ? passInput.value : '').trim();
     const submitBtn = document.getElementById('login-submit-btn');
 
     if (!identifier || !password) {
-      this.showToast('Please enter UG ID and Password.', 'error');
+      this.showToast('Please enter your Account ID and Password.', 'error');
+      if (!identifier && idInput) idInput.focus();
+      else if (!password && passInput) passInput.focus();
       return;
     }
 
     if (submitBtn) {
       submitBtn.disabled = true;
-      submitBtn.innerText = 'Verifying Credentials...';
+      submitBtn.innerHTML = `
+        <span style="display:inline-block; width:16px; height:16px; border:2px solid rgba(255,255,255,0.3); border-top-color:#ffffff; border-radius:50%; animation:spin 0.6s linear infinite; vertical-align:middle; margin-right:8px;"></span>
+        <span>Verifying Credentials...</span>
+      `;
     }
 
     this.showToast('Authenticating with Cyber Portal...', 'info');
@@ -448,7 +583,7 @@ const App = {
 
     if (submitBtn) {
       submitBtn.disabled = false;
-      submitBtn.innerText = 'Sign In to Portal';
+      submitBtn.innerHTML = '<span>Sign In to Portal</span>';
     }
 
     if (res.success) {
@@ -551,7 +686,10 @@ const App = {
     if ('serviceWorker' in navigator) {
       const reg = () => {
         navigator.serviceWorker.register('/sw.js')
-          .then(r => console.log('[PWA] Service Worker registered:', r.scope))
+          .then(r => {
+            console.log('[PWA] Service Worker registered:', r.scope);
+            try { r.update(); } catch (e) {}
+          })
           .catch(err => console.warn('[PWA] SW registration failed:', err));
       };
       if (document.readyState === 'complete') {
