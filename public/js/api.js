@@ -256,6 +256,11 @@ const API = {
     }
   },
 
+  isOfflineSession() {
+    const token = this.getToken();
+    return !token || token.startsWith('mgi_offline_token_');
+  },
+
   async request(endpoint, options = {}) {
     const url = `${this.baseUrl}${endpoint}`;
     const token = this.getToken();
@@ -272,9 +277,20 @@ const API = {
       headers['Content-Type'] = 'application/json';
     }
 
-    // Adaptive timeout: 3500ms for login (fast failover to offline engine), 10000ms for heavy requests
     const isLogin = endpoint.includes('/auth/login');
-    const timeoutDuration = options.timeout || (isLogin ? 3500 : 10000);
+    const isOfflineToken = this.isOfflineSession();
+
+    // If session is already offline and this is NOT a login attempt or health ping, skip slow network attempt
+    if (!isLogin && isOfflineToken && !endpoint.includes('/health')) {
+      return {
+        success: false,
+        offline: true,
+        message: 'Offline session active. Using local verified data.'
+      };
+    }
+
+    // Adaptive timeout: 2000ms for login (fast failover to offline engine), 6000ms for other requests
+    const timeoutDuration = options.timeout || (isLogin ? 2000 : 6000);
 
     let timeoutId;
     let signal = options.signal;
@@ -303,7 +319,8 @@ const API = {
 
       const data = await res.json();
 
-      if (res.status === 401) {
+      // Only authenticated protected calls should trigger session expired logout, NEVER login attempts!
+      if (!isLogin && res.status === 401) {
         this.setToken(null);
         this.setUser(null);
         if (window.App && window.App.showAuth) {
@@ -348,11 +365,12 @@ const API = {
       return { success: false, message: 'Please provide UG ID / Admin ID and Password.' };
     }
 
-    // 1. Try Live Server API First
+    // 1. Try Live Server API First (Fast 2s timeout)
     try {
       const res = await this.request('/api/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ identifier: idClean, password: passClean })
+        body: JSON.stringify({ identifier: idClean, password: passClean }),
+        timeout: 2000
       });
 
       if (res && res.success && res.token) {
@@ -362,7 +380,7 @@ const API = {
         return res;
       }
 
-      // If server explicitly returned wrong credentials message (and was not offline/waking up)
+      // If server explicitly returned an error (wrong password, inactive account, etc.)
       if (res && res.success === false && !res.offline && !res.isWakingUp && res.message && !res.message.includes('offline') && !res.message.includes('waking up')) {
         // Also check if matches offline roster in case local seed credentials differ
         const fallbackRes = this.authenticateOffline(idClean, passClean);
@@ -370,7 +388,7 @@ const API = {
         return res;
       }
 
-      // If server was offline, unreachable, timed out, or returned HTML/404 (e.g. on Netlify):
+      // If server was offline, unreachable, timed out, or returned HTML/404:
       return this.authenticateOffline(idClean, passClean);
     } catch (err) {
       return this.authenticateOffline(idClean, passClean);
@@ -611,7 +629,7 @@ const API = {
       let tid;
       if (typeof AbortController !== 'undefined') {
         const controller = new AbortController();
-        tid = setTimeout(() => controller.abort(), 2500);
+        tid = setTimeout(() => controller.abort(), 1500);
         signal = controller.signal;
       }
       const res = await fetch(`${targetUrl}/api/health`, {
@@ -640,6 +658,9 @@ const API = {
   },
 
   async getProfile() {
+    if (this.isOfflineSession()) {
+      return { success: true, user: this.getUser(), isOffline: true };
+    }
     const res = await this.request('/api/auth/profile');
     if (res && res.success) return res;
     return { success: true, user: this.getUser() };

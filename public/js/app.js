@@ -198,7 +198,7 @@ const App = {
             <div style="margin-bottom:14px;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                 <span style="font-size:11.5px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px;">Select Role Quick Fill</span>
-                <span id="auth-server-status-pill" class="server-status-pill testing" style="font-size:11px; padding:3px 8px;">
+                <span id="auth-server-status-pill" class="server-status-pill testing" style="font-size:11px; padding:3px 8px; cursor:pointer;" onclick="App.openServerConfigModal()" title="Click to view or change Server Address">
                   <span>🔄</span> Connecting...
                 </span>
               </div>
@@ -314,33 +314,33 @@ const App = {
         idInput.placeholder = 'Enter UG ID (e.g. 26UG033181) or Roll No';
       }
       if (passInput) {
-        passInput.value = '';
+        passInput.value = 'Bunny@2606';
         passInput.placeholder = 'Enter Student Password (e.g. Bunny@2606)';
-        passInput.focus();
       }
       if (clearBtn) clearBtn.style.display = 'inline-flex';
+      this.showToast('Student credentials filled (26UG033181 / Bunny@2606). Ready to Sign In!', 'info');
     } else if (role === 'admin') {
       if (idInput) {
         idInput.value = 'admin';
         idInput.placeholder = 'Enter Admin ID (admin or Bettu&Bunny)';
       }
       if (passInput) {
-        passInput.value = '';
+        passInput.value = 'admin123';
         passInput.placeholder = 'Enter Admin Password (e.g. admin123)';
-        passInput.focus();
       }
       if (clearBtn) clearBtn.style.display = 'inline-flex';
+      this.showToast('Admin credentials filled (admin / admin123). Ready to Sign In!', 'info');
     } else if (role === 'teacher') {
       if (idInput) {
         idInput.value = 'TESTTEACHER';
         idInput.placeholder = 'Enter Faculty ID (TESTTEACHER)';
       }
       if (passInput) {
-        passInput.value = '';
+        passInput.value = 'TestTeacher@123';
         passInput.placeholder = 'Enter Faculty Password (e.g. TestTeacher@123)';
-        passInput.focus();
       }
       if (clearBtn) clearBtn.style.display = 'inline-flex';
+      this.showToast('Faculty credentials filled (TESTTEACHER / TestTeacher@123). Ready to Sign In!', 'info');
     }
   },
 
@@ -476,7 +476,7 @@ const App = {
     const existing = document.getElementById('server-config-modal');
     if (existing) existing.remove();
 
-    const currentUrl = API.baseUrl || 'https://mishra-group-institute-portal.onrender.com';
+    const currentUrl = API.baseUrl || 'http://localhost:3000';
 
     const modal = document.createElement('div');
     modal.className = 'modal-backdrop';
@@ -491,13 +491,26 @@ const App = {
           <button class="icon-btn" onclick="document.getElementById('server-config-modal').remove()" style="width:28px; height:28px;">✕</button>
         </div>
 
-        <p style="font-size:12px; color:var(--text-secondary); line-height:1.5; margin-bottom:14px;">
-          The portal automatically connects to your live Cloud Backend. If you have deployed a custom backend (Render, Railway, or Localhost), specify its URL below.
+        <p style="font-size:12px; color:var(--text-secondary); line-height:1.5; margin-bottom:12px;">
+          Connect your Android Mobile or Web browser to your Node.js backend server.
         </p>
+
+        <!-- Quick Presets -->
+        <div style="margin-bottom:14px;">
+          <label style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:6px;">Quick Presets</label>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button type="button" class="btn-sec" onclick="document.getElementById('cfg-server-url').value='http://10.227.22.145:3000'; App.testServerConnection();" style="padding:4px 8px; font-size:11px; margin:0;">
+              📶 Wi-Fi IP (10.227.22.145:3000)
+            </button>
+            <button type="button" class="btn-sec" onclick="document.getElementById('cfg-server-url').value='http://localhost:3000'; App.testServerConnection();" style="padding:4px 8px; font-size:11px; margin:0;">
+              💻 Localhost (3000)
+            </button>
+          </div>
+        </div>
 
         <div class="form-group" style="margin-bottom:12px;">
           <label class="form-label" style="font-size:12px;">Server API Base URL</label>
-          <input type="url" id="cfg-server-url" class="form-control" value="${currentUrl}" placeholder="https://your-backend.onrender.com" style="font-family:monospace; font-size:12px; padding:8px 12px;" />
+          <input type="url" id="cfg-server-url" class="form-control" value="${currentUrl}" placeholder="http://10.227.22.145:3000" style="font-family:monospace; font-size:12px; padding:8px 12px;" />
         </div>
 
         <div id="cfg-ping-result" style="font-size:12px; margin-bottom:14px; padding:8px 12px; border-radius:6px; background:rgba(255,255,255,0.04); display:flex; align-items:center; justify-content:space-between;">
@@ -528,7 +541,7 @@ const App = {
       this.showToast(`Server is online and reachable (${res.latency}ms)!`, 'success');
     } else {
       statusEl.innerHTML = `<span style="color:#f87171; font-weight:700;">🔴 Unreachable (${res.status || 'Offline'})</span>`;
-      this.showToast('Could not reach backend server. Netlify offline failsafe is active.', 'warning');
+      this.showToast('Could not reach backend server at this address. Offline mode will be used.', 'warning');
     }
   },
 
@@ -544,16 +557,18 @@ const App = {
     this.showToast(`Backend server set to: ${url}`, 'success');
     const modal = document.getElementById('server-config-modal');
     if (modal) modal.remove();
+    this.updateServerConnectionStatus();
   },
 
   resetServerConfig() {
     try {
       localStorage.removeItem('mgi_api_server_url');
     } catch (e) {}
-    API.baseUrl = 'https://mishra-group-institute-portal.onrender.com';
+    API.baseUrl = 'http://localhost:3000';
     const inputEl = document.getElementById('cfg-server-url');
     if (inputEl) inputEl.value = API.baseUrl;
-    this.showToast('Server URL reset to default cloud backend.', 'info');
+    this.showToast('Server URL reset to local default.', 'info');
+    this.updateServerConnectionStatus();
   },
 
   async handleUnifiedLogin() {
